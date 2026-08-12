@@ -1,0 +1,41 @@
+{
+  "project": {
+    "type": "chat",
+    "name": "BoazMasterOfTheUniversePoC (1) (1)",
+    "image": "",
+    "teamID": "24W6RebVXA",
+    "members": [],
+    "privacy": "private",
+    "platform": "webchat",
+    "_version": 1.2,
+    "linkType": "STRAIGHT",
+    "creatorID": 30,
+    "updatedBy": 30,
+    "apiPrivacy": "public",
+    "platformData": {
+      "invocationName": "template project general"
+    },
+    "customThemes": [],
+    "aiAssistSettings": {
+      "aiPlayground": true
+    },
+    "_id": "6a7a44019e75e81a203ecfce",
+    "updatedAt": "2026-08-10T21:34:57.969Z",
+    "devVersion": "6a7a44019e75e81a203ecfcf",
+    "liveVersion": "6a7a44019e75e81a203ecfd0"
+  },
+  "assistant": {
+    "id": "6a7a44019e75e81a203ecfce",
+    "updatedByID": 30,
+    "name": "BoazMasterOfTheUniversePoC (1) (1)",
+    "description": null,
+    "version": 0,
+    "workspaceID": "24W6RebVXA",
+    "folderID": 34,
+    "isDeleted": false,
+    "activeEnvironmentID": "6a7a44019e75e81a203ecfcf",
+    "createdAt": "2026-08-10T21:34:58.000Z",
+    "updatedAt": "2026-08-10T21:34:58.000Z"
+  },
+  "sourceProjectID": "6a7a2cc125eb9d65b51f82e9"
+}

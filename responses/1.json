@@ -1,0 +1,2733 @@
+{
+  "version": {
+    "_version": 13.1,
+    "autoSaveFromRestore": false,
+    "canvasTemplates": [],
+    "components": [],
+    "creatorID": 26,
+    "manualSave": false,
+    "model": {},
+    "name": "Initial Version",
+    "platformData": {
+      "slots": [],
+      "intents": [
+        {
+          "key": "None",
+          "name": "None",
+          "slots": [],
+          "inputs": [],
+          "noteID": null
+        }
+      ],
+      "settings": {
+        "restart": true,
+        "repeat": 100,
+        "locales": [
+          "en-US"
+        ],
+        "globalNoMatch": {
+          "type": "static",
+          "prompt": {
+            "content": [
+              {
+                "children": [
+                  {
+                    "text": "Sorry, I didn’t get that. Please try again."
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "messageDelay": {
+          "durationMilliseconds": 500
+        },
+        "defaultVoice": "elevenlabs:eleven_turbo_v2_5:ZF6FPAbjXT4488VcRRnw",
+        "deepgramASR": {
+          "silenceWaitMS": 10,
+          "punctuationWaitMS": 200,
+          "partialWaitMS": 1000,
+          "interruptionWaitWords": 1,
+          "audioCue": null
+        }
+      },
+      "publishing": {
+        "avatar": "https://cdn.voiceflow.com/assets/logo.png",
+        "color": "#397DFF",
+        "description": "Hi, how can I help you today?",
+        "feedback": false,
+        "image": "https://cdn.voiceflow.com/assets/logo.png",
+        "persistence": "localStorage",
+        "position": "right",
+        "spacing": {
+          "side": 24,
+          "bottom": 24
+        },
+        "title": "Your AI agent",
+        "watermark": true,
+        "audioInterface": true
+      },
+      "platform": "webchat"
+    },
+    "programResources": {
+      "flows": {},
+      "agents": {
+        "6965518070fe310007d69beb": {
+          "name": "Welcome and main menu",
+          "endTool": null,
+          "settings": {
+            "model": "claude-4-sonnet",
+            "maxTokens": 5000,
+            "temperature": 0.3,
+            "reasoningEffort": null
+          },
+          "cardTool": null,
+          "apiTools": [],
+          "pathTools": [
+            {
+              "id": "6965518070fe310007d69bf6",
+              "name": "Text response selected",
+              "variables": [],
+              "description": "User selects Show Text Response button.",
+              "messages": null
+            },
+            {
+              "id": "6965518070fe310007d69bf7",
+              "name": "Show card selected",
+              "variables": [],
+              "description": "User selects Show Card button.",
+              "messages": null
+            },
+            {
+              "id": "6965518070fe310007d69bf8",
+              "name": "Show carousel selected",
+              "variables": [],
+              "description": "User selects Show Carousel button.",
+              "messages": null
+            },
+            {
+              "id": "6965518070fe310007d69bf9",
+              "name": "Trigger no-reply selected",
+              "variables": [],
+              "description": "User selects Trigger No-Reply button.",
+              "messages": null
+            },
+            {
+              "id": "6965518070fe310007d69bfa",
+              "name": "Speak (voice) selected",
+              "variables": [],
+              "description": "User selects Speak (Voice) button.",
+              "messages": null
+            },
+            {
+              "id": "6965518070fe310007d69bfb",
+              "name": "Show image selected",
+              "variables": [],
+              "description": "User selects Show Image button.",
+              "messages": null
+            },
+            {
+              "id": "6965518070fe310007d69bfc",
+              "name": "End conversation selected",
+              "variables": [],
+              "description": "User selects End Conversation button.",
+              "messages": null
+            },
+            {
+              "id": "6965518070fe310007d69bfd",
+              "name": "Unrecognized input",
+              "variables": [],
+              "description": "User says something that doesn't match any menu options.",
+              "messages": null
+            }
+          ],
+          "flowTools": [],
+          "buttonTool": {
+            "enabled": true,
+            "messages": null,
+            "description": "Displays a UI picker when the user needs to select one option from a predefined list (up to 5 options)."
+          },
+          "description": null,
+          "carouselTool": null,
+          "instructions": "Greet the user, introduce the Voiceflow trace demo, and present the main menu using buttons for: Show Text Response, Show Card, Show Carousel, Trigger No-Reply, Speak (Voice), Show Image, and End Conversation. Use a Choice trace for the buttons. If the user says something unexpected, offer a fallback message and prompt them to choose one of the menu options.",
+          "functionTools": [],
+          "webSearchTool": null,
+          "callForwardTool": null,
+          "integrationTools": [],
+          "knowledgeBaseTool": null,
+          "mcpIntegrationTools": []
+        },
+        "6965518070fe310007d69bec": {
+          "name": "Unexpected input fallback",
+          "endTool": null,
+          "settings": {
+            "model": "claude-4-sonnet",
+            "maxTokens": 5000,
+            "temperature": 0.3,
+            "reasoningEffort": null
+          },
+          "cardTool": null,
+          "apiTools": [],
+          "pathTools": [
+            {
+              "id": "6965518070fe310007d69bfe",
+              "name": "Go to main menu",
+              "variables": [],
+              "description": "Bring the user back to the main menu choices.",
+              "messages": null
+            }
+          ],
+          "flowTools": [],
+          "buttonTool": null,
+          "description": null,
+          "carouselTool": null,
+          "instructions": "Inform the user that their input wasn't recognized and politely prompt them to select one of the main menu options. Return them to the main menu.",
+          "functionTools": [],
+          "webSearchTool": null,
+          "callForwardTool": null,
+          "integrationTools": [],
+          "knowledgeBaseTool": null,
+          "mcpIntegrationTools": []
+        },
+        "6965518070fe310007d69bed": {
+          "name": "Show text response",
+          "endTool": null,
+          "settings": {
+            "model": "claude-4-sonnet",
+            "maxTokens": 5000,
+            "temperature": 0.3,
+            "reasoningEffort": null
+          },
+          "cardTool": null,
+          "apiTools": [],
+          "pathTools": [
+            {
+              "id": "6965518070fe310007d69bff",
+              "name": "Return to main menu",
+              "variables": [],
+              "description": "User clicks to return to the main menu after viewing the text response.",
+              "messages": null
+            }
+          ],
+          "flowTools": [],
+          "buttonTool": null,
+          "description": null,
+          "carouselTool": null,
+          "instructions": "Send a simple text message using a Text trace, such as 'This is a plain text response.' Briefly explain to the user they just experienced a Text trace. Prompt the user to return to the main menu with a button.",
+          "functionTools": [],
+          "webSearchTool": null,
+          "callForwardTool": null,
+          "integrationTools": [],
+          "knowledgeBaseTool": null,
+          "mcpIntegrationTools": []
+        },
+        "6965518070fe310007d69bee": {
+          "name": "Speak (voice) message",
+          "endTool": null,
+          "settings": {
+            "model": "claude-4-sonnet",
+            "maxTokens": 5000,
+            "temperature": 0.3,
+            "reasoningEffort": null
+          },
+          "cardTool": null,
+          "apiTools": [],
+          "pathTools": [
+            {
+              "id": "6965518070fe310007d69c00",
+              "name": "Return to main menu",
+              "variables": [],
+              "description": "User clicks a button to return to the main menu after the speak trace.",
+              "messages": null
+            }
+          ],
+          "flowTools": [],
+          "buttonTool": null,
+          "description": null,
+          "carouselTool": null,
+          "instructions": "Output clean spoken text using a Speak trace, e.g., 'This message is being spoken aloud using the Speak trace.' Explain this is how Voiceflow delivers audio or TTS responses. Offer a button to return the user to the main menu.",
+          "functionTools": [],
+          "webSearchTool": null,
+          "callForwardTool": null,
+          "integrationTools": [],
+          "knowledgeBaseTool": null,
+          "mcpIntegrationTools": []
+        },
+        "6965518070fe310007d69bef": {
+          "name": "Show image",
+          "endTool": null,
+          "settings": {
+            "model": "claude-4-sonnet",
+            "maxTokens": 5000,
+            "temperature": 0.3,
+            "reasoningEffort": null
+          },
+          "cardTool": null,
+          "apiTools": [],
+          "pathTools": [
+            {
+              "id": "6965518070fe310007d69c01",
+              "name": "Return to main menu",
+              "variables": [],
+              "description": "User clicks a button to return after viewing the image.",
+              "messages": null
+            }
+          ],
+          "flowTools": [],
+          "buttonTool": null,
+          "description": null,
+          "carouselTool": null,
+          "instructions": "Display an image using a Visual trace with a friendly message like, 'Here’s an example image using a Visual trace.' Include alt text. After this, provide a button to return to the main menu.",
+          "functionTools": [],
+          "webSearchTool": null,
+          "callForwardTool": null,
+          "integrationTools": [],
+          "knowledgeBaseTool": null,
+          "mcpIntegrationTools": []
+        },
+        "6965518070fe310007d69bf0": {
+          "name": "Show card",
+          "endTool": null,
+          "settings": {
+            "model": "claude-4-sonnet",
+            "maxTokens": 5000,
+            "temperature": 0.3,
+            "reasoningEffort": null
+          },
+          "cardTool": {
+            "enabled": true,
+            "messages": null,
+            "description": "Summarizes the assistant's response in a visual card with a title, image, description, and optional action buttons."
+          },
+          "apiTools": [],
+          "pathTools": [
+            {
+              "id": "6965518070fe310007d69c02",
+              "name": "Return to main menu",
+              "variables": [],
+              "description": "User clicks the button in the card to return to the main menu.",
+              "messages": null
+            }
+          ],
+          "flowTools": [],
+          "buttonTool": null,
+          "description": null,
+          "carouselTool": null,
+          "instructions": "Show a CardV2 trace with a nice title, an image, descriptive text that explains what a Card is, and at least one button that takes the user to the main menu. Example: 'CardV2 Demo', 'This is what a card looks like in Voiceflow.'",
+          "functionTools": [],
+          "webSearchTool": null,
+          "callForwardTool": null,
+          "integrationTools": [],
+          "knowledgeBaseTool": null,
+          "mcpIntegrationTools": []
+        },
+        "6965518070fe310007d69bf1": {
+          "name": "Show carousel",
+          "endTool": null,
+          "settings": {
+            "model": "claude-4-sonnet",
+            "maxTokens": 5000,
+            "temperature": 0.3,
+            "reasoningEffort": null
+          },
+          "cardTool": null,
+          "apiTools": [],
+          "pathTools": [
+            {
+              "id": "6965518070fe310007d69c03",
+              "name": "Return to main menu from carousel",
+              "variables": [],
+              "description": "User interacts with a card button in the carousel to return to the main menu.",
+              "messages": null
+            }
+          ],
+          "flowTools": [],
+          "buttonTool": null,
+          "description": null,
+          "carouselTool": {
+            "enabled": true,
+            "messages": null,
+            "description": "Displays a carousel of up to 10 cards, each containing a title, description, image, and optional action buttons."
+          },
+          "instructions": "Display a Carousel trace showing at least two cards, each with its own image, title, and button clearly labeled to return to the main menu. Briefly explain that a Carousel lets users browse multiple cards. Any card interaction brings the user back to the main menu.",
+          "functionTools": [],
+          "webSearchTool": null,
+          "callForwardTool": null,
+          "integrationTools": [],
+          "knowledgeBaseTool": null,
+          "mcpIntegrationTools": []
+        },
+        "6965518070fe310007d69bf2": {
+          "name": "Trigger no-reply",
+          "endTool": null,
+          "settings": {
+            "model": "claude-4-sonnet",
+            "maxTokens": 5000,
+            "temperature": 0.3,
+            "reasoningEffort": null
+          },
+          "cardTool": null,
+          "apiTools": [],
+          "pathTools": [
+            {
+              "id": "6965518070fe310007d69c04",
+              "name": "Timeout occurs, no-reply triggered",
+              "variables": [],
+              "description": "No-reply is triggered when user does not respond.",
+              "messages": null
+            },
+            {
+              "id": "6965518070fe310007d69c05",
+              "name": "User responds",
+              "variables": [],
+              "description": "User immediately gives a response before timeout.",
+              "messages": null
+            }
+          ],
+          "flowTools": [],
+          "buttonTool": {
+            "enabled": true,
+            "messages": null,
+            "description": "Displays a UI picker when the user needs to select one option from a predefined list (up to 5 options)."
+          },
+          "description": null,
+          "carouselTool": null,
+          "instructions": "Prompt the user with an open-ended question (like, 'What would you like to ask?'), then simulate a timeout using a No-Reply trace. After a short 'no reply' message, offer a button to return to the main menu.",
+          "functionTools": [],
+          "webSearchTool": null,
+          "callForwardTool": null,
+          "integrationTools": [],
+          "knowledgeBaseTool": null,
+          "mcpIntegrationTools": []
+        },
+        "6965518070fe310007d69bf3": {
+          "name": "No-reply follow-up",
+          "endTool": null,
+          "settings": {
+            "model": "claude-4-sonnet",
+            "maxTokens": 5000,
+            "temperature": 0.3,
+            "reasoningEffort": null
+          },
+          "cardTool": null,
+          "apiTools": [],
+          "pathTools": [
+            {
+              "id": "6965518070fe310007d69c06",
+              "name": "Return to main menu",
+              "variables": [],
+              "description": "User clicks a button to return after no-reply follow-up.",
+              "messages": null
+            }
+          ],
+          "flowTools": [],
+          "buttonTool": null,
+          "description": null,
+          "carouselTool": null,
+          "instructions": "Let the user know that no reply was received and that this demonstrates the No-Reply trace. Then, offer a button for them to return to the main menu.",
+          "functionTools": [],
+          "webSearchTool": null,
+          "callForwardTool": null,
+          "integrationTools": [],
+          "knowledgeBaseTool": null,
+          "mcpIntegrationTools": []
+        },
+        "6965518070fe310007d69bf4": {
+          "name": "Response after no-reply question",
+          "endTool": null,
+          "settings": {
+            "model": "claude-4-sonnet",
+            "maxTokens": 5000,
+            "temperature": 0.3,
+            "reasoningEffort": null
+          },
+          "cardTool": null,
+          "apiTools": [],
+          "pathTools": [
+            {
+              "id": "6965518070fe310007d69c07",
+              "name": "Return to main menu",
+              "variables": [],
+              "description": "User decides to return after replying.",
+              "messages": null
+            }
+          ],
+          "flowTools": [],
+          "buttonTool": null,
+          "description": null,
+          "carouselTool": null,
+          "instructions": "Acknowledge the user’s quick reply. Mention this normally triggers No-Reply if there’s no response. Offer a button to return to the main menu.",
+          "functionTools": [],
+          "webSearchTool": null,
+          "callForwardTool": null,
+          "integrationTools": [],
+          "knowledgeBaseTool": null,
+          "mcpIntegrationTools": []
+        },
+        "6965518070fe310007d69bf5": {
+          "name": "End conversation",
+          "endTool": null,
+          "settings": {
+            "model": "claude-4-sonnet",
+            "maxTokens": 5000,
+            "temperature": 0.3,
+            "reasoningEffort": null
+          },
+          "cardTool": null,
+          "apiTools": [],
+          "pathTools": [
+            {
+              "id": "6965518070fe310007d69c08",
+              "name": "Conversation completed",
+              "variables": [],
+              "description": "User has ended the conversation.",
+              "messages": null
+            }
+          ],
+          "flowTools": [],
+          "buttonTool": null,
+          "description": null,
+          "carouselTool": null,
+          "instructions": "Thank the user for exploring the Voiceflow trace types, wish them a great day, and end the flow.",
+          "functionTools": [],
+          "webSearchTool": null,
+          "callForwardTool": null,
+          "integrationTools": [],
+          "knowledgeBaseTool": null,
+          "mcpIntegrationTools": []
+        }
+      },
+      "prompts": {},
+      "apiTools": {},
+      "messages": {},
+      "globalPrompts": null,
+      "integrationTools": {},
+      "mcpIntegrationTools": {}
+    },
+    "prototype": {
+      "type": "chat",
+      "data": {
+        "name": "BoazMasterOfTheUniversePoC",
+        "locales": [
+          "en-US"
+        ]
+      },
+      "model": {
+        "intents": [],
+        "slots": []
+      },
+      "context": {
+        "stack": [
+          {
+            "diagramID": "6965518070fe310007d69c09",
+            "storage": {},
+            "variables": {}
+          }
+        ],
+        "variables": {}
+      },
+      "surveyorContext": {
+        "platform": "webchat",
+        "slotsMap": {},
+        "extraSlots": [],
+        "cmsEntities": {},
+        "extraIntents": [],
+        "cmsVariables": {
+          "sessions": {
+            "isSystem": true,
+            "description": "The number of times a particular user has opened the app.",
+            "defaultValue": null
+          },
+          "user_id": {
+            "isSystem": true,
+            "description": "The user's unique ID.",
+            "defaultValue": null
+          },
+          "timestamp": {
+            "isSystem": true,
+            "description": "UNIX timestamp (number of seconds since January 1st, 1970 at UTC).",
+            "defaultValue": null
+          },
+          "platform": {
+            "isSystem": true,
+            "description": "The platform your agent is running on (e.g. \"voiceflow\").",
+            "defaultValue": null
+          },
+          "locale": {
+            "isSystem": true,
+            "description": "The locale of the user (eg. en-US, en-CA, it-IT, fr-FR, ...).",
+            "defaultValue": null
+          },
+          "intent_confidence": {
+            "isSystem": true,
+            "description": "The confidence interval (measured as a value from 0 to 100) for the most recently matched intent.",
+            "defaultValue": null
+          },
+          "last_response": {
+            "isSystem": true,
+            "description": "The agent's last response (text/speak) in a string.",
+            "defaultValue": null
+          },
+          "last_event": {
+            "isSystem": true,
+            "description": "The object containing the last event that the user client has triggered.",
+            "defaultValue": null
+          },
+          "last_utterance": {
+            "isSystem": true,
+            "description": "The user's last utterance in a text string.",
+            "defaultValue": null
+          },
+          "vf_memory": {
+            "isSystem": true,
+            "description": "Last 10 user inputs and agent responses in a string (e.g. \"agent: How can i help?\"\nuser: What's the weather today?).",
+            "defaultValue": null
+          },
+          "vf_date": {
+            "isSystem": true,
+            "description": "Current date in the format \"Jan 1, 2025\". You can modify the timezone in project settings.",
+            "defaultValue": null
+          },
+          "vf_time": {
+            "isSystem": true,
+            "description": "Current time in the format \"16:37\". You can modify the timezone in project settings.",
+            "defaultValue": null
+          },
+          "vf_day": {
+            "isSystem": true,
+            "description": "Current day of month in the format \"1\". You can modify the timezone in project settings.",
+            "defaultValue": null
+          },
+          "vf_month": {
+            "isSystem": true,
+            "description": "Current month in the format \"January\". You can modify the timezone in project settings.",
+            "defaultValue": null
+          },
+          "vf_year": {
+            "isSystem": true,
+            "description": "Current year in the format \"2025\". You can modify the timezone in project settings.",
+            "defaultValue": null
+          },
+          "vf_now": {
+            "isSystem": true,
+            "description": "Current date and time in the format \"Jan 1, 2025, 16:37\". You can modify the timezone in project settings.",
+            "defaultValue": null
+          },
+          "vf_user_timezone": {
+            "isSystem": true,
+            "description": "The user's timezone in the format \"America/Toronto\", if available. Defaults to the project timezone.",
+            "defaultValue": null
+          },
+          "vf_weekday": {
+            "isSystem": true,
+            "description": "Current day of week in the format \"Monday\". You can modify the timezone in project settings.",
+            "defaultValue": null
+          },
+          "vf_transcript_id": {
+            "isSystem": true,
+            "description": "The transcript ID of the current conversation. Only available if transcripts are enabled.",
+            "defaultValue": null
+          }
+        },
+        "usedIntentsSet": [],
+        "functionDefinitions": {},
+        "referencedAgentsIDs": [
+          "6965518070fe310007d69beb",
+          "6965518070fe310007d69bec",
+          "6965518070fe310007d69bed",
+          "6965518070fe310007d69bee",
+          "6965518070fe310007d69bef",
+          "6965518070fe310007d69bf0",
+          "6965518070fe310007d69bf1",
+          "6965518070fe310007d69bf2",
+          "6965518070fe310007d69bf3",
+          "6965518070fe310007d69bf4",
+          "6965518070fe310007d69bf5"
+        ],
+        "referencedPromptIDs": [],
+        "referencedAPIToolIDs": [],
+        "referencedResponseIDs": [],
+        "referencedIntegrationToolIDs": [],
+        "referencedMCPIntegrationToolIDs": [],
+        "interfaces": [],
+        "permissions": [],
+        "usedEventsSet": [],
+        "goToIntentsSet": []
+      },
+      "settings": {},
+      "platform": "webchat"
+    },
+    "settings": {
+      "voice": {
+        "stt": {
+          "provider": "deepgram",
+          "model": "flux",
+          "locale": "en",
+          "punctuationWaitMS": 200,
+          "partialWaitMS": 1000,
+          "silenceWaitMS": 10,
+          "interruptionWaitWords": 1
+        },
+        "tts": {
+          "provider": "cartesia",
+          "model": "sonic-3",
+          "voice": "829ccd10-f8b3-43cd-b8a0-4aeaa81f3b30",
+          "settings": {
+            "speed": 1
+          }
+        },
+        "failureMessage": "We’re sorry, but the call cannot be completed at this time. Please try again later.",
+        "hasCallRecording": true,
+        "audioSync": true
+      },
+      "widget": {
+        "type": "chat",
+        "chat": {
+          "renderMode": "widget",
+          "headerImage": {
+            "enabled": true
+          },
+          "agentImage": {
+            "enabled": false
+          },
+          "banner": {
+            "title": "Your AI agent",
+            "description": "How can I help you today?",
+            "enabled": true
+          },
+          "placeholderText": "Message...",
+          "disclaimer": {
+            "enabled": false,
+            "title": "Privacy notice",
+            "description": "Before we can proceed with your conversation, we kindly ask you to review and accept our privacy policy, outlining how we handle and protect your personal information throughout our services.",
+            "primaryButtonText": "Submit",
+            "secondaryButtonText": "Privacy policy",
+            "secondaryButtonURL": ""
+          },
+          "aiDisclaimer": {
+            "text": "Generated by AI, double-check for accuracy.",
+            "enabled": false
+          },
+          "handoffToAgentImageURL": "",
+          "voiceInput": true,
+          "voiceOutput": true,
+          "voiceMode": true
+        },
+        "voice": {
+          "renderMode": "full",
+          "content": {
+            "talkingText": "Talk to interrupt",
+            "endButtonText": "End",
+            "listeningText": "Listening...",
+            "startButtonText": "Start a call",
+            "callToActionText": "How can I help you?"
+          }
+        },
+        "common": {
+          "sideSpacing": "20",
+          "bottomSpacing": "20",
+          "position": "right",
+          "fontFamily": "UCity Pro",
+          "primaryColor": {
+            "color": "#397DFF",
+            "palette": {
+              "50": "#E7F5FD",
+              "100": "#C6E4FB",
+              "200": "#A2D2FA",
+              "300": "#87BFFB",
+              "400": "#659FFD",
+              "500": "#397DFF",
+              "600": "#2F68DB",
+              "700": "#264EB4",
+              "800": "#1C368E",
+              "900": "#0F1E61"
+            }
+          },
+          "poweredBy": true,
+          "launcher": {
+            "type": "both",
+            "text": "Test your agent"
+          },
+          "footerLink": {
+            "enabled": false
+          },
+          "persistence": "localStorage"
+        },
+        "security": {
+          "approvedDomains": {
+            "enabled": false,
+            "domains": ""
+          },
+          "disableTranscript": false
+        }
+      },
+      "memory": {
+        "turns": 50
+      },
+      "llmFallback": {
+        "models": {
+          "open-ai": {
+            "*": {
+              "provider": "anthropic",
+              "model": "claude-4-sonnet"
+            }
+          },
+          "anthropic": {
+            "*": {
+              "provider": "open-ai",
+              "model": "gpt-4.1-2025-04-14"
+            }
+          },
+          "groq": {
+            "*": {
+              "provider": "anthropic",
+              "model": "claude-4-sonnet"
+            }
+          },
+          "google": {
+            "*": {
+              "provider": "anthropic",
+              "model": "claude-4-sonnet"
+            }
+          }
+        }
+      },
+      "globalNoMatch": {
+        "type": "static",
+        "prompt": [
+          {
+            "text": [
+              "Sorry, I didn’t get that. Please try again."
+            ]
+          }
+        ]
+      },
+      "intentClassification": {
+        "type": "rag",
+        "params": {
+          "model": "claude-3.5-haiku",
+          "temperature": 0.1
+        },
+        "promptWrapper": null
+      }
+    },
+    "topics": [
+      {
+        "type": "DIAGRAM",
+        "sourceID": "64dbb6696a8fab0013dba194"
+      }
+    ],
+    "variables": [
+      "sessions",
+      "user_id",
+      "timestamp",
+      "platform",
+      "locale",
+      "intent_confidence",
+      "last_response",
+      "last_event",
+      "last_utterance",
+      "vf_memory",
+      "vf_date",
+      "vf_time",
+      "vf_day",
+      "vf_month",
+      "vf_year",
+      "vf_now",
+      "vf_user_timezone",
+      "vf_weekday",
+      "vf_transcript_id"
+    ],
+    "_id": "6965518083e316ef6f2680ab",
+    "updatedAt": "2026-02-12T03:55:52.245Z",
+    "publishedAt": "2024-09-27T16:54:27.996Z",
+    "domains": [
+      {
+        "id": "cla06iyr900b206pkh8d4ap8n",
+        "name": "Home",
+        "live": true,
+        "topicIDs": [
+          "64dbb6696a8fab0013dba194"
+        ],
+        "rootDiagramID": "64dbb6696a8fab0013dba194",
+        "updatedBy": 26,
+        "updatedAt": "2026-01-12T19:54:40.913Z"
+      }
+    ],
+    "projectID": "6965518083e316ef6f2680aa",
+    "rootDiagramID": "6965518070fe310007d69c09",
+    "templateDiagramID": "64dbb6696a8fab0013dba195"
+  },
+  "diagrams": {
+    "6965518070fe310007d69c09": {
+      "name": "BoazMasterOfTheUniversePoC",
+      "type": "TOPIC",
+      "zoom": 100,
+      "nodes": {
+        "6965515070fe310007d69be8": {
+          "nodeID": "6965515070fe310007d69be8",
+          "type": "start",
+          "data": {
+            "name": "Start",
+            "color": "#56b365",
+            "triggers": [],
+            "description": null,
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {
+                "next": {
+                  "id": "6965515070fe310007d69be9",
+                  "type": "next",
+                  "data": {},
+                  "target": "cmkbl0id50000071wgx5m1yza"
+                }
+              },
+              "dynamic": []
+            },
+            "steps": []
+          },
+          "coords": [
+            0,
+            0
+          ]
+        },
+        "cmkbl0id6000b071w7fjwfgri": {
+          "type": "agent",
+          "nodeID": "cmkbl0id6000b071w7fjwfgri",
+          "data": {
+            "agentID": "6965518070fe310007d69beb",
+            "listenForOtherTriggers": false,
+            "exitEveryConversationalTurn": false,
+            "portsV2": {
+              "byKey": {
+                "6965518070fe310007d69bf6": {
+                  "id": "6965518070fe310007d69bf6",
+                  "type": "",
+                  "data": {
+                    "points": [
+                      {
+                        "point": [
+                          596,
+                          196
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          196
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          357
+                        ]
+                      },
+                      {
+                        "point": [
+                          695,
+                          357
+                        ],
+                        "allowedToTop": true
+                      }
+                    ]
+                  },
+                  "target": "cmkbl0id50002071wgz9r8ywj"
+                },
+                "6965518070fe310007d69bf7": {
+                  "id": "6965518070fe310007d69bf7",
+                  "type": "",
+                  "data": {
+                    "points": [
+                      {
+                        "point": [
+                          596,
+                          250
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          250
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          1347
+                        ]
+                      },
+                      {
+                        "point": [
+                          695,
+                          1347
+                        ],
+                        "allowedToTop": true
+                      }
+                    ]
+                  },
+                  "target": "cmkbl0id60005071wcoe393fl"
+                },
+                "6965518070fe310007d69bf8": {
+                  "id": "6965518070fe310007d69bf8",
+                  "type": "",
+                  "data": {
+                    "points": [
+                      {
+                        "point": [
+                          596,
+                          304
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          304
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          1677
+                        ]
+                      },
+                      {
+                        "point": [
+                          695,
+                          1677
+                        ],
+                        "allowedToTop": true
+                      }
+                    ]
+                  },
+                  "target": "cmkbl0id60006071wcs1h9ihk"
+                },
+                "6965518070fe310007d69bf9": {
+                  "id": "6965518070fe310007d69bf9",
+                  "type": "",
+                  "data": {
+                    "points": [
+                      {
+                        "point": [
+                          596,
+                          358
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          358
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          2007
+                        ]
+                      },
+                      {
+                        "point": [
+                          695,
+                          2007
+                        ],
+                        "allowedToTop": true
+                      }
+                    ]
+                  },
+                  "target": "cmkbl0id60007071wgueedml8"
+                },
+                "6965518070fe310007d69bfa": {
+                  "id": "6965518070fe310007d69bfa",
+                  "type": "",
+                  "data": {
+                    "points": [
+                      {
+                        "point": [
+                          596,
+                          412
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          412
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          687
+                        ]
+                      },
+                      {
+                        "point": [
+                          695,
+                          687
+                        ],
+                        "allowedToTop": true
+                      }
+                    ]
+                  },
+                  "target": "cmkbl0id50003071wgcq23yrf"
+                },
+                "6965518070fe310007d69bfb": {
+                  "id": "6965518070fe310007d69bfb",
+                  "type": "",
+                  "data": {
+                    "points": [
+                      {
+                        "point": [
+                          596,
+                          466
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          466
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          1017
+                        ]
+                      },
+                      {
+                        "point": [
+                          695,
+                          1017
+                        ],
+                        "allowedToTop": true
+                      }
+                    ]
+                  },
+                  "target": "cmkbl0id50004071w9ao0hmb6"
+                },
+                "6965518070fe310007d69bfc": {
+                  "id": "6965518070fe310007d69bfc",
+                  "type": "",
+                  "data": {
+                    "points": [
+                      {
+                        "point": [
+                          596,
+                          520
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          520
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          2337
+                        ]
+                      },
+                      {
+                        "point": [
+                          695,
+                          2337
+                        ],
+                        "allowedToTop": true
+                      }
+                    ]
+                  },
+                  "target": "cmkbl0id6000a071w9xa406h3"
+                },
+                "6965518070fe310007d69bfd": {
+                  "id": "6965518070fe310007d69bfd",
+                  "type": "",
+                  "data": {
+                    "points": [
+                      {
+                        "point": [
+                          596,
+                          574
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          574
+                        ]
+                      },
+                      {
+                        "point": [
+                          645.5,
+                          27
+                        ]
+                      },
+                      {
+                        "point": [
+                          695,
+                          27
+                        ],
+                        "allowedToTop": true
+                      }
+                    ]
+                  },
+                  "target": "cmkbl0id50001071wgifm7vzi"
+                }
+              },
+              "builtIn": {},
+              "dynamic": []
+            }
+          },
+          "coords": [
+            0,
+            0
+          ]
+        },
+        "cmkbl0id6000c071w2j06b3v3": {
+          "type": "agent",
+          "nodeID": "cmkbl0id6000c071w2j06b3v3",
+          "data": {
+            "agentID": "6965518070fe310007d69bec",
+            "listenForOtherTriggers": false,
+            "exitEveryConversationalTurn": false,
+            "portsV2": {
+              "byKey": {
+                "6965518070fe310007d69bfe": {
+                  "id": "6965518070fe310007d69bfe",
+                  "type": "",
+                  "data": {},
+                  "target": "cmkbl0id50000071wgx5m1yza"
+                }
+              },
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id6000d071w8t1o9vkc": {
+          "type": "agent",
+          "nodeID": "cmkbl0id6000d071w8t1o9vkc",
+          "data": {
+            "agentID": "6965518070fe310007d69bed",
+            "listenForOtherTriggers": false,
+            "exitEveryConversationalTurn": false,
+            "portsV2": {
+              "byKey": {
+                "6965518070fe310007d69bff": {
+                  "id": "6965518070fe310007d69bff",
+                  "type": "",
+                  "data": {},
+                  "target": "cmkbl0id50000071wgx5m1yza"
+                }
+              },
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id6000e071wbueo7x1o": {
+          "type": "agent",
+          "nodeID": "cmkbl0id6000e071wbueo7x1o",
+          "data": {
+            "agentID": "6965518070fe310007d69bee",
+            "listenForOtherTriggers": false,
+            "exitEveryConversationalTurn": false,
+            "portsV2": {
+              "byKey": {
+                "6965518070fe310007d69c00": {
+                  "id": "6965518070fe310007d69c00",
+                  "type": "",
+                  "data": {},
+                  "target": "cmkbl0id50000071wgx5m1yza"
+                }
+              },
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id6000f071w0guace8l": {
+          "type": "agent",
+          "nodeID": "cmkbl0id6000f071w0guace8l",
+          "data": {
+            "agentID": "6965518070fe310007d69bef",
+            "listenForOtherTriggers": false,
+            "exitEveryConversationalTurn": false,
+            "portsV2": {
+              "byKey": {
+                "6965518070fe310007d69c01": {
+                  "id": "6965518070fe310007d69c01",
+                  "type": "",
+                  "data": {},
+                  "target": "cmkbl0id50000071wgx5m1yza"
+                }
+              },
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id7000g071w0fmm8db7": {
+          "type": "agent",
+          "nodeID": "cmkbl0id7000g071w0fmm8db7",
+          "data": {
+            "agentID": "6965518070fe310007d69bf0",
+            "listenForOtherTriggers": false,
+            "exitEveryConversationalTurn": false,
+            "portsV2": {
+              "byKey": {
+                "6965518070fe310007d69c02": {
+                  "id": "6965518070fe310007d69c02",
+                  "type": "",
+                  "data": {
+                    "points": [
+                      {
+                        "point": [
+                          704,
+                          1518
+                        ],
+                        "reversed": true
+                      },
+                      {
+                        "point": [
+                          654.5,
+                          1518
+                        ]
+                      },
+                      {
+                        "point": [
+                          654.5,
+                          27
+                        ]
+                      },
+                      {
+                        "point": [
+                          605,
+                          27
+                        ],
+                        "reversed": true,
+                        "allowedToTop": true
+                      }
+                    ]
+                  },
+                  "target": "cmkbl0id50000071wgx5m1yza"
+                }
+              },
+              "builtIn": {},
+              "dynamic": []
+            }
+          },
+          "coords": [
+            0,
+            0
+          ]
+        },
+        "cmkbl0id7000h071w71udami9": {
+          "type": "agent",
+          "nodeID": "cmkbl0id7000h071w71udami9",
+          "data": {
+            "agentID": "6965518070fe310007d69bf1",
+            "listenForOtherTriggers": false,
+            "exitEveryConversationalTurn": false,
+            "portsV2": {
+              "byKey": {
+                "6965518070fe310007d69c03": {
+                  "id": "6965518070fe310007d69c03",
+                  "type": "",
+                  "data": {
+                    "points": [
+                      {
+                        "point": [
+                          694,
+                          1854
+                        ],
+                        "reversed": true
+                      },
+                      {
+                        "point": [
+                          644.5,
+                          1854
+                        ]
+                      },
+                      {
+                        "point": [
+                          644.5,
+                          27
+                        ]
+                      },
+                      {
+                        "point": [
+                          595,
+                          27
+                        ],
+                        "reversed": true,
+                        "allowedToTop": true
+                      }
+                    ]
+                  },
+                  "target": "cmkbl0id50000071wgx5m1yza"
+                }
+              },
+              "builtIn": {},
+              "dynamic": []
+            }
+          },
+          "coords": [
+            0,
+            0
+          ]
+        },
+        "cmkbl0id7000i071wes76djeb": {
+          "type": "agent",
+          "nodeID": "cmkbl0id7000i071wes76djeb",
+          "data": {
+            "agentID": "6965518070fe310007d69bf2",
+            "listenForOtherTriggers": false,
+            "exitEveryConversationalTurn": false,
+            "portsV2": {
+              "byKey": {
+                "6965518070fe310007d69c04": {
+                  "id": "6965518070fe310007d69c04",
+                  "type": "",
+                  "data": {},
+                  "target": "cmkbl0id60008071wck8ohua7"
+                },
+                "6965518070fe310007d69c05": {
+                  "id": "6965518070fe310007d69c05",
+                  "type": "",
+                  "data": {},
+                  "target": "cmkbl0id60009071w41vd9b3x"
+                }
+              },
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id7000j071wen5o0k3j": {
+          "type": "agent",
+          "nodeID": "cmkbl0id7000j071wen5o0k3j",
+          "data": {
+            "agentID": "6965518070fe310007d69bf3",
+            "listenForOtherTriggers": false,
+            "exitEveryConversationalTurn": false,
+            "portsV2": {
+              "byKey": {
+                "6965518070fe310007d69c06": {
+                  "id": "6965518070fe310007d69c06",
+                  "type": "",
+                  "data": {},
+                  "target": "cmkbl0id50000071wgx5m1yza"
+                }
+              },
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id7000k071w80vucxs3": {
+          "type": "agent",
+          "nodeID": "cmkbl0id7000k071w80vucxs3",
+          "data": {
+            "agentID": "6965518070fe310007d69bf4",
+            "listenForOtherTriggers": false,
+            "exitEveryConversationalTurn": false,
+            "portsV2": {
+              "byKey": {
+                "6965518070fe310007d69c07": {
+                  "id": "6965518070fe310007d69c07",
+                  "type": "",
+                  "data": {},
+                  "target": "cmkbl0id50000071wgx5m1yza"
+                }
+              },
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id7000l071w1fby6l94": {
+          "type": "agent",
+          "nodeID": "cmkbl0id7000l071w1fby6l94",
+          "data": {
+            "agentID": "6965518070fe310007d69bf5",
+            "listenForOtherTriggers": false,
+            "exitEveryConversationalTurn": false,
+            "portsV2": {
+              "byKey": {
+                "6965518070fe310007d69c08": {
+                  "id": "6965518070fe310007d69c08",
+                  "type": "",
+                  "data": {},
+                  "target": null
+                }
+              },
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id50000071wgx5m1yza": {
+          "type": "block",
+          "coords": [
+            430,
+            0
+          ],
+          "nodeID": "cmkbl0id50000071wgx5m1yza",
+          "data": {
+            "name": "Welcome and main menu",
+            "color": "#A1ADBA",
+            "steps": [
+              "cmkbl0id6000b071w7fjwfgri"
+            ],
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id50001071wgifm7vzi": {
+          "type": "block",
+          "coords": [
+            860,
+            0
+          ],
+          "nodeID": "cmkbl0id50001071wgifm7vzi",
+          "data": {
+            "name": "Unexpected input fallback",
+            "color": "#5b9fd7",
+            "steps": [
+              "cmkbl0id6000c071w2j06b3v3"
+            ],
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id50002071wgz9r8ywj": {
+          "type": "block",
+          "coords": [
+            860,
+            330
+          ],
+          "nodeID": "cmkbl0id50002071wgz9r8ywj",
+          "data": {
+            "name": "Show text response",
+            "color": "#5b9fd7",
+            "steps": [
+              "cmkbl0id6000d071w8t1o9vkc"
+            ],
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id50003071wgcq23yrf": {
+          "type": "block",
+          "coords": [
+            860,
+            660
+          ],
+          "nodeID": "cmkbl0id50003071wgcq23yrf",
+          "data": {
+            "name": "Speak (voice) message",
+            "color": "#5b9fd7",
+            "steps": [
+              "cmkbl0id6000e071wbueo7x1o"
+            ],
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id50004071w9ao0hmb6": {
+          "type": "block",
+          "coords": [
+            860,
+            990
+          ],
+          "nodeID": "cmkbl0id50004071w9ao0hmb6",
+          "data": {
+            "name": "Show image",
+            "color": "#5b9fd7",
+            "steps": [
+              "cmkbl0id6000f071w0guace8l"
+            ],
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id60005071wcoe393fl": {
+          "type": "block",
+          "coords": [
+            860,
+            1320
+          ],
+          "nodeID": "cmkbl0id60005071wcoe393fl",
+          "data": {
+            "name": "Show card",
+            "color": "#5b9fd7",
+            "steps": [
+              "cmkbl0id7000g071w0fmm8db7"
+            ],
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id60006071wcs1h9ihk": {
+          "type": "block",
+          "coords": [
+            860,
+            1650
+          ],
+          "nodeID": "cmkbl0id60006071wcs1h9ihk",
+          "data": {
+            "name": "Show carousel",
+            "color": "#5b9fd7",
+            "steps": [
+              "cmkbl0id7000h071w71udami9"
+            ],
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id60007071wgueedml8": {
+          "type": "block",
+          "coords": [
+            860,
+            1980
+          ],
+          "nodeID": "cmkbl0id60007071wgueedml8",
+          "data": {
+            "name": "Trigger no-reply",
+            "color": "#5b9fd7",
+            "steps": [
+              "cmkbl0id7000i071wes76djeb"
+            ],
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id60008071wck8ohua7": {
+          "type": "block",
+          "coords": [
+            1290,
+            0
+          ],
+          "nodeID": "cmkbl0id60008071wck8ohua7",
+          "data": {
+            "name": "No-reply follow-up",
+            "color": "#5b9fd7",
+            "steps": [
+              "cmkbl0id7000j071wen5o0k3j"
+            ],
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id60009071w41vd9b3x": {
+          "type": "block",
+          "coords": [
+            1290,
+            330
+          ],
+          "nodeID": "cmkbl0id60009071w41vd9b3x",
+          "data": {
+            "name": "Response after no-reply question",
+            "color": "#5b9fd7",
+            "steps": [
+              "cmkbl0id7000k071w80vucxs3"
+            ],
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        },
+        "cmkbl0id6000a071w9xa406h3": {
+          "type": "block",
+          "coords": [
+            860,
+            2310
+          ],
+          "nodeID": "cmkbl0id6000a071w9xa406h3",
+          "data": {
+            "name": "End conversation",
+            "color": "#56b365",
+            "steps": [
+              "cmkbl0id7000l071w1fby6l94"
+            ],
+            "portsV2": {
+              "byKey": {},
+              "builtIn": {},
+              "dynamic": []
+            }
+          }
+        }
+      },
+      "offsetX": 560,
+      "offsetY": 300,
+      "modified": 1768247632,
+      "variables": [],
+      "creatorID": 26,
+      "_id": "6965518083e316ef6f2680ad",
+      "diagramID": "6965518070fe310007d69c09",
+      "versionID": "6965518083e316ef6f2680ab"
+    }
+  },
+  "flows": [],
+  "entities": [],
+  "entityVariants": [],
+  "intents": [
+    {
+      "id": "None",
+      "name": "None",
+      "createdByID": 26,
+      "folderID": null,
+      "description": null,
+      "automaticReprompt": false,
+      "entityOrder": [],
+      "automaticRepromptSettings": null,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-12T19:54:41.000Z",
+      "updatedByID": 26
+    }
+  ],
+  "utterances": [],
+  "requiredEntities": [],
+  "folders": [],
+  "responses": [],
+  "responseMessages": [],
+  "responseDiscriminators": [],
+  "variables": [
+    {
+      "id": "sessions",
+      "name": "sessions",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "number",
+      "description": "The number of times a particular user has opened the app.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "user_id",
+      "name": "user_id",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "The user's unique ID.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "timestamp",
+      "name": "timestamp",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "UNIX timestamp (number of seconds since January 1st, 1970 at UTC).",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "platform",
+      "name": "platform",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "The platform your agent is running on (e.g. \"voiceflow\").",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "locale",
+      "name": "locale",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "The locale of the user (eg. en-US, en-CA, it-IT, fr-FR, ...).",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "intent_confidence",
+      "name": "intent_confidence",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "number",
+      "description": "The confidence interval (measured as a value from 0 to 100) for the most recently matched intent.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "last_response",
+      "name": "last_response",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "The agent's last response (text/speak) in a string.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "last_event",
+      "name": "last_event",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "any",
+      "description": "The object containing the last event that the user client has triggered.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "last_utterance",
+      "name": "last_utterance",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "The user's last utterance in a text string.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "vf_memory",
+      "name": "vf_memory",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "Last 10 user inputs and agent responses in a string (e.g. \"agent: How can i help?\"\nuser: What's the weather today?).",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "vf_date",
+      "name": "vf_date",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "date",
+      "description": "Current date in the format \"Jan 1, 2025\". You can modify the timezone in project settings.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "vf_time",
+      "name": "vf_time",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "Current time in the format \"16:37\". You can modify the timezone in project settings.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "vf_day",
+      "name": "vf_day",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "number",
+      "description": "Current day of month in the format \"1\". You can modify the timezone in project settings.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "vf_month",
+      "name": "vf_month",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "Current month in the format \"January\". You can modify the timezone in project settings.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "vf_year",
+      "name": "vf_year",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "number",
+      "description": "Current year in the format \"2025\". You can modify the timezone in project settings.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "vf_now",
+      "name": "vf_now",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "date",
+      "description": "Current date and time in the format \"Jan 1, 2025, 16:37\". You can modify the timezone in project settings.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "vf_user_timezone",
+      "name": "vf_user_timezone",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "The user's timezone in the format \"America/Toronto\", if available. Defaults to the project timezone.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "vf_weekday",
+      "name": "vf_weekday",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "Current day of week in the format \"Monday\". You can modify the timezone in project settings.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "vf_transcript_id",
+      "name": "vf_transcript_id",
+      "createdByID": 30,
+      "folderID": null,
+      "color": "#515A63",
+      "isArray": false,
+      "isSystem": true,
+      "datatype": "text",
+      "description": "The transcript ID of the current conversation. Only available if transcripts are enabled.",
+      "defaultValue": null,
+      "resetAfter": "session",
+      "createdAt": "2026-08-10T19:48:06.000Z",
+      "updatedAt": "2026-08-10T19:48:06.000Z",
+      "updatedByID": 30
+    }
+  ],
+  "workflows": [
+    {
+      "id": "66df755be937eb000784abb2",
+      "name": "Start workflow",
+      "createdByID": 26,
+      "folderID": null,
+      "status": null,
+      "isStart": true,
+      "diagramID": "6965518070fe310007d69c09",
+      "assigneeID": null,
+      "description": "",
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-15T20:40:56.000Z",
+      "updatedByID": 30
+    }
+  ],
+  "attachments": [],
+  "cardButtons": [],
+  "prompts": [],
+  "promptMessages": [],
+  "events": [],
+  "agents": [
+    {
+      "id": "6965518070fe310007d69beb",
+      "name": "Welcome and main menu",
+      "createdByID": 26,
+      "folderID": null,
+      "settings": {
+        "model": "claude-4-sonnet",
+        "maxTokens": 5000,
+        "temperature": 0.3,
+        "reasoningEffort": null
+      },
+      "description": null,
+      "instructions": [
+        {
+          "text": [
+            "Greet the user, introduce the Voiceflow trace demo, and present the main menu using buttons for: Show Text Response, Show Card, Show Carousel, Trigger No-Reply, Speak (Voice), Show Image, and End Conversation. Use a Choice trace for the buttons. If the user says something unexpected, offer a fallback message and prompt them to choose one of the menu options."
+          ]
+        }
+      ],
+      "pathToolOrder": [
+        "6965518070fe310007d69bf6",
+        "6965518070fe310007d69bf7",
+        "6965518070fe310007d69bf8",
+        "6965518070fe310007d69bf9",
+        "6965518070fe310007d69bfa",
+        "6965518070fe310007d69bfb",
+        "6965518070fe310007d69bfc",
+        "6965518070fe310007d69bfd"
+      ],
+      "webSearchTool": null,
+      "knowledgeBaseTool": null,
+      "buttonTool": {
+        "enabled": true,
+        "messages": null,
+        "description": "Displays a UI picker when the user needs to select one option from a predefined list (up to 5 options)."
+      },
+      "cardTool": null,
+      "carouselTool": null,
+      "callForwardTool": null,
+      "endTool": null,
+      "skipTurnTool": null,
+      "isOperator": false,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-12T19:55:17.000Z",
+      "updatedByID": 26
+    },
+    {
+      "id": "6965518070fe310007d69bec",
+      "name": "Unexpected input fallback",
+      "createdByID": 26,
+      "folderID": null,
+      "settings": {
+        "model": "claude-4-sonnet",
+        "maxTokens": 5000,
+        "temperature": 0.3,
+        "reasoningEffort": null
+      },
+      "description": null,
+      "instructions": [
+        {
+          "text": [
+            "Inform the user that their input wasn't recognized and politely prompt them to select one of the main menu options. Return them to the main menu."
+          ]
+        }
+      ],
+      "pathToolOrder": [
+        "6965518070fe310007d69bfe"
+      ],
+      "webSearchTool": null,
+      "knowledgeBaseTool": null,
+      "buttonTool": null,
+      "cardTool": null,
+      "carouselTool": null,
+      "callForwardTool": null,
+      "endTool": null,
+      "skipTurnTool": null,
+      "isOperator": false,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-12T19:54:41.000Z",
+      "updatedByID": 26
+    },
+    {
+      "id": "6965518070fe310007d69bed",
+      "name": "Show text response",
+      "createdByID": 26,
+      "folderID": null,
+      "settings": {
+        "model": "claude-4-sonnet",
+        "maxTokens": 5000,
+        "temperature": 0.3,
+        "reasoningEffort": null
+      },
+      "description": null,
+      "instructions": [
+        {
+          "text": [
+            "Send a simple text message using a Text trace, such as 'This is a plain text response.' Briefly explain to the user they just experienced a Text trace. Prompt the user to return to the main menu with a button."
+          ]
+        }
+      ],
+      "pathToolOrder": [
+        "6965518070fe310007d69bff"
+      ],
+      "webSearchTool": null,
+      "knowledgeBaseTool": null,
+      "buttonTool": null,
+      "cardTool": null,
+      "carouselTool": null,
+      "callForwardTool": null,
+      "endTool": null,
+      "skipTurnTool": null,
+      "isOperator": false,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-12T19:54:41.000Z",
+      "updatedByID": 26
+    },
+    {
+      "id": "6965518070fe310007d69bee",
+      "name": "Speak (voice) message",
+      "createdByID": 26,
+      "folderID": null,
+      "settings": {
+        "model": "claude-4-sonnet",
+        "maxTokens": 5000,
+        "temperature": 0.3,
+        "reasoningEffort": null
+      },
+      "description": null,
+      "instructions": [
+        {
+          "text": [
+            "Output clean spoken text using a Speak trace, e.g., 'This message is being spoken aloud using the Speak trace.' Explain this is how Voiceflow delivers audio or TTS responses. Offer a button to return the user to the main menu."
+          ]
+        }
+      ],
+      "pathToolOrder": [
+        "6965518070fe310007d69c00"
+      ],
+      "webSearchTool": null,
+      "knowledgeBaseTool": null,
+      "buttonTool": null,
+      "cardTool": null,
+      "carouselTool": null,
+      "callForwardTool": null,
+      "endTool": null,
+      "skipTurnTool": null,
+      "isOperator": false,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-12T19:54:41.000Z",
+      "updatedByID": 26
+    },
+    {
+      "id": "6965518070fe310007d69bef",
+      "name": "Show image",
+      "createdByID": 26,
+      "folderID": null,
+      "settings": {
+        "model": "claude-4-sonnet",
+        "maxTokens": 5000,
+        "temperature": 0.3,
+        "reasoningEffort": null
+      },
+      "description": null,
+      "instructions": [
+        {
+          "text": [
+            "Display an image using a Visual trace with a friendly message like, 'Here’s an example image using a Visual trace.' Include alt text. After this, provide a button to return to the main menu."
+          ]
+        }
+      ],
+      "pathToolOrder": [
+        "6965518070fe310007d69c01"
+      ],
+      "webSearchTool": null,
+      "knowledgeBaseTool": null,
+      "buttonTool": null,
+      "cardTool": null,
+      "carouselTool": null,
+      "callForwardTool": null,
+      "endTool": null,
+      "skipTurnTool": null,
+      "isOperator": false,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-12T19:54:41.000Z",
+      "updatedByID": 26
+    },
+    {
+      "id": "6965518070fe310007d69bf0",
+      "name": "Show card",
+      "createdByID": 26,
+      "folderID": null,
+      "settings": {
+        "model": "claude-4-sonnet",
+        "maxTokens": 5000,
+        "temperature": 0.3,
+        "reasoningEffort": null
+      },
+      "description": null,
+      "instructions": [
+        {
+          "text": [
+            "Show a CardV2 trace with a nice title, an image, descriptive text that explains what a Card is, and at least one button that takes the user to the main menu. Example: 'CardV2 Demo', 'This is what a card looks like in Voiceflow.'"
+          ]
+        }
+      ],
+      "pathToolOrder": [
+        "6965518070fe310007d69c02"
+      ],
+      "webSearchTool": null,
+      "knowledgeBaseTool": null,
+      "buttonTool": null,
+      "cardTool": {
+        "enabled": true,
+        "messages": null,
+        "description": "Summarizes the assistant's response in a visual card with a title, image, description, and optional action buttons."
+      },
+      "carouselTool": null,
+      "callForwardTool": null,
+      "endTool": null,
+      "skipTurnTool": null,
+      "isOperator": false,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-12T19:56:01.000Z",
+      "updatedByID": 26
+    },
+    {
+      "id": "6965518070fe310007d69bf1",
+      "name": "Show carousel",
+      "createdByID": 26,
+      "folderID": null,
+      "settings": {
+        "model": "claude-4-sonnet",
+        "maxTokens": 5000,
+        "temperature": 0.3,
+        "reasoningEffort": null
+      },
+      "description": null,
+      "instructions": [
+        {
+          "text": [
+            "Display a Carousel trace showing at least two cards, each with its own image, title, and button clearly labeled to return to the main menu. Briefly explain that a Carousel lets users browse multiple cards. Any card interaction brings the user back to the main menu."
+          ]
+        }
+      ],
+      "pathToolOrder": [
+        "6965518070fe310007d69c03"
+      ],
+      "webSearchTool": null,
+      "knowledgeBaseTool": null,
+      "buttonTool": null,
+      "cardTool": null,
+      "carouselTool": {
+        "enabled": true,
+        "messages": null,
+        "description": "Displays a carousel of up to 10 cards, each containing a title, description, image, and optional action buttons."
+      },
+      "callForwardTool": null,
+      "endTool": null,
+      "skipTurnTool": null,
+      "isOperator": false,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-12T19:55:55.000Z",
+      "updatedByID": 26
+    },
+    {
+      "id": "6965518070fe310007d69bf2",
+      "name": "Trigger no-reply",
+      "createdByID": 26,
+      "folderID": null,
+      "settings": {
+        "model": "claude-4-sonnet",
+        "maxTokens": 5000,
+        "temperature": 0.3,
+        "reasoningEffort": null
+      },
+      "description": null,
+      "instructions": [
+        {
+          "text": [
+            "Prompt the user with an open-ended question (like, 'What would you like to ask?'), then simulate a timeout using a No-Reply trace. After a short 'no reply' message, offer a button to return to the main menu."
+          ]
+        }
+      ],
+      "pathToolOrder": [
+        "6965518070fe310007d69c04",
+        "6965518070fe310007d69c05"
+      ],
+      "webSearchTool": null,
+      "knowledgeBaseTool": null,
+      "buttonTool": {
+        "enabled": true,
+        "messages": null,
+        "description": "Displays a UI picker when the user needs to select one option from a predefined list (up to 5 options)."
+      },
+      "cardTool": null,
+      "carouselTool": null,
+      "callForwardTool": null,
+      "endTool": null,
+      "skipTurnTool": null,
+      "isOperator": false,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-13T15:16:24.000Z",
+      "updatedByID": 30
+    },
+    {
+      "id": "6965518070fe310007d69bf3",
+      "name": "No-reply follow-up",
+      "createdByID": 26,
+      "folderID": null,
+      "settings": {
+        "model": "claude-4-sonnet",
+        "maxTokens": 5000,
+        "temperature": 0.3,
+        "reasoningEffort": null
+      },
+      "description": null,
+      "instructions": [
+        {
+          "text": [
+            "Let the user know that no reply was received and that this demonstrates the No-Reply trace. Then, offer a button for them to return to the main menu."
+          ]
+        }
+      ],
+      "pathToolOrder": [
+        "6965518070fe310007d69c06"
+      ],
+      "webSearchTool": null,
+      "knowledgeBaseTool": null,
+      "buttonTool": null,
+      "cardTool": null,
+      "carouselTool": null,
+      "callForwardTool": null,
+      "endTool": null,
+      "skipTurnTool": null,
+      "isOperator": false,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-12T19:54:41.000Z",
+      "updatedByID": 26
+    },
+    {
+      "id": "6965518070fe310007d69bf4",
+      "name": "Response after no-reply question",
+      "createdByID": 26,
+      "folderID": null,
+      "settings": {
+        "model": "claude-4-sonnet",
+        "maxTokens": 5000,
+        "temperature": 0.3,
+        "reasoningEffort": null
+      },
+      "description": null,
+      "instructions": [
+        {
+          "text": [
+            "Acknowledge the user’s quick reply. Mention this normally triggers No-Reply if there’s no response. Offer a button to return to the main menu."
+          ]
+        }
+      ],
+      "pathToolOrder": [
+        "6965518070fe310007d69c07"
+      ],
+      "webSearchTool": null,
+      "knowledgeBaseTool": null,
+      "buttonTool": null,
+      "cardTool": null,
+      "carouselTool": null,
+      "callForwardTool": null,
+      "endTool": null,
+      "skipTurnTool": null,
+      "isOperator": false,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-12T19:54:41.000Z",
+      "updatedByID": 26
+    },
+    {
+      "id": "6965518070fe310007d69bf5",
+      "name": "End conversation",
+      "createdByID": 26,
+      "folderID": null,
+      "settings": {
+        "model": "claude-4-sonnet",
+        "maxTokens": 5000,
+        "temperature": 0.3,
+        "reasoningEffort": null
+      },
+      "description": null,
+      "instructions": [
+        {
+          "text": [
+            "Thank the user for exploring the Voiceflow trace types, wish them a great day, and end the flow."
+          ]
+        }
+      ],
+      "pathToolOrder": [
+        "6965518070fe310007d69c08"
+      ],
+      "webSearchTool": null,
+      "knowledgeBaseTool": null,
+      "buttonTool": null,
+      "cardTool": null,
+      "carouselTool": null,
+      "callForwardTool": null,
+      "endTool": null,
+      "skipTurnTool": null,
+      "isOperator": false,
+      "createdAt": "2026-01-12T19:54:41.000Z",
+      "updatedAt": "2026-01-12T19:54:41.000Z",
+      "updatedByID": 26
+    }
+  ],
+  "agentAPITools": [],
+  "agentFlowTools": [],
+  "agentPathTools": [
+    {
+      "id": "6965518070fe310007d69bf6",
+      "name": "Text response selected",
+      "agentID": "6965518070fe310007d69beb",
+      "description": "User selects Show Text Response button.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69bf7",
+      "name": "Show card selected",
+      "agentID": "6965518070fe310007d69beb",
+      "description": "User selects Show Card button.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69bf8",
+      "name": "Show carousel selected",
+      "agentID": "6965518070fe310007d69beb",
+      "description": "User selects Show Carousel button.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69bf9",
+      "name": "Trigger no-reply selected",
+      "agentID": "6965518070fe310007d69beb",
+      "description": "User selects Trigger No-Reply button.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69bfa",
+      "name": "Speak (voice) selected",
+      "agentID": "6965518070fe310007d69beb",
+      "description": "User selects Speak (Voice) button.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69bfb",
+      "name": "Show image selected",
+      "agentID": "6965518070fe310007d69beb",
+      "description": "User selects Show Image button.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69bfc",
+      "name": "End conversation selected",
+      "agentID": "6965518070fe310007d69beb",
+      "description": "User selects End Conversation button.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69bfd",
+      "name": "Unrecognized input",
+      "agentID": "6965518070fe310007d69beb",
+      "description": "User says something that doesn't match any menu options.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69bfe",
+      "name": "Go to main menu",
+      "agentID": "6965518070fe310007d69bec",
+      "description": "Bring the user back to the main menu choices.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69bff",
+      "name": "Return to main menu",
+      "agentID": "6965518070fe310007d69bed",
+      "description": "User clicks to return to the main menu after viewing the text response.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69c00",
+      "name": "Return to main menu",
+      "agentID": "6965518070fe310007d69bee",
+      "description": "User clicks a button to return to the main menu after the speak trace.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69c01",
+      "name": "Return to main menu",
+      "agentID": "6965518070fe310007d69bef",
+      "description": "User clicks a button to return after viewing the image.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69c02",
+      "name": "Return to main menu",
+      "agentID": "6965518070fe310007d69bf0",
+      "description": "User clicks the button in the card to return to the main menu.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69c03",
+      "name": "Return to main menu from carousel",
+      "agentID": "6965518070fe310007d69bf1",
+      "description": "User interacts with a card button in the carousel to return to the main menu.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69c04",
+      "name": "Timeout occurs, no-reply triggered",
+      "agentID": "6965518070fe310007d69bf2",
+      "description": "No-reply is triggered when user does not respond.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69c05",
+      "name": "User responds",
+      "agentID": "6965518070fe310007d69bf2",
+      "description": "User immediately gives a response before timeout.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69c06",
+      "name": "Return to main menu",
+      "agentID": "6965518070fe310007d69bf3",
+      "description": "User clicks a button to return after no-reply follow-up.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69c07",
+      "name": "Return to main menu",
+      "agentID": "6965518070fe310007d69bf4",
+      "description": "User decides to return after replying.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    },
+    {
+      "id": "6965518070fe310007d69c08",
+      "name": "Conversation completed",
+      "agentID": "6965518070fe310007d69bf5",
+      "description": "User has ended the conversation.",
+      "variableOrder": [],
+      "messages": null,
+      "createdAt": "2026-01-12T19:54:41.000Z"
+    }
+  ],
+  "agentFunctionTools": [],
+  "agentIntegrationTools": [],
+  "agentPathToolVariables": [],
+  "agentFlowToolVariables": [],
+  "agentMcpIntegrationTools": [],
+  "apiTools": [],
+  "apiToolInputVariables": [],
+  "integrationTools": [],
+  "functions": [],
+  "functionPaths": [],
+  "functionVariables": [],
+  "mcpServers": [],
+  "mcpServerTools": [],
+  "mcpIntegrationTools": [],
+  "simulations": [],
+  "simulationTurns": [],
+  "simulationTurnTests": [],
+  "personas": [],
+  "project": {
+    "type": "chat",
+    "name": "BoazMasterOfTheUniversePoC",
+    "image": "",
+    "teamID": "24W6RebVXA",
+    "members": [],
+    "privacy": "private",
+    "platform": "webchat",
+    "_version": 1.2,
+    "linkType": "STRAIGHT",
+    "creatorID": 26,
+    "updatedBy": 30,
+    "apiPrivacy": "public",
+    "platformData": {
+      "invocationName": "template project general"
+    },
+    "customThemes": [],
+    "aiAssistSettings": {
+      "aiPlayground": true
+    },
+    "_id": "6965518083e316ef6f2680aa",
+    "updatedAt": "2026-01-15T20:40:55.572Z",
+    "devVersion": "6965518083e316ef6f2680ab",
+    "liveVersion": "6965518083e316ef6f2680ac"
+  },
+  "_version": "1.2",
+  "secrets": [],
+  "variableStates": [],
+  "transcriptEvaluations": [
+    {
+      "name": "Deflection rate",
+      "default": true,
+      "description": null,
+      "type": "boolean",
+      "enabled": false,
+      "prompt": "Determine if the user requested to talk to a human in order to achieve their desired outcome.",
+      "settings": {
+        "model": "bedrock-claude-4.5-haiku",
+        "maxTokens": 12000,
+        "temperature": 0.3
+      },
+      "systemTag": null,
+      "truePrompt": "The user did not require the need to talk to a human.",
+      "falsePrompt": "The user required the need to talk to a human agent."
+    },
+    {
+      "name": "Satisfaction score",
+      "default": true,
+      "description": null,
+      "type": "number",
+      "enabled": false,
+      "prompt": "Rate the user's overall satisfaction based on the conversation, using a scale from 1 to 5.",
+      "settings": {
+        "model": "bedrock-claude-4.5-haiku",
+        "maxTokens": 12000,
+        "temperature": 0.3
+      },
+      "systemTag": null,
+      "minimumValue": 1,
+      "minimumPrompt": "Look for negative comments or expressions of dissatisfaction to rate the minimum satisfaction.",
+      "maximumValue": 5,
+      "maximumPrompt": "Identify any comments or phrases in the transcript that express the highest level of satisfaction."
+    },
+    {
+      "name": "AI summary",
+      "default": true,
+      "description": null,
+      "type": "string",
+      "enabled": false,
+      "prompt": "Look at the transcript and provide a brief summary of the conversation. Make sure to highlight the outcome of the conversation, and key moments or topics, and the overall tone of the customer.",
+      "settings": {
+        "model": "bedrock-claude-4.5-haiku",
+        "maxTokens": 12000,
+        "temperature": 0.3
+      },
+      "systemTag": null
+    }
+  ]
+}
