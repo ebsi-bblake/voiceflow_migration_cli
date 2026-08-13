@@ -50,7 +50,10 @@ function random8(): string {
   return crypto.randomUUID().replaceAll("-", "").slice(0, 8);
 }
 
-async function importDiagnostic(response: Response, token: string): Promise<string> {
+async function importDiagnostic(
+  response: Response,
+  token: string,
+): Promise<string> {
   let body: unknown;
   try {
     body = JSON.parse(await response.text());
