@@ -6,14 +6,15 @@ import {
   readResponseBytes,
   voiceflowUrl,
 } from "./http_api_client.ts";
+import { diagnostic } from "./migration_diagnostics.ts";
 export async function exportVersion(
   auth: AuthContext,
   sourceVersionID: string,
 ): Promise<ExportArtifact> {
   if (typeof auth?.token !== "string" || typeof auth?.creatorID !== "string")
-    throw new Error("Invalid authentication context");
+    throw diagnostic("Export", "invalid-input");
   if (typeof sourceVersionID !== "string" || !sourceVersionID.trim())
-    throw new Error("Source version is required");
+    throw diagnostic("Export", "invalid-input");
   const r = await fetchVoiceflow(
     "Export",
     voiceflowUrl("export-json", sourceVersionID),

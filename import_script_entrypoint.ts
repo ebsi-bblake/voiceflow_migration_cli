@@ -1,10 +1,11 @@
 import { authenticate } from "./jwt_authentication_context.ts";
 import { importFile } from "./import_project_api.ts";
+import { diagnostic } from "./migration_diagnostics.ts";
 
 // token is the raw JWT only; do not pass a Bearer-prefixed value.
 
 const MAX_IMPORT_BYTES = 50_000_000;
-const SAFE_FILENAME = /^[A-Za-z0-9._-]+$/;
+const SAFE_FILENAME = /^[A-Za-z0-9._-]+\.vf$/;
 
 export async function main(
   token: string,
@@ -20,15 +21,15 @@ export async function main(
     typeof destinationFolderID !== "string" ||
     !destinationFolderID.trim()
   )
-    throw new Error("Destination IDs are required");
+    throw diagnostic("Import", "invalid-input");
   if (typeof targetSchemaVersion !== "string" || !targetSchemaVersion.trim())
-    throw new Error("Target schema version is required");
+    throw diagnostic("Import", "invalid-input");
   if (
     !SAFE_FILENAME.test(exportFilename) ||
     exportFilename.length > 255 ||
     exportFilename.includes("..")
   )
-    throw new Error("Invalid export filename");
+    throw diagnostic("Import", "invalid-input");
   if (
     typeof exportBase64 !== "string" ||
     !exportBase64 ||
@@ -36,10 +37,10 @@ export async function main(
     !/^[A-Za-z0-9+/]*={0,2}$/.test(exportBase64) ||
     exportBase64.length % 4 !== 0
   )
-    throw new Error("Invalid export base64");
+    throw diagnostic("Import", "invalid-input");
   const binary = atob(exportBase64);
   if (binary.length > MAX_IMPORT_BYTES)
-    throw new Error("Import file is too large");
+    throw diagnostic("Import", "response-too-large");
   const bytes = Uint8Array.from(binary, (character) =>
     character.charCodeAt(0),
   ).buffer;

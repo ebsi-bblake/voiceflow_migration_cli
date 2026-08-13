@@ -19,37 +19,37 @@ export type DynSelect_sourceProjectID = string;
 export type DynSelect_sourceVersionID = string;
 export type DynSelect_destinationWorkspaceID = string;
 export type DynSelect_destinationFolderID = string;
-export async function sourceWorkspaceID(token: string) {
+export const sourceWorkspaceID = async (token: string) => {
   return token?.trim() ? listWorkspaces(token) : [];
-}
-export async function sourceProjectID(
+};
+export const sourceProjectID = async (
   token: string,
   sourceWorkspaceID: string,
-) {
+) => {
   return token?.trim() && sourceWorkspaceID?.trim()
     ? listProjects(token, sourceWorkspaceID)
     : [];
-}
-export async function sourceVersionID(
+};
+export const sourceVersionID = async (
   token: string,
   sourceWorkspaceID: string,
   sourceProjectID: string,
-) {
+) => {
   return token?.trim() && sourceWorkspaceID?.trim() && sourceProjectID?.trim()
     ? listVersions(token, sourceWorkspaceID, sourceProjectID)
     : [];
-}
-export async function destinationWorkspaceID(token: string) {
+};
+export const destinationWorkspaceID = async (token: string) => {
   return token?.trim() ? listWorkspaces(token) : [];
-}
-export async function destinationFolderID(
+};
+export const destinationFolderID = async (
   token: string,
   destinationWorkspaceID: string,
-) {
+) => {
   return token?.trim() && destinationWorkspaceID?.trim()
     ? listFolders(token, destinationWorkspaceID)
     : [];
-}
+};
 
 export async function main(
   token: string,
@@ -87,5 +87,6 @@ export async function main(
     selected: result.selected,
     imported: result.imported,
     apiKeyRetrieved: result.apiKeyRetrieved,
+    postImport: result.postImport,
   };
 }

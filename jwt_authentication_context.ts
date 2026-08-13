@@ -1,3 +1,4 @@
+import { diagnostic } from "./migration_diagnostics.ts";
 export type AuthContext = {
   readonly token: string;
   readonly creatorID: string;
@@ -5,10 +6,10 @@ export type AuthContext = {
 type Claims = Record<string, unknown>;
 export function authenticate(rawToken: unknown): AuthContext {
   if (typeof rawToken !== "string" || !rawToken.trim())
-    throw new Error("Authentication token is required");
+    throw diagnostic("Authentication", "invalid-input");
   const token = rawToken.trim();
   if (!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(token))
-    throw new Error("Authentication token must be a JWT");
+    throw diagnostic("Authentication", "authentication-failed");
   let claims: Claims;
   try {
     const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
@@ -21,16 +22,16 @@ export function authenticate(rawToken: unknown): AuthContext {
       ),
     );
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
-      throw new Error("JWT claims are invalid");
+      throw diagnostic("Authentication", "authentication-failed");
     claims = parsed as Claims;
   } catch {
-    throw new Error("JWT claims are invalid");
+    throw diagnostic("Authentication", "authentication-failed");
   }
   const id = claims.creatorID ?? claims.userID ?? claims.user_id ?? claims.sub;
   if (
     (typeof id !== "string" && typeof id !== "number") ||
     String(id).trim() === ""
   )
-    throw new Error("JWT does not contain a creator/user ID");
+    throw diagnostic("Authentication", "authentication-failed");
   return { token, creatorID: String(id) };
 }

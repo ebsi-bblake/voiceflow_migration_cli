@@ -4,7 +4,7 @@ This directory contains a modular Bun/TypeScript implementation for Windmill. It
 
 ## Canonical Windmill folder
 
-The folder contains these 12 descriptive files:
+The folder contains these 14 canonical files:
 
 ```text
 shared_contract_types.ts
@@ -19,6 +19,8 @@ export_script_entrypoint.ts
 import_script_entrypoint.ts
 project_migration_orchestrator.ts
 migration_script_entrypoint.ts
+project_api_key_retrieval.ts
+migration_diagnostics.ts
 ```
 
 The three deployable Windmill entrypoints are:
@@ -104,7 +106,7 @@ The output is:
     destinationFolderID: string;
   };
   imported: {
-    projectID?: string;
+    projectID: string;
     devVersion?: string;
     liveVersion?: string;
     assistantID?: string;
@@ -112,10 +114,12 @@ The output is:
     workspaceID?: string;
     sourceProjectID?: string;
   };
+  apiKeyRetrieved: boolean;
+  postImport?: { apiKeyRetrieved: false; diagnostic: object };
 }
 ```
 
-## Network dependencies
+## Network dependencieis
 
 Dynamic catalog selectors use the internal Logux protocol over a native WebSocket:
 
@@ -132,19 +136,23 @@ POST https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/import-
 
 Both requests use `Authorization: Bearer <raw JWT>`. Export reads the response as bytes. Import sends multipart form data containing the `.vf` file as `application/octet-stream`, `targetSchemaVersion`, and `folderID`. Non-successful HTTP responses fail the operation. Logux is internal application behavior rather than a documented public Voiceflow API; WebSocket errors, server rejection, and a 15-second sync timeout are possible failure modes.
 
+`apiKeyRetrieved` and optional `postImport` report API-key follow-up status. A failed retrieval after successful import preserves the result and provides a sanitized diagnostic. Retrieval uses an undocumented/internal identity route. Secret patching is not implemented.
+
 ## Local CLI harness
 
-`test-migration-v2.ts` is an interactive local harness for the modular implementation. Run it with:
+`test-migration-cli.ts` is an interactive local harness for the modular implementation. Run it with:
 
 ```sh
-bun run test-migration-v2.ts
+bun run test-migration-cli.ts
 ```
 
 **Warning:** after confirmation, this command performs a real Voiceflow export and import. Use only the intended source version and destination workspace. It prompts for the raw JWT without echoing it and asks for confirmation before migration.
 
+CLI exit codes: 0 for success, abort, or help; 2 when import succeeded but API-key retrieval failed; and 1 for fatal migration/import failure. Diagnostics do not expose keys, tokens, or raw response bodies.
+
 ## Security and current limitations
 
-- Never print, persist, commit, or include in screenshots the JWT, `exportBase64`, exported project data, or secrets.
+- Never print, persist, commit, or include in screenshots the JWT, `exportBase64`, exported project data, or secrets. Base64 is retained only as the import handoff and must be treated as sensitive exported project data.
 - Keep `token` in a secret input or another protected secret store; rotate it if exposed.
 - JWT signature verification is not performed by this implementation.
 - API key/secret patching is **not implemented**. The migration does not read, transform, or patch post-migration Voiceflow secrets. A destination project API key is not a substitute for the migration JWT.

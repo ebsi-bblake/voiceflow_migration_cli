@@ -11,6 +11,7 @@ import {
   readResponseJson,
   voiceflowUrl,
 } from "./http_api_client.ts";
+import { diagnostic } from "./migration_diagnostics.ts";
 export async function importFile(
   auth: AuthContext,
   request: {
@@ -25,14 +26,14 @@ export async function importFile(
     typeof auth.token !== "string" ||
     typeof auth.creatorID !== "string"
   )
-    throw new Error("Invalid authentication context");
+    throw diagnostic("Import", "invalid-input");
   if (
     !String(request.destinationWorkspaceID).trim() ||
     !String(request.folderID).trim() ||
     typeof request.targetSchemaVersion !== "string" ||
     !request.targetSchemaVersion.trim()
   )
-    throw new Error("Import IDs and schema version are required");
+    throw diagnostic("Import", "invalid-input");
   if (
     !request.artifact ||
     request.artifact.contentType !== "application/octet-stream" ||
@@ -41,7 +42,7 @@ export async function importFile(
     request.artifact.filename.includes("..") ||
     request.artifact.bytes.byteLength > 50_000_000
   )
-    throw new Error("Invalid export artifact");
+    throw diagnostic("Import", "invalid-input");
   const form = new FormData();
   form.append(
     "file",
@@ -59,7 +60,7 @@ export async function importFile(
       body: form,
     },
   );
-  const value = await readResponseJson(r, "Import");
+  const value = await readResponseJson(r, "Import", 2_000_000);
   const root =
     value && typeof value === "object"
       ? (value as Record<string, unknown>)
@@ -74,16 +75,18 @@ export async function importFile(
       : {};
   const primitive = (v: unknown): string | undefined =>
     typeof v === "string" || typeof v === "number" ? String(v) : undefined;
-  return {
-    status: r.status,
-    receipt: {
-      projectID: primitive(project._id),
+  const projectID = primitive(project._id)?.trim();
+  if (!projectID)
+    throw diagnostic("Import", "invalid-import-receipt", { status: r.status });
+  const receipt: ImportReceipt = {
+      projectID,
       devVersion: primitive(project.devVersion),
       liveVersion: primitive(project.liveVersion),
       assistantID: primitive(assistant.id),
       folderID: primitive(assistant.folderID),
       workspaceID: primitive(assistant.workspaceID),
       sourceProjectID: primitive(root.sourceProjectID),
-    },
   };
+  if ((receipt.workspaceID !== undefined && receipt.workspaceID !== String(request.destinationWorkspaceID).trim()) || (receipt.folderID !== undefined && receipt.folderID !== String(request.folderID).trim())) throw diagnostic("Import", "invalid-import-receipt", { status: r.status });
+  return { status: r.status, receipt };
 }

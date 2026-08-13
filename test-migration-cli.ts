@@ -7,18 +7,19 @@ import {
   destinationFolderID,
 } from "./windmill_dynamic_selectors.ts";
 import { main } from "./project_migration_orchestrator.ts";
+import { asMigrationError, diagnostic } from "./migration_diagnostics.ts";
 
 type Option = { label: string; value: string };
 
-function help(): void {
-  console.log("Usage: bun test-migration-v2.ts");
+const help = (): void => {
+  console.log("Usage: bun test-migration-cli.ts");
   console.log(
     "Interactively export a Voiceflow version and import it into another workspace.",
   );
-}
+};
 
 const bounded = (value: unknown, max = 200): string => {
-  const text = typeof value === "string" ? value : JSON.stringify(value);
+  const text = (typeof value === "string" ? value : JSON.stringify(value)).replace(/[\u0000-\u001f\u007f]/g, " ");
   return text.length > max ? `${text.slice(0, max)}…` : text;
 };
 
@@ -137,11 +138,13 @@ class PromptReader {
 
   close(): void {
     this.detach();
+    if (this.input.isTTY && typeof this.input.setRawMode === "function")
+      this.input.setRawMode(false);
     this.input.pause();
   }
 }
 
-async function run(): Promise<void> {
+const run = async (): Promise<void> => {
   if (process.argv.includes("--help") || process.argv.includes("-h")) {
     help();
     return;
@@ -156,7 +159,10 @@ async function run(): Promise<void> {
   const ask = (question: string) => prompts.ask(question);
   const choose = async (title: string, options: Option[]): Promise<string> => {
     if (!options.length)
-      throw new Error(`No ${title.toLowerCase()} options were returned`);
+      throw diagnostic("Catalog", "not-found", {
+        endpoint: "catalog",
+        nextAction: `No ${title.toLowerCase()} options were returned. Check access and migration inputs.`,
+      });
     console.log(`\n${title}:`);
     options.forEach((option, index) =>
       console.log(
@@ -218,17 +224,26 @@ async function run(): Promise<void> {
         exportBytes: result.exportBytes,
         selected: result.selected,
         imported: result.imported,
+        apiKeyRetrieved: result.apiKeyRetrieved,
+        postImport: result.postImport,
       }),
     );
-  } catch (_error) {
-    console.error("Migration failed: an operation could not be completed.");
+    if (result.postImport) {
+      console.error("WARNING: migration completed, but API-key retrieval failed; see the sanitized postImport diagnostic.");
+      console.error(JSON.stringify({ postImport: result.postImport }));
+      process.exitCode = 2;
+    }
+  } catch (error) {
+    const d = asMigrationError(error).diagnostic;
+    console.error(JSON.stringify({ migrationFailed: { phase: d.phase, code: d.code, status: d.status, diagnosticId: d.diagnosticId, retryable: d.retryable, nextAction: d.nextAction } }));
+    process.exitCode = 1;
   } finally {
     prompts.close();
   }
-}
+};
 
 if (import.meta.main) {
-  run().catch(() =>
-    console.error("Migration failed: an operation could not be completed."),
+  run().catch((error) =>
+    (process.exitCode = 1, console.error(JSON.stringify({ migrationFailed: asMigrationError(error).diagnostic }))),
   );
 }

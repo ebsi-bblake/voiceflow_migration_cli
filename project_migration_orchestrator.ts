@@ -1,6 +1,8 @@
 import { authenticate } from "./jwt_authentication_context.ts";
 import { exportVersion } from "./export_project_api.ts";
 import { importFile } from "./import_project_api.ts";
+import { retrieveProjectApiKey } from "./project_api_key_retrieval.ts";
+import { diagnostic, asMigrationError } from "./migration_diagnostics.ts";
 import type { MigrationResult } from "./shared_contract_types.ts";
 import {
   listWorkspaces,
@@ -43,27 +45,36 @@ export async function migrateProject(
     destinationFolderID,
   ];
   if (ids.some((x) => typeof x !== "string" || !x.trim()))
-    throw new Error("All migration selections are required");
+    throw diagnostic("Import", "invalid-input");
+  const normalized = ids.map((id) => id.trim());
+  const [sourceWorkspace, sourceProject, sourceVersion, destinationWorkspace, destinationFolder] = normalized;
   const a = authenticate(token),
-    ex = await exportVersion(a, sourceVersionID),
+    ex = await exportVersion(a, sourceVersion),
     im = await importFile(a, {
       artifact: ex,
-      destinationWorkspaceID,
-      folderID: destinationFolderID,
+      destinationWorkspaceID: destinationWorkspace,
+      folderID: destinationFolder,
       targetSchemaVersion,
     });
+  const importedProjectID = typeof im.receipt.projectID === "string" ? im.receipt.projectID.trim() : "";
+  let apiKeyRetrieved = false;
+  let postImport: MigrationResult["postImport"];
+  try { apiKeyRetrieved = (await retrieveProjectApiKey(a, importedProjectID)).startsWith("VF.DM."); }
+  catch (error) { postImport = { apiKeyRetrieved: false, diagnostic: asMigrationError(error, "API-key retrieval").diagnostic }; }
   return {
     exportStatus: ex.status,
     importStatus: im.status,
     exportBytes: ex.bytes.byteLength,
     selected: {
-      sourceWorkspaceID,
-      sourceProjectID,
-      sourceVersionID,
-      destinationWorkspaceID,
-      destinationFolderID,
+      sourceWorkspaceID: sourceWorkspace,
+      sourceProjectID: sourceProject,
+      sourceVersionID: sourceVersion,
+      destinationWorkspaceID: destinationWorkspace,
+      destinationFolderID: destinationFolder,
     },
     imported: im.receipt,
+    apiKeyRetrieved,
+    postImport,
   };
 }
 export async function main(

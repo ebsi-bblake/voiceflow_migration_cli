@@ -16,7 +16,7 @@ export type ExportArtifact = {
   status: number;
 };
 export type ImportedIDs = {
-  projectID?: string;
+  projectID: string;
   devVersion?: string;
   liveVersion?: string;
   assistantID?: string;
@@ -31,4 +31,6 @@ export type MigrationResult = {
   exportBytes: number;
   selected: MigrationSelection;
   imported: ImportedIDs;
+  apiKeyRetrieved: boolean;
+  postImport?: { readonly apiKeyRetrieved: false; readonly diagnostic: import("./migration_diagnostics.ts").MigrationDiagnostic };
 };

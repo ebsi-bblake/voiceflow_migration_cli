@@ -1,5 +1,6 @@
 import { authenticate } from "./jwt_authentication_context.ts";
 import { exportVersion } from "./export_project_api.ts";
+import { diagnostic } from "./migration_diagnostics.ts";
 
 // token is the raw JWT only; do not pass a Bearer-prefixed value.
 
@@ -12,22 +13,22 @@ export type VoiceflowExportOutput = {
   exportBase64: string;
 };
 
-function toBase64(bytes: ArrayBuffer): string {
+const toBase64 = (bytes: ArrayBuffer): string => {
   const data = new Uint8Array(bytes);
   let binary = "";
   for (let offset = 0; offset < data.length; offset += 0x8000)
     binary += String.fromCharCode(...data.subarray(offset, offset + 0x8000));
   return btoa(binary);
-}
+};
 
 export async function main(
   token: string,
   sourceVersionID: string,
 ): Promise<VoiceflowExportOutput> {
-  if (typeof sourceVersionID !== "string" || !sourceVersionID.trim()) throw new Error("Source version ID is required");
-  const artifact = await exportVersion(authenticate(token), sourceVersionID);
+  if (typeof sourceVersionID !== "string" || !sourceVersionID.trim()) throw diagnostic("Export", "invalid-input");
+  const artifact = await exportVersion(authenticate(token), sourceVersionID.trim());
   if (artifact.bytes.byteLength > MAX_EXPORT_BYTES)
-    throw new Error("Export response is too large");
+    throw diagnostic("Export", "response-too-large");
   return {
     filename: artifact.filename,
     contentType: artifact.contentType,
