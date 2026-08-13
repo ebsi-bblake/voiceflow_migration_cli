@@ -1,109 +1,155 @@
 # Voiceflow project migration
 
-`migrate_voiceflow_project.ts` is a Windmill Bun/TypeScript script that exports one Voiceflow source version and imports it into a destination workspace and folder. It does not currently patch Voiceflow secrets after the import.
+This directory contains a modular Bun/TypeScript implementation for Windmill. It supports exporting a Voiceflow version, importing an exported artifact, or performing both operations as one migration. The canonical deployment layout is flat: deploy the files below from one Windmill folder without moving them into subdirectories.
 
-## Windmill setup
+## Canonical Windmill folder
 
-- Source file: `/Users/bblake/workspace/empyrean/voiceflow/migrate_voiceflow_project.ts`
-- Runtime: **Bun** (TypeScript).
-- Deploy the file as a Windmill script; the Windmill deployment path is not declared in the source file.
-- Define a required **secret** input named `token`.
-- Configure `token` as a dependency of every dynamic-select input. Windmill invokes each selector with `token` first.
+The folder contains these 12 descriptive files:
 
-The token must be a JWT. A leading `Bearer ` prefix is accepted and stripped. The script decodes the JWT claims (without verifying its signature) and uses `creatorID`, `userID`, `user_id`, or `sub` to identify the creator.
+```text
+shared_contract_types.ts
+jwt_authentication_context.ts
+http_api_client.ts
+export_project_api.ts
+import_project_api.ts
+logux_websocket_transport.ts
+catalog_discovery_service.ts
+windmill_dynamic_selectors.ts
+export_script_entrypoint.ts
+import_script_entrypoint.ts
+project_migration_orchestrator.ts
+migration_script_entrypoint.ts
+```
 
-## Dynamic inputs
+The three deployable Windmill entrypoints are:
 
-The exported selectors provide these dropdowns. Their `value` is the corresponding Voiceflow ID:
+- `export_script_entrypoint.ts` — export one source version.
+- `import_script_entrypoint.ts` — import a Base64-encoded export artifact.
+- `migration_script_entrypoint.ts` — discover catalog selections and run export plus import.
 
-| Input | Dependencies and behavior |
+The other nine files are helper modules: shared types, JWT context, HTTP client, export/import API clients, Logux transport, catalog discovery, dynamic selectors, and the migration orchestrator. Deploy the entrypoints with their helper modules available in the same flat folder.
+
+## Authentication
+
+Each entrypoint requires a `token` input configured as a Windmill **secret**. The value must be the raw JWT; do not pass a `Bearer ` prefix. The implementation decodes the JWT claims without verifying the signature and uses the first available `creatorID`, `userID`, `user_id`, or `sub` claim as the creator ID.
+
+For the migration entrypoint, configure the dynamic selectors with these dependencies:
+
+| Selector | Dependencies |
 | --- | --- |
-| `sourceWorkspaceID` | `token`; lists the token owner's workspaces. |
-| `sourceProjectID` | `token`, `sourceWorkspaceID`; lists projects in the selected source workspace. |
-| `sourceVersionID` | `token`, `sourceWorkspaceID`, `sourceProjectID`; lists environment draft and published version IDs. Labels are `[Draft] <project> — <environment>` and `[Published] <project> — <environment>`. |
-| `destinationWorkspaceID` | `token`; lists the same workspace set as `sourceWorkspaceID`. |
-| `destinationFolderID` | `token`, `destinationWorkspaceID`; lists folders in the selected destination workspace. |
+| `sourceWorkspaceID` | `token` |
+| `sourceProjectID` | `token`, `sourceWorkspaceID` |
+| `sourceVersionID` | `token`, `sourceWorkspaceID`, `sourceProjectID` |
+| `destinationWorkspaceID` | `token` |
+| `destinationFolderID` | `token`, `destinationWorkspaceID` |
 
-## Network dependency
+The selectors list workspaces, projects, draft/published versions, and destination folders. Their values are Voiceflow IDs. `sourceProjectID` is used for catalog selection and is retained in the migration result; the export request uses `sourceVersionID`.
 
-The dropdowns use a captured internal **Logux** protocol over the native WebSocket client:
-
-`wss://realtime.empyrean.voiceflow.com/`
-
-The worker must allow outbound WSS access to that host. The migration also needs outbound HTTPS access to `realtime-http-api.empyrean.voiceflow.com`. The Logux dependency is internal application behavior, not a documented public Voiceflow API; failures can appear as a WebSocket error, rejection, or 15-second timeout.
-
-## Migration API calls
-
-The script uses the normalized JWT as a bearer token for both requests.
+## Entrypoint contracts
 
 ### Export
 
-```text
-GET https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/export-json/{sourceVersionID}
-```
+Inputs:
 
-Headers: `Authorization: Bearer <JWT>`, `Accept: application/json`, and `Cache-Control: no-cache`.
+- `token: string` — raw JWT secret.
+- `sourceVersionID: string` — source version ID.
 
-The response is read as an array buffer. A `304` or any non-2xx response fails the script. `sourceProjectID` is used for dropdown selection only; the export request uses `sourceVersionID`.
-
-### Import
-
-```text
-POST https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/import-file/{destinationWorkspaceID}
-```
-
-Headers: `Authorization: Bearer <JWT>` and `Accept: application/json`. The body is `multipart/form-data` with these fields:
-
-- `file`: the exported bytes, `application/json`, named `voiceflow-{sourceVersionID}.json`;
-- `targetSchemaVersion`: the `main` argument, defaulting to `13.1`;
-- `folderID`: the selected `destinationFolderID`.
-
-Any non-2xx import response fails the script. A successful import response is parsed as JSON.
-
-## Returned result
-
-On success, `main` returns:
+On success, the entrypoint returns:
 
 ```ts
 {
-  exportStatus: number,
-  importStatus: number,
-  exportBytes: number,
-  selected: {
-    sourceWorkspaceID: string,
-    sourceProjectID: string,
-    sourceVersionID: string,
-    destinationWorkspaceID: string,
-    destinationFolderID: string,
-  },
-  importResponse: any,
+  filename: string;                 // voiceflow-export.vf
+  contentType: "application/octet-stream";
+  byteLength: number;
+  exportBase64: string;
 }
 ```
 
-## Current flow
+`exportBase64` is the handoff value for the import entrypoint. The export is limited to 50,000,000 bytes.
 
-1. Windmill resolves the dynamic inputs. Each selector normalizes the JWT, opens a Logux WebSocket, sends a `connect` frame, subscribes to the required channel with `sync` actions, and waits for the required replacement message types.
-2. It loads workspaces from `creator/{creatorID}` using `workspace.CRUD:REPLACE`.
-3. It loads projects and environments from `workspace/{sourceWorkspaceID}` using `project.CRUD:REPLACE`, then creates the draft/published version labels.
-4. It loads destination folders from `workspace/{destinationWorkspaceID}` using `workspace-folder.REPLACE`. The destination workspace selector reuses the workspace selector.
-5. `main` normalizes the JWT and GETs the selected `sourceVersionID` export.
-6. It rejects HTTP `304` and other unsuccessful export responses, then reads the export bytes.
-7. It creates the multipart form with `file`, `targetSchemaVersion`, and `folderID`, and POSTs it to the destination workspace import endpoint.
-8. It rejects unsuccessful imports, parses the JSON response, and returns statuses, byte count, selected IDs, and the import response.
+### Import
 
-## Planned secret patching — not implemented
+Inputs:
 
-**The current script does not read, transform, or patch post-migration Voiceflow secrets.** The planned follow-up may use these documented public Project API endpoints:
+- `token: string` — raw JWT secret.
+- `destinationWorkspaceID: string`.
+- `destinationFolderID: string`.
+- `exportBase64: string` — Base64 produced by the export entrypoint.
+- `exportFilename: string` — optional; defaults to `voiceflow-export.vf` and must be a safe `.vf` filename.
+- `targetSchemaVersion: string` — optional; defaults to `13.1`.
 
-- `PATCH /v1/secrets-management/projects/{projectID}/secrets/{secretName}` — update the project-level default value and/or visibility.
-- `PATCH /v1/secrets-management/projects/{projectID}/environments/{projectEnvironmentIDOrAlias}/secrets/{secretName}` — set or remove an environment override; `versionVariant` targets the draft or published version, and `null` removes the override.
+The Base64 value is decoded to bytes and uploaded as a `.vf` file with media type `application/octet-stream`. On success, the entrypoint returns `status`, `byteLength`, and `imported`, which may include `projectID`, `devVersion`, `liveVersion`, `assistantID`, `folderID`, `workspaceID`, and `sourceProjectID`.
 
-Those public endpoints require the **destination project's separate `VF.DM...` project API key** in `Authorization`; the migration JWT is not a substitute. The current Windmill inputs contain no destination project API key input and make no such PATCH calls. See the [Voiceflow Project API](https://docs.voiceflow.com/api-reference/project-api/overview), [default secret endpoint](https://docs.voiceflow.com/api-reference/secretsmanagementpublicapi/update-secret-default-value), and [environment override endpoint](https://docs.voiceflow.com/api-reference/secretsmanagementpublicapi/update-secret-environment-override-value).
+### Migration
 
-## Security and validation
+Inputs:
 
-- Treat `token` as a high-privilege bearer JWT. Never commit it, print it, include it in screenshots, or place it in ordinary Windmill inputs. Rotate it immediately if exposed.
-- JWT claims are decoded locally only to find the creator ID; signature verification is not performed by this script.
-- Exported project data and `importResponse` may contain sensitive configuration or secret-related values. Do not persist or log them unnecessarily.
-- Store any future `VF.DM` key as a separate secret and never reuse or expose it as the migration JWT.
-- **Validation must not make live API calls.** Use static review, type checking, or mocked WebSocket/HTTP boundaries only. Do not execute the dynamic selectors or `main` with real credentials during validation.
+- `token: string` — raw JWT secret.
+- `sourceWorkspaceID`, `sourceProjectID`, `sourceVersionID`.
+- `destinationWorkspaceID`, `destinationFolderID`.
+- `targetSchemaVersion: string` — optional; defaults to `13.1`.
+
+The output is:
+
+```ts
+{
+  exportStatus: number;
+  importStatus: number;
+  exportBytes: number;
+  selected: {
+    sourceWorkspaceID: string;
+    sourceProjectID: string;
+    sourceVersionID: string;
+    destinationWorkspaceID: string;
+    destinationFolderID: string;
+  };
+  imported: {
+    projectID?: string;
+    devVersion?: string;
+    liveVersion?: string;
+    assistantID?: string;
+    folderID?: string;
+    workspaceID?: string;
+    sourceProjectID?: string;
+  };
+}
+```
+
+## Network dependencies
+
+Dynamic catalog selectors use the internal Logux protocol over a native WebSocket:
+
+```text
+wss://realtime.empyrean.voiceflow.com/
+```
+
+The worker needs outbound WSS access to that host. The export and import clients use HTTPS at `realtime-http-api.empyrean.voiceflow.com`:
+
+```text
+GET  https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/export-json/{sourceVersionID}
+POST https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/import-file/{destinationWorkspaceID}
+```
+
+Both requests use `Authorization: Bearer <raw JWT>`. Export reads the response as bytes. Import sends multipart form data containing the `.vf` file as `application/octet-stream`, `targetSchemaVersion`, and `folderID`. Non-successful HTTP responses fail the operation. Logux is internal application behavior rather than a documented public Voiceflow API; WebSocket errors, server rejection, and a 15-second sync timeout are possible failure modes.
+
+## Local CLI harness
+
+`test-migration-v2.ts` is an interactive local harness for the modular implementation. Run it with:
+
+```sh
+bun run test-migration-v2.ts
+```
+
+**Warning:** after confirmation, this command performs a real Voiceflow export and import. Use only the intended source version and destination workspace. It prompts for the raw JWT without echoing it and asks for confirmation before migration.
+
+## Security and current limitations
+
+- Never print, persist, commit, or include in screenshots the JWT, `exportBase64`, exported project data, or secrets.
+- Keep `token` in a secret input or another protected secret store; rotate it if exposed.
+- JWT signature verification is not performed by this implementation.
+- API key/secret patching is **not implemented**. The migration does not read, transform, or patch post-migration Voiceflow secrets. A destination project API key is not a substitute for the migration JWT.
+- Do not use live credentials when validating code. Prefer static review, type checking, or mocked HTTP/WebSocket boundaries.
+
+## Legacy files
+
+Legacy files, including `migrate_voiceflow_project.ts` and `test-migration.ts`, remain separate for reference or compatibility. They are not the canonical modular Windmill entries and should not be deployed as canonical modular entries. Use the three descriptive entrypoints above instead.

@@ -1,0 +1,62 @@
+import { authenticate } from "./jwt_authentication_context.ts";
+import { importFile } from "./import_project_api.ts";
+
+// token is the raw JWT only; do not pass a Bearer-prefixed value.
+
+const MAX_IMPORT_BYTES = 50_000_000;
+const SAFE_FILENAME = /^[A-Za-z0-9._-]+$/;
+
+export async function main(
+  token: string,
+  destinationWorkspaceID: string,
+  destinationFolderID: string,
+  exportBase64: string,
+  exportFilename = "voiceflow-export.vf",
+  targetSchemaVersion = "13.1",
+) {
+  if (
+    typeof destinationWorkspaceID !== "string" ||
+    !destinationWorkspaceID.trim() ||
+    typeof destinationFolderID !== "string" ||
+    !destinationFolderID.trim()
+  )
+    throw new Error("Destination IDs are required");
+  if (typeof targetSchemaVersion !== "string" || !targetSchemaVersion.trim())
+    throw new Error("Target schema version is required");
+  if (
+    !SAFE_FILENAME.test(exportFilename) ||
+    exportFilename.length > 255 ||
+    exportFilename.includes("..")
+  )
+    throw new Error("Invalid export filename");
+  if (
+    typeof exportBase64 !== "string" ||
+    !exportBase64 ||
+    exportBase64.length > Math.ceil(MAX_IMPORT_BYTES / 3) * 4 ||
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(exportBase64) ||
+    exportBase64.length % 4 !== 0
+  )
+    throw new Error("Invalid export base64");
+  const binary = atob(exportBase64);
+  if (binary.length > MAX_IMPORT_BYTES)
+    throw new Error("Import file is too large");
+  const bytes = Uint8Array.from(binary, (character) =>
+    character.charCodeAt(0),
+  ).buffer;
+  const result = await importFile(authenticate(token), {
+    artifact: {
+      bytes,
+      filename: exportFilename,
+      contentType: "application/octet-stream",
+      status: 200,
+    },
+    destinationWorkspaceID,
+    folderID: destinationFolderID,
+    targetSchemaVersion,
+  });
+  return {
+    status: result.status,
+    byteLength: bytes.byteLength,
+    imported: result.receipt,
+  };
+}
