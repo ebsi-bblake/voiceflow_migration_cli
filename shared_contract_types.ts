@@ -32,5 +32,5 @@ export type MigrationResult = {
   selected: MigrationSelection;
   imported: ImportedIDs;
   apiKeyRetrieved: boolean;
-  postImport?: { readonly apiKeyRetrieved: false; readonly diagnostic: import("./migration_diagnostics.ts").MigrationDiagnostic };
+  postImport?: { readonly apiKeyRetrieved: false; readonly diagnostic: import("./migration_diagnostics").MigrationDiagnostic };
 };

@@ -1,11 +1,17 @@
-import { authenticate } from "./jwt_authentication_context.ts";
-import { importFile } from "./import_project_api.ts";
-import { diagnostic } from "./migration_diagnostics.ts";
+import { authenticate } from "./jwt_authentication_context";
+import { importFile } from "./import_project_api";
+import { diagnostic } from "./migration_diagnostics";
 
 // token is the raw JWT only; do not pass a Bearer-prefixed value.
 
 const MAX_IMPORT_BYTES = 50_000_000;
 const SAFE_FILENAME = /^[A-Za-z0-9._-]+\.vf$/;
+
+const normalizeRequiredInput = (value: unknown): string => {
+  if (typeof value !== "string" || !value.trim())
+    throw diagnostic("Import", "invalid-input");
+  return value.trim();
+};
 
 export async function main(
   token: string,
@@ -15,15 +21,9 @@ export async function main(
   exportFilename = "voiceflow-export.vf",
   targetSchemaVersion = "13.1",
 ) {
-  if (
-    typeof destinationWorkspaceID !== "string" ||
-    !destinationWorkspaceID.trim() ||
-    typeof destinationFolderID !== "string" ||
-    !destinationFolderID.trim()
-  )
-    throw diagnostic("Import", "invalid-input");
-  if (typeof targetSchemaVersion !== "string" || !targetSchemaVersion.trim())
-    throw diagnostic("Import", "invalid-input");
+  const normalizedDestinationWorkspaceID = normalizeRequiredInput(destinationWorkspaceID);
+  const normalizedDestinationFolderID = normalizeRequiredInput(destinationFolderID);
+  const normalizedTargetSchemaVersion = normalizeRequiredInput(targetSchemaVersion);
   if (
     !SAFE_FILENAME.test(exportFilename) ||
     exportFilename.length > 255 ||
@@ -51,9 +51,9 @@ export async function main(
       contentType: "application/octet-stream",
       status: 200,
     },
-    destinationWorkspaceID,
-    folderID: destinationFolderID,
-    targetSchemaVersion,
+    destinationWorkspaceID: normalizedDestinationWorkspaceID,
+    folderID: normalizedDestinationFolderID,
+    targetSchemaVersion: normalizedTargetSchemaVersion,
   });
   return {
     status: result.status,

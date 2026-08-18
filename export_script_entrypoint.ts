@@ -1,6 +1,6 @@
-import { authenticate } from "./jwt_authentication_context.ts";
-import { exportVersion } from "./export_project_api.ts";
-import { diagnostic } from "./migration_diagnostics.ts";
+import { authenticate } from "./jwt_authentication_context";
+import { exportVersion } from "./export_project_api";
+import { diagnostic } from "./migration_diagnostics";
 
 // token is the raw JWT only; do not pass a Bearer-prefixed value.
 
@@ -25,8 +25,12 @@ export async function main(
   token: string,
   sourceVersionID: string,
 ): Promise<VoiceflowExportOutput> {
-  if (typeof sourceVersionID !== "string" || !sourceVersionID.trim()) throw diagnostic("Export", "invalid-input");
-  const artifact = await exportVersion(authenticate(token), sourceVersionID.trim());
+  if (typeof sourceVersionID !== "string" || !sourceVersionID.trim())
+    throw diagnostic("Export", "invalid-input");
+  const artifact = await exportVersion(
+    authenticate(token),
+    sourceVersionID.trim(),
+  );
   if (artifact.bytes.byteLength > MAX_EXPORT_BYTES)
     throw diagnostic("Export", "response-too-large");
   return {

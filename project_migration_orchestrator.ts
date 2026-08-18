@@ -1,33 +1,50 @@
-import { authenticate } from "./jwt_authentication_context.ts";
-import { exportVersion } from "./export_project_api.ts";
-import { importFile } from "./import_project_api.ts";
-import { retrieveProjectApiKey } from "./project_api_key_retrieval.ts";
-import { diagnostic, asMigrationError } from "./migration_diagnostics.ts";
-import type { MigrationResult } from "./shared_contract_types.ts";
-import {
-  listWorkspaces,
-  listProjects,
-  listVersions,
-  listFolders,
-} from "./catalog_discovery_service.ts";
-export type DynSelect_sourceWorkspaceID = string;
-export type DynSelect_sourceProjectID = string;
-export type DynSelect_sourceVersionID = string;
-export type DynSelect_destinationWorkspaceID = string;
-export type DynSelect_destinationFolderID = string;
-export const sourceWorkspaceID = (token: string) => listWorkspaces(token);
-export const sourceProjectID = (token: string, sourceWorkspaceID: string) =>
-  listProjects(token, sourceWorkspaceID);
-export const sourceVersionID = (
-  token: string,
+import { authenticate } from "./jwt_authentication_context";
+import { exportVersion } from "./export_project_api";
+import { importFile } from "./import_project_api";
+import { retrieveProjectApiKey } from "./project_api_key_retrieval";
+import { diagnostic, asMigrationError } from "./migration_diagnostics";
+import type { MigrationResult, MigrationSelection } from "./shared_contract_types";
+
+function isMigrationSelection(value: unknown): value is MigrationSelection {
+  if (!value || typeof value !== "object") return false;
+  const selection = value as Record<string, unknown>;
+  return [
+    selection.sourceWorkspaceID,
+    selection.sourceProjectID,
+    selection.sourceVersionID,
+    selection.destinationWorkspaceID,
+    selection.destinationFolderID,
+  ].every((id) => typeof id === "string" && id.trim().length > 0);
+}
+
+function normalizeMigrationSelection(selection: MigrationSelection): MigrationSelection {
+  return {
+    sourceWorkspaceID: selection.sourceWorkspaceID.trim(),
+    sourceProjectID: selection.sourceProjectID.trim(),
+    sourceVersionID: selection.sourceVersionID.trim(),
+    destinationWorkspaceID: selection.destinationWorkspaceID.trim(),
+    destinationFolderID: selection.destinationFolderID.trim(),
+  };
+}
+
+function selectMigrationIDs(
   sourceWorkspaceID: string,
   sourceProjectID: string,
-) => listVersions(token, sourceWorkspaceID, sourceProjectID);
-export const destinationWorkspaceID = (token: string) => listWorkspaces(token);
-export const destinationFolderID = (
-  token: string,
+  sourceVersionID: string,
   destinationWorkspaceID: string,
-) => listFolders(token, destinationWorkspaceID);
+  destinationFolderID: string,
+): MigrationSelection {
+  const selection = {
+    sourceWorkspaceID,
+    sourceProjectID,
+    sourceVersionID,
+    destinationWorkspaceID,
+    destinationFolderID,
+  };
+  if (!isMigrationSelection(selection)) throw diagnostic("Import", "invalid-input");
+  return normalizeMigrationSelection(selection);
+}
+
 export async function migrateProject(
   token: string,
   sourceWorkspaceID: string,
@@ -37,23 +54,16 @@ export async function migrateProject(
   destinationFolderID: string,
   targetSchemaVersion = "13.1",
 ): Promise<MigrationResult> {
-  const ids = [
-    sourceWorkspaceID,
-    sourceProjectID,
-    sourceVersionID,
-    destinationWorkspaceID,
-    destinationFolderID,
-  ];
-  if (ids.some((x) => typeof x !== "string" || !x.trim()))
-    throw diagnostic("Import", "invalid-input");
-  const normalized = ids.map((id) => id.trim());
-  const [sourceWorkspace, sourceProject, sourceVersion, destinationWorkspace, destinationFolder] = normalized;
+  const selection = selectMigrationIDs(
+    sourceWorkspaceID, sourceProjectID, sourceVersionID,
+    destinationWorkspaceID, destinationFolderID,
+  );
   const a = authenticate(token),
-    ex = await exportVersion(a, sourceVersion),
+    ex = await exportVersion(a, selection.sourceVersionID),
     im = await importFile(a, {
       artifact: ex,
-      destinationWorkspaceID: destinationWorkspace,
-      folderID: destinationFolder,
+      destinationWorkspaceID: selection.destinationWorkspaceID,
+      folderID: selection.destinationFolderID,
       targetSchemaVersion,
     });
   const importedProjectID = typeof im.receipt.projectID === "string" ? im.receipt.projectID.trim() : "";
@@ -66,33 +76,10 @@ export async function migrateProject(
     importStatus: im.status,
     exportBytes: ex.bytes.byteLength,
     selected: {
-      sourceWorkspaceID: sourceWorkspace,
-      sourceProjectID: sourceProject,
-      sourceVersionID: sourceVersion,
-      destinationWorkspaceID: destinationWorkspace,
-      destinationFolderID: destinationFolder,
+      ...selection,
     },
     imported: im.receipt,
     apiKeyRetrieved,
     postImport,
   };
-}
-export async function main(
-  token: string,
-  sourceWorkspaceID: DynSelect_sourceWorkspaceID,
-  sourceProjectID: DynSelect_sourceProjectID,
-  sourceVersionID: DynSelect_sourceVersionID,
-  destinationWorkspaceID: DynSelect_destinationWorkspaceID,
-  destinationFolderID: DynSelect_destinationFolderID,
-  targetSchemaVersion = "13.1",
-): Promise<MigrationResult> {
-  return migrateProject(
-    token,
-    sourceWorkspaceID,
-    sourceProjectID,
-    sourceVersionID,
-    destinationWorkspaceID,
-    destinationFolderID,
-    targetSchemaVersion,
-  );
 }

@@ -1,12 +1,12 @@
-import type { AuthContext } from "./jwt_authentication_context.ts";
-import type { ExportArtifact } from "./shared_contract_types.ts";
+import type { AuthContext } from "./jwt_authentication_context";
+import type { ExportArtifact } from "./shared_contract_types";
 import {
   bearerHeaders,
   fetchVoiceflow,
   readResponseBytes,
   voiceflowUrl,
-} from "./http_api_client.ts";
-import { diagnostic } from "./migration_diagnostics.ts";
+} from "./http_api_client";
+import { diagnostic } from "./migration_diagnostics";
 export async function exportVersion(
   auth: AuthContext,
   sourceVersionID: string,

@@ -5,9 +5,9 @@ import {
   sourceVersionID,
   destinationWorkspaceID,
   destinationFolderID,
-} from "./windmill_dynamic_selectors.ts";
-import { main } from "./project_migration_orchestrator.ts";
-import { asMigrationError, diagnostic } from "./migration_diagnostics.ts";
+} from "./windmill_dynamic_selectors";
+import { migrateProject } from "./project_migration_orchestrator";
+import { asMigrationError, diagnostic } from "./migration_diagnostics";
 
 type Option = { label: string; value: string };
 
@@ -208,7 +208,7 @@ const run = async (): Promise<void> => {
       console.log("Aborted; no migration performed.");
       return;
     }
-    const result = await main(
+    const result = await migrateProject(
       token,
       sourceWorkspace,
       sourceProject,

@@ -1,4 +1,4 @@
-import { diagnostic } from "./migration_diagnostics.ts";
+import { diagnostic } from "./migration_diagnostics";
 export type AuthContext = {
   readonly token: string;
   readonly creatorID: string;

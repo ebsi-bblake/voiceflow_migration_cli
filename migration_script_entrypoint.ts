@@ -1,18 +1,11 @@
-import { migrateProject } from "./project_migration_orchestrator.ts";
+import { migrateProject } from "./project_migration_orchestrator";
 import {
   listWorkspaces,
   listProjects,
   listVersions,
   listFolders,
-} from "./catalog_discovery_service.ts";
-
-/*
-  sourceWorkspaceID,
-  sourceProjectID,
-  sourceVersionID,
-  destinationWorkspaceID,
-  destinationFolderID,
-} from "./project_migration_orchestrator.ts"; */
+} from "./catalog_discovery_service";
+import { diagnostic } from "./migration_diagnostics";
 // Direct exports are intentional: Windmill discovers these selectors statically.
 export type DynSelect_sourceWorkspaceID = string;
 export type DynSelect_sourceProjectID = string;
@@ -51,6 +44,12 @@ export const destinationFolderID = async (
     : [];
 };
 
+const normalizeRequiredSelection = (value: unknown): string => {
+  if (typeof value !== "string" || !value.trim())
+    throw diagnostic("Import", "invalid-input");
+  return value.trim();
+};
+
 export async function main(
   token: string,
   sourceWorkspaceID: DynSelect_sourceWorkspaceID,
@@ -60,25 +59,25 @@ export async function main(
   destinationFolderID: DynSelect_destinationFolderID,
   targetSchemaVersion = "13.1",
 ) {
-  const ids = [
+  const selections = [
     sourceWorkspaceID,
     sourceProjectID,
     sourceVersionID,
     destinationWorkspaceID,
     destinationFolderID,
   ];
-  if (ids.some((id) => typeof id !== "string" || !id.trim()))
-    throw new Error("All migration selections are required");
-  if (typeof targetSchemaVersion !== "string" || !targetSchemaVersion.trim())
-    throw new Error("Target schema version is required");
+  const [normalizedSourceWorkspaceID, normalizedSourceProjectID,
+    normalizedSourceVersionID, normalizedDestinationWorkspaceID,
+    normalizedDestinationFolderID] = selections.map(normalizeRequiredSelection);
+  const normalizedTargetSchemaVersion = normalizeRequiredSelection(targetSchemaVersion);
   const result = await migrateProject(
     token,
-    sourceWorkspaceID,
-    sourceProjectID,
-    sourceVersionID,
-    destinationWorkspaceID,
-    destinationFolderID,
-    targetSchemaVersion,
+    normalizedSourceWorkspaceID,
+    normalizedSourceProjectID,
+    normalizedSourceVersionID,
+    normalizedDestinationWorkspaceID,
+    normalizedDestinationFolderID,
+    normalizedTargetSchemaVersion,
   );
   return {
     exportStatus: result.exportStatus,

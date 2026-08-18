@@ -3,7 +3,7 @@ import {
   listProjects,
   listVersions,
   listFolders,
-} from "./catalog_discovery_service.ts";
+} from "./catalog_discovery_service";
 export type DynSelect_sourceWorkspaceID = string;
 export type DynSelect_sourceProjectID = string;
 export type DynSelect_sourceVersionID = string;

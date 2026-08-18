@@ -31,6 +31,8 @@ The three deployable Windmill entrypoints are:
 
 The other nine files are helper modules: shared types, JWT context, HTTP client, export/import API clients, Logux transport, catalog discovery, dynamic selectors, and the migration orchestrator. Deploy the entrypoints with their helper modules available in the same flat folder.
 
+Canonical modules use extensionless relative imports such as `./module`. Deploy the files at `f/voiceflow/*`; the flat folder layout keeps those imports resolvable in Windmill without path mappings or `wmill init`.
+
 ## Authentication
 
 Each entrypoint requires a `token` input configured as a Windmill **secret**. The value must be the raw JWT; do not pass a `Bearer ` prefix. The implementation decodes the JWT claims without verifying the signature and uses the first available `creatorID`, `userID`, `user_id`, or `sub` claim as the creator ID.
