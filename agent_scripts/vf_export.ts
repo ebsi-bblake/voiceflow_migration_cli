@@ -1,5 +1,5 @@
 import type { AuthContext } from "./vf_auth";
-import { requestBytes } from "./vf_http";
+import { isRetryableHttpStatus, requestBytes } from "./vf_http";
 import { OperationFault } from "./vf_contracts";
 export type ExportArtifact = {
   status: number;
@@ -28,7 +28,10 @@ export async function exportVersion(
     timeoutMs: 30_000,
   });
   if (response.status < 200 || response.status >= 300)
-    throw new OperationFault("DEPENDENCY_FAILURE");
+    throw new OperationFault(
+      "DEPENDENCY_FAILURE",
+      isRetryableHttpStatus(response.status),
+    );
   return {
     status: response.status,
     bytes: response.bytes,

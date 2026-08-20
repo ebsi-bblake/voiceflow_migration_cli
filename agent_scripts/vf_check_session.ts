@@ -5,7 +5,7 @@ import {
   type Envelope,
   OperationFault,
 } from "./vf_contracts";
-import { requestBytes } from "./vf_http";
+import { isRetryableHttpStatus, requestBytes } from "./vf_http";
 export async function main(
   token: string,
 ): Promise<
@@ -29,7 +29,10 @@ export async function main(
       });
     }
     if (response.status < 200 || response.status >= 300)
-      throw new OperationFault("DEPENDENCY_FAILURE", true);
+      throw new OperationFault(
+        "DEPENDENCY_FAILURE",
+        isRetryableHttpStatus(response.status),
+      );
     return success(operation, id, { active: true });
   } catch (error) {
     return failure(operation, id, error);

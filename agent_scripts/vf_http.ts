@@ -12,6 +12,10 @@ export type HttpBytes = {
   bytes: ArrayBuffer;
 };
 
+export function isRetryableHttpStatus(status: number): boolean {
+  return status === 408 || status === 429 || (status >= 500 && status < 600);
+}
+
 export async function requestBytes(
   request: RequestBytesInput,
 ): Promise<HttpBytes> {
