@@ -9,10 +9,10 @@ describe("Voiceflow destination-folder validation", () => {
       [
         {
           id: "6a8353e05b254446fc52750e",
-          name: "Project record",
+          label: "Project record",
           workspaceID: "workspace-1",
         },
-        { id: "42", name: "boaz-test", workspaceID: "workspace-1" },
+        { id: "42", label: "boaz-test", workspaceID: "workspace-1" },
       ],
       "workspace-1",
     );
