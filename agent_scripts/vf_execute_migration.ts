@@ -58,6 +58,10 @@ function executeWarnings(apiKeyRetrieved: boolean): Warning[] {
   return warnings;
 }
 
+function isConfirmationGranted(confirmed: unknown): confirmed is true {
+  return confirmed === true;
+}
+
 export async function main(
   token: string,
   planID: string,
@@ -70,7 +74,7 @@ export async function main(
   confirmed = false,
 ): Promise<Envelope<ExecuteResult>> {
   const operationID = crypto.randomUUID();
-  if (!confirmed) {
+  if (!isConfirmationGranted(confirmed)) {
     return failure(
       "execute-migration",
       operationID,
