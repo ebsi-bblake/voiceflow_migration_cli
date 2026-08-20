@@ -39,6 +39,32 @@ export type MigrationDiagnostic = {
 };
 const safe = (value: string): string =>
   value.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 300);
+
+function createDiagnostic(
+  phase: MigrationPhase,
+  code: MigrationCode,
+  options: Partial<Omit<MigrationDiagnostic, "phase" | "code" | "diagnosticId">>,
+): MigrationDiagnostic {
+  const retryable =
+    options.retryable ??
+    ["rate-limited", "server-error", "network-error", "timeout"].includes(code);
+  const action =
+    options.nextAction ??
+    (retryable
+      ? "Retry the operation."
+      : "Check the migration inputs and response.");
+
+  return {
+    ...options,
+    phase,
+    code,
+    endpoint: options.endpoint ?? "unknown",
+    retryable,
+    diagnosticId: crypto.randomUUID(),
+    nextAction: safe(action),
+  };
+}
+
 export class MigrationError extends Error {
   constructor(readonly diagnostic: MigrationDiagnostic) {
     super(diagnostic.code);
@@ -59,23 +85,7 @@ export function diagnostic(
     Omit<MigrationDiagnostic, "phase" | "code" | "diagnosticId">
   > = {},
 ): MigrationError {
-  const retryable =
-    options.retryable ??
-    ["rate-limited", "server-error", "network-error", "timeout"].includes(code);
-  const action =
-    options.nextAction ??
-    (retryable
-      ? "Retry the operation."
-      : "Check the migration inputs and response.");
-  return new MigrationError({
-    phase,
-    code,
-    endpoint: options.endpoint ?? "unknown",
-    retryable,
-    diagnosticId: crypto.randomUUID(),
-    nextAction: safe(action),
-    ...options,
-  });
+  return new MigrationError(createDiagnostic(phase, code, options));
 }
 export function asMigrationError(
   error: unknown,
