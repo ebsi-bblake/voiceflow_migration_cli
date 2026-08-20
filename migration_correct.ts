@@ -9,7 +9,22 @@ export type DynSelect_destinationFolderID = string;
 
 type Option = { value: string; label: string };
 type AnyRecord = Record<string, any>;
-type PostImportDiagnostic = { code: string; message: string };
+type PostImportDiagnostic = {
+  readonly code: string;
+  readonly message: string;
+};
+type ApiKeyOutcome =
+  | {
+      readonly apiKeyRetrieved: true;
+      readonly postImport?: never;
+    }
+  | {
+      readonly apiKeyRetrieved: false;
+      readonly postImport: {
+        readonly apiKeyRetrieved: false;
+        readonly diagnostic: PostImportDiagnostic;
+      };
+    };
 
 const REALTIME = "wss://realtime.empyrean.voiceflow.com/";
 const MAX_EXPORT_BYTES = 50_000_000;
@@ -18,6 +33,36 @@ const MAX_API_KEY_BYTES = 1_048_576;
 const MAX_LOGUX_FRAME_BYTES = 2_000_000;
 const MAX_LOGUX_BYTES = 50_000_000;
 const MAX_LOGUX_ROWS = 100_000;
+const PROJECT_ID_UNAVAILABLE: PostImportDiagnostic = {
+  code: "project-id-unavailable",
+  message: "Import succeeded, but the imported project ID was unavailable.",
+};
+const API_KEY_RETRIEVAL_FAILED: PostImportDiagnostic = {
+  code: "api-key-retrieval-failed",
+  message: "Import succeeded, but the project API key could not be retrieved.",
+};
+
+function successfulApiKeyOutcome(): ApiKeyOutcome {
+  return { apiKeyRetrieved: true };
+}
+
+function failedApiKeyOutcome(diagnostic: PostImportDiagnostic): ApiKeyOutcome {
+  return {
+    apiKeyRetrieved: false,
+    postImport: {
+      apiKeyRetrieved: false,
+      diagnostic,
+    },
+  };
+}
+
+function missingProjectApiKeyOutcome(): ApiKeyOutcome {
+  return failedApiKeyOutcome(PROJECT_ID_UNAVAILABLE);
+}
+
+function failedApiKeyRetrievalOutcome(): ApiKeyOutcome {
+  return failedApiKeyOutcome(API_KEY_RETRIEVAL_FAILED);
+}
 
 function normalizeToken(input: unknown): string {
   if (typeof input !== "string")
@@ -158,6 +203,21 @@ async function retrieveProjectApiKey(
   if (candidates.length === 0) throw new Error("Project API-key was not returned");
   if (candidates.length > 1) throw new Error("Multiple project API-keys were returned");
   return candidates[0];
+}
+
+async function retrievePostImportApiKeyOutcome(
+  projectID: string | undefined,
+  token: string,
+): Promise<ApiKeyOutcome> {
+  if (!projectID) {
+    return missingProjectApiKeyOutcome();
+  }
+  try {
+    await retrieveProjectApiKey(projectID, token);
+    return successfulApiKeyOutcome();
+  } catch {
+    return failedApiKeyRetrievalOutcome();
+  }
 }
 
 function jwtClaims(token: string): AnyRecord {
@@ -445,30 +505,7 @@ export async function main(
     throw new Error(`Import failed with HTTP ${imported.status}`);
   const importResponse = parseImportResponse(importBytes);
   const projectID = extractImportedProjectID(importResponse);
-  let apiKeyRetrieved = false;
-  let postImport: { apiKeyRetrieved: false; diagnostic: PostImportDiagnostic } | undefined;
-  if (!projectID) {
-    postImport = {
-      apiKeyRetrieved: false,
-      diagnostic: {
-        code: "project-id-unavailable",
-        message: "Import succeeded, but the imported project ID was unavailable.",
-      },
-    };
-  } else {
-    try {
-      await retrieveProjectApiKey(projectID, authToken);
-      apiKeyRetrieved = true;
-    } catch {
-      postImport = {
-        apiKeyRetrieved: false,
-        diagnostic: {
-          code: "api-key-retrieval-failed",
-          message: "Import succeeded, but the project API key could not be retrieved.",
-        },
-      };
-    }
-  }
+  const apiKeyOutcome = await retrievePostImportApiKeyOutcome(projectID, authToken);
   return {
     exportStatus: response.status,
     importStatus: imported.status,
@@ -481,7 +518,6 @@ export async function main(
       destinationFolderID: normalizedDestinationFolderID,
     },
     importResponse,
-    apiKeyRetrieved,
-    ...(postImport ? { postImport } : {}),
+    ...apiKeyOutcome,
   };
 }

@@ -12,7 +12,7 @@ import {
   type Warning,
 } from "./vf_contracts";
 
-export type ExecuteResult = {
+type ExecuteResultBase = {
   planID: string;
   exportStatus: number;
   exportBytes: number;
@@ -20,9 +20,8 @@ export type ExecuteResult = {
   importBytes: number;
   selected: MigrationSelection;
   imported: Awaited<ReturnType<typeof importVersion>>;
-  apiKeyRetrieved: boolean;
-  postImport?: ApiKeyStatus["postImport"];
 };
+export type ExecuteResult = ExecuteResultBase & ApiKeyStatus;
 
 function migrationSelection(
   sourceWorkspaceID: string,
@@ -116,8 +115,7 @@ export async function main(
       importBytes: imported.importBytes,
       selected: plan.selection,
       imported,
-      apiKeyRetrieved: apiKey.apiKeyRetrieved,
-      postImport: apiKey.postImport,
+      ...apiKey,
     };
     return success(
       "execute-migration",

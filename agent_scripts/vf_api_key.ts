@@ -1,13 +1,53 @@
 import type { AuthContext } from "./vf_auth";
 import { requestBytes } from "./vf_http";
 
-export type ApiKeyDiagnostic = { code: string; message: string };
-export type ApiKeyStatus = {
-  apiKeyRetrieved: boolean;
-  postImport?: { apiKeyRetrieved: boolean; diagnostic: ApiKeyDiagnostic };
+export type ApiKeyDiagnostic = {
+  readonly code: string;
+  readonly message: string;
 };
-const FAILED = { code: "API_KEY_RETRIEVAL_FAILED", message: "Project API key could not be retrieved." };
-const MISSING_PROJECT = { code: "PROJECT_ID_UNAVAILABLE", message: "Imported project ID was unavailable." };
+export type ApiKeyStatus =
+  | {
+      readonly apiKeyRetrieved: true;
+      readonly postImport?: never;
+    }
+  | {
+      readonly apiKeyRetrieved: false;
+      readonly postImport: {
+        readonly apiKeyRetrieved: false;
+        readonly diagnostic: ApiKeyDiagnostic;
+      };
+    };
+
+const API_KEY_RETRIEVAL_FAILED: ApiKeyDiagnostic = {
+  code: "API_KEY_RETRIEVAL_FAILED",
+  message: "Project API key could not be retrieved.",
+};
+const PROJECT_ID_UNAVAILABLE: ApiKeyDiagnostic = {
+  code: "PROJECT_ID_UNAVAILABLE",
+  message: "Imported project ID was unavailable.",
+};
+
+function successfulApiKeyOutcome(): ApiKeyStatus {
+  return { apiKeyRetrieved: true };
+}
+
+function failedApiKeyOutcome(diagnostic: ApiKeyDiagnostic): ApiKeyStatus {
+  return {
+    apiKeyRetrieved: false,
+    postImport: {
+      apiKeyRetrieved: false,
+      diagnostic,
+    },
+  };
+}
+
+function missingProjectApiKeyOutcome(): ApiKeyStatus {
+  return failedApiKeyOutcome(PROJECT_ID_UNAVAILABLE);
+}
+
+function failedApiKeyRetrievalOutcome(): ApiKeyStatus {
+  return failedApiKeyOutcome(API_KEY_RETRIEVAL_FAILED);
+}
 
 function keyCandidates(value: unknown): string[] {
   if (typeof value === "string") return [value.trim()];
@@ -33,10 +73,7 @@ export async function retrieveApiKeyStatus(
 ): Promise<ApiKeyStatus> {
   const id = projectID?.trim();
   if (!id) {
-    return {
-      apiKeyRetrieved: false,
-      postImport: { apiKeyRetrieved: false, diagnostic: MISSING_PROJECT },
-    };
+    return missingProjectApiKeyOutcome();
   }
   try {
     const response = await requestBytes({
@@ -52,11 +89,8 @@ export async function retrieveApiKeyStatus(
       parseKeys(response.bytes).filter((key) => /^VF\.DM\..+/.test(key)),
     )];
     if (response.status < 200 || response.status >= 300 || keys.length !== 1) throw new Error("retrieval failed");
-    return { apiKeyRetrieved: true };
+    return successfulApiKeyOutcome();
   } catch {
-    return {
-      apiKeyRetrieved: false,
-      postImport: { apiKeyRetrieved: false, diagnostic: FAILED },
-    };
+    return failedApiKeyRetrievalOutcome();
   }
 }
