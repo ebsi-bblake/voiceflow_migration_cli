@@ -12,6 +12,12 @@ type AnyRecord = Record<string, any>;
 type PostImportDiagnostic = { code: string; message: string };
 
 const REALTIME = "wss://realtime.empyrean.voiceflow.com/";
+const MAX_EXPORT_BYTES = 50_000_000;
+const MAX_IMPORT_BYTES = 2_097_152;
+const MAX_API_KEY_BYTES = 1_048_576;
+const MAX_LOGUX_FRAME_BYTES = 2_000_000;
+const MAX_LOGUX_BYTES = 50_000_000;
+const MAX_LOGUX_ROWS = 100_000;
 
 function normalizeToken(input: unknown): string {
   if (typeof input !== "string")
@@ -61,10 +67,30 @@ function collectApiKeyCandidates(input: unknown): string[] {
     .filter((value) => /^VF\.DM\..+/.test(value));
 }
 
-async function readBoundedResponse(response: Response): Promise<unknown> {
-  const bytes = await response.arrayBuffer();
-  if (bytes.byteLength > 1_048_576)
-    throw new Error("API-key response exceeded the allowed size");
+async function readBoundedBytes(response: Response, limit: number): Promise<Uint8Array> {
+  if (!response.body) throw new Error("HTTP response has no body");
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > limit) throw new Error("HTTP response exceeded the allowed size");
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return bytes;
+}
+
+function parseResponseBytes(bytes: Uint8Array): unknown {
   const text = new TextDecoder().decode(bytes).trim();
   if (!text) return undefined;
   try {
@@ -74,16 +100,37 @@ async function readBoundedResponse(response: Response): Promise<unknown> {
   }
 }
 
+function parseImportResponse(bytes: Uint8Array): unknown {
+  const text = new TextDecoder().decode(bytes).trim();
+  if (!text) throw new Error("Import response was empty");
+  try { return JSON.parse(text); } catch { throw new Error("Import response was not valid JSON"); }
+}
+
+async function fetchBoundedResponse(input: RequestInfo | URL, init: RequestInit, limit: number, deadlineMs: number): Promise<{ response: Response; bytes: Uint8Array }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), deadlineMs);
+  try {
+    const response = await fetch(input, { ...init, signal: controller.signal });
+    const contentLength = Number(response.headers.get("content-length"));
+    if (Number.isFinite(contentLength) && contentLength > limit)
+      throw new Error("HTTP response exceeded the allowed size");
+    return { response, bytes: await readBoundedBytes(response, limit) };
+  } finally {
+    clearTimeout(timer);
+    controller.abort();
+  }
+}
+
 async function retrieveProjectApiKey(
   projectID: string,
   token: string,
 ): Promise<string> {
-  const response = await fetch(
+  const { response, bytes } = await fetchBoundedResponse(
     `https://identity-api.empyrean.voiceflow.com/v1alpha1/api-key/legacy/project/${encodeURIComponent(projectID)}`,
-    { method: "POST", headers: { Authorization: `Bearer ${normalizeToken(token)}` } },
+    { method: "POST", headers: { Authorization: `Bearer ${normalizeToken(token)}` } }, MAX_API_KEY_BYTES, 30_000,
   );
   if (!response.ok) throw new Error("Project API-key retrieval failed");
-  const payload = await readBoundedResponse(response);
+  const payload = parseResponseBytes(bytes);
   const candidates = [...new Set(collectApiKeyCandidates(payload))];
   if (candidates.length === 0) throw new Error("Project API-key was not returned");
   if (candidates.length > 1) throw new Error("Multiple project API-keys were returned");
@@ -130,15 +177,17 @@ function sync(
     let nextActionID = -1;
     let nextActionTime = 1;
     let settled = false;
+    let incomingBytes = 0;
+    let incomingRows = 0;
     const finish = (error?: Error) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      try { ws.close(); } catch { /* settlement must not be interrupted */ }
       if (error) reject(error);
       else resolve(found);
     };
     const timer = setTimeout(() => {
-      ws.close();
       finish(new Error("Logux connection timed out"));
     }, 15000);
     ws.onerror = () => finish(new Error("Logux websocket error"));
@@ -147,9 +196,16 @@ function sync(
         finish(new Error("Logux websocket closed before sync"));
     };
     ws.onmessage = (event) => {
+      const raw = String(event.data);
+      const frameBytes = new TextEncoder().encode(raw).byteLength;
+      incomingBytes += frameBytes;
+      if (frameBytes > MAX_LOGUX_FRAME_BYTES || incomingBytes > MAX_LOGUX_BYTES) {
+        finish(new Error("Logux response exceeded the allowed size"));
+        return;
+      }
       let message: any;
       try {
-        message = JSON.parse(String(event.data));
+        message = JSON.parse(raw);
       } catch {
         return;
       }
@@ -183,6 +239,13 @@ function sync(
       }
       if (message?.[0] !== "sync") return;
       const action = message[2];
+      const values = Array.isArray(action?.payload?.values) ? action.payload.values
+        : Array.isArray(action?.payload?.data) ? action.payload.data : [];
+      incomingRows += values.length;
+      if (incomingRows > MAX_LOGUX_ROWS) {
+        finish(new Error("Logux response exceeded the allowed row count"));
+        return;
+      }
       if (typeof action?.type === "string") receivedTypes.add(action.type);
       if (
         action?.type === "workspace.CRUD:REPLACE" &&
@@ -201,7 +264,6 @@ function sync(
         found.push(...action.payload.data);
       if (wanted.every((t) => receivedTypes.has(t))) {
         finish();
-        ws.close();
       }
     };
     ws.onopen = () => {
@@ -324,7 +386,7 @@ export async function main(
   targetSchemaVersion = "13.1",
 ) {
   const authToken = normalizeToken(token);
-  const response = await fetch(
+  const { response, bytes: exported } = await fetchBoundedResponse(
     `https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/export-json/${encodeURIComponent(sourceVersionID)}`,
     {
       headers: {
@@ -332,11 +394,10 @@ export async function main(
         Accept: "application/json",
         "Cache-Control": "no-cache",
       },
-    },
+    }, MAX_EXPORT_BYTES, 30_000,
   );
   if (response.status === 304 || !response.ok)
     throw new Error(`Export failed with HTTP ${response.status}`);
-  const exported = await response.arrayBuffer();
   const filename = `voiceflow-${sourceVersionID}.vf`;
   const form = new FormData();
   form.append(
@@ -346,7 +407,7 @@ export async function main(
   );
   form.append("targetSchemaVersion", targetSchemaVersion);
   form.append("folderID", destinationFolderID);
-  const imported = await fetch(
+  const { response: imported, bytes: importBytes } = await fetchBoundedResponse(
     `https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/import-file/${encodeURIComponent(destinationWorkspaceID)}`,
     {
       method: "POST",
@@ -355,11 +416,11 @@ export async function main(
         Accept: "application/json",
       },
       body: form,
-    },
+    }, MAX_IMPORT_BYTES, 60_000,
   );
   if (!imported.ok)
     throw new Error(`Import failed with HTTP ${imported.status}`);
-  const importResponse = await imported.json();
+  const importResponse = parseImportResponse(importBytes);
   const projectID = extractImportedProjectID(importResponse);
   let apiKeyRetrieved = false;
   let postImport: { apiKeyRetrieved: false; diagnostic: PostImportDiagnostic } | undefined;

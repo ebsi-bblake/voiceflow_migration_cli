@@ -8,6 +8,9 @@ const SUPPORTED_WANTED_TYPES = new Set([
   "project.CRUD:REPLACE",
   "workspace-folder.REPLACE",
 ]);
+const MAX_INCOMING_FRAME_BYTES = 1_048_576;
+const MAX_INCOMING_BYTES = 8_388_608;
+const MAX_INCOMING_ROWS = 100_000;
 
 function random8(): string {
   return crypto.randomUUID().replaceAll("-", "").slice(0, 8);
@@ -42,6 +45,7 @@ export function syncCatalog(
     let done = false;
     let actionID = -1;
     let actionTime = 1;
+    let incomingBytes = 0;
     let timer: ReturnType<typeof setTimeout>;
     const settle = (error?: OperationFault): void => {
       if (done) return;
@@ -84,6 +88,12 @@ export function syncCatalog(
       ]);
     ws.onmessage = (event) => {
       if (typeof event.data !== "string") return;
+      const frameBytes = new TextEncoder().encode(event.data).byteLength;
+      incomingBytes += frameBytes;
+      if (frameBytes > MAX_INCOMING_FRAME_BYTES || incomingBytes > MAX_INCOMING_BYTES) {
+        settle(new OperationFault("DEPENDENCY_FAILURE"));
+        return;
+      }
       let frame: unknown;
       try {
         frame = JSON.parse(event.data);
@@ -114,6 +124,10 @@ export function syncCatalog(
       if (typeof type !== "string" || !wantedSet.has(type) || !payload) return;
       const values = payload.values ?? payload.data;
       if (!isRowArray(values)) return;
+      if (rows.length + values.length > MAX_INCOMING_ROWS) {
+        settle(new OperationFault("DEPENDENCY_FAILURE"));
+        return;
+      }
       seen.add(type);
       rows.push(...values);
       if ([...wantedSet].every((wantedType) => seen.has(wantedType))) settle();
