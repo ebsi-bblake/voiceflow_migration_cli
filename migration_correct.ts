@@ -67,6 +67,29 @@ function collectApiKeyCandidates(input: unknown): string[] {
     .filter((value) => /^VF\.DM\..+/.test(value));
 }
 
+function validateDestinationFolderID(input: unknown): string | undefined {
+  if (typeof input !== "string" || !/^\d+$/.test(input.trim())) return undefined;
+  return input.trim();
+}
+
+function selectRowsForWorkspace(rows: AnyRecord[], workspaceID: string): AnyRecord[] {
+  return rows.filter((row) => String(row.workspaceID) === workspaceID);
+}
+
+function selectNumericDestinationFolders(rows: AnyRecord[]): Array<AnyRecord & { id: string }> {
+  return rows.flatMap((row) => {
+    const id = validateDestinationFolderID(row.id);
+    return id ? [{ ...row, id }] : [];
+  });
+}
+
+function projectFolderOptions(rows: Array<AnyRecord & { id: string }>): Option[] {
+  return rows.map((row) => ({
+    value: row.id,
+    label: String(row.name ?? row.title ?? row.id),
+  }));
+}
+
 async function readBoundedBytes(response: Response, limit: number): Promise<Uint8Array> {
   if (!response.body) throw new Error("HTTP response has no body");
   const reader = response.body.getReader();
@@ -368,12 +391,9 @@ export async function destinationFolderID(
   const rows = await records(token, `workspace/${destinationWorkspaceID}`, [
     "workspace-folder.REPLACE",
   ]);
-  return rows
-    .filter((x) => String(x.workspaceID) === destinationWorkspaceID && x.id)
-    .map((x) => ({
-      value: String(x.id),
-      label: String(x.name ?? x.title ?? x.id),
-    }));
+  const workspaceRows = selectRowsForWorkspace(rows, destinationWorkspaceID);
+  const numericFolders = selectNumericDestinationFolders(workspaceRows);
+  return projectFolderOptions(numericFolders);
 }
 
 export async function main(
@@ -386,6 +406,9 @@ export async function main(
   targetSchemaVersion = "13.1",
 ) {
   const authToken = normalizeToken(token);
+  const normalizedDestinationFolderID = validateDestinationFolderID(destinationFolderID);
+  if (!normalizedDestinationFolderID)
+    throw new Error("Destination folder ID must be numeric");
   const { response, bytes: exported } = await fetchBoundedResponse(
     `https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/export-json/${encodeURIComponent(sourceVersionID)}`,
     {
@@ -406,7 +429,7 @@ export async function main(
     filename,
   );
   form.append("targetSchemaVersion", targetSchemaVersion);
-  form.append("folderID", destinationFolderID);
+  form.append("folderID", normalizedDestinationFolderID);
   const { response: imported, bytes: importBytes } = await fetchBoundedResponse(
     `https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/import-file/${encodeURIComponent(destinationWorkspaceID)}`,
     {
@@ -455,7 +478,7 @@ export async function main(
       sourceProjectID,
       sourceVersionID,
       destinationWorkspaceID,
-      destinationFolderID,
+      destinationFolderID: normalizedDestinationFolderID,
     },
     importResponse,
     apiKeyRetrieved,

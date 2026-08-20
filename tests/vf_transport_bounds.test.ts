@@ -13,7 +13,7 @@ const MIGRATION_ARGUMENTS = [
   "project",
   "version",
   "destination",
-  "folder",
+  "42",
 ] as const;
 
 type Deferred<T> = {
