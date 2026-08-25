@@ -14,17 +14,53 @@ This report is the canonical audit scratchpad and final synthesis. It records
 the subsystem inventory, accepted findings, rejected/deferred findings,
 dependencies, priorities, risks, and audit log.
 
-## Coverage contract
+## Current tree status — XYOps-only
+
+This is the authoritative inventory for the current tree. The active source is
+`xyops/voiceflow/`, with `xyops/entry.ts` as the shared runner entrypoint and
+`xyops/migration-cli.ts` as the local XYOps Event client. `xyops/entry.ts`
+selects a registered runner from `RUNNER_NAME`; each runner exposes a typed
+`run()` Promise and a process-facing `start()` operation that emits an
+envelope.
+
+The Windmill archive was committed separately from the active XYOps source:
+
+- `windmill_agent_scripts/` contains archived Windmill agent scripts.
+- `archive/windmill_root/` contains the archived root modular and one-file
+  implementations, entrypoints, and historical root tests.
+
+No root-level TypeScript file is active. The root modular and one-file forms
+were moved to `archive/windmill_root/`; archive paths are reference material,
+not deployment inputs for XYOps.
+
+The current tests under `tests/` are XYOps-focused:
+
+- `migration_cli_xyops.test.ts`
+- `vf_auth_planning_fp.test.ts`
+- `vf_catalog_projection.test.ts`
+- `vf_api_key_policy.test.ts`
+- `vf_execute_api_key_outcome.test.ts`
+- `vf_execute_confirmation.test.ts`
+- `vf_folder_validation.test.ts`
+- `vf_http_retry_policy.test.ts`
+
+The repository build/type-check command is `bunx tsc --noEmit`. Remaining
+deferred scope is Windmill deployment/parity maintenance for the archived
+forms, durable plan expiry/idempotency and import reconciliation, JWT
+signature verification, post-import secret patching, and CLI cancellation
+hardening. These are not reasons to reactivate the archived root files.
+
+## Historical coverage contract — baseline `d163e95`
 
 | ID | Subsystem | Exact ownership | Public interfaces and callers | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
-| S1 | Modular contracts and infrastructure | `shared_contract_types.ts`, `migration_diagnostics.ts`, `jwt_authentication_context.ts`, `http_api_client.ts` | Shared migration types, diagnostics, JWT context, bounded HTTP | None | Recommend |
-| S2 | Modular catalog and Logux transport | `logux_websocket_transport.ts`, `catalog_discovery_service.ts` | Workspace/project/version/folder discovery | None | Recommend semantic FP composition |
-| S3 | Modular migration core | `export_project_api.ts`, `import_project_api.ts`, `project_api_key_retrieval.ts`, `project_migration_orchestrator.ts` | Export, import, API-key status, composed migration | None | Recommend |
-| S4 | Entrypoints and local CLI | `export_script_entrypoint.ts`, `import_script_entrypoint.ts`, `migration_script_entrypoint.ts`, `xyops/migration-cli.ts` | Windmill `main`, `DynSelect_*`, interactive CLI | None | Skip simplification; hardening note |
+| S1 | Modular contracts and infrastructure | archived root files under `archive/windmill_root/` (`archive/windmill_root/shared_contract_types.ts`, `archive/windmill_root/migration_diagnostics.ts`, `archive/windmill_root/jwt_authentication_context.ts`, `archive/windmill_root/http_api_client.ts`) | Shared migration types, diagnostics, JWT context, bounded HTTP | None | Recommend |
+| S2 | Modular catalog and Logux transport | archived root files under `archive/windmill_root/` (`archive/windmill_root/logux_websocket_transport.ts`, `archive/windmill_root/catalog_discovery_service.ts`) | Workspace/project/version/folder discovery | None | Recommend semantic FP composition |
+| S3 | Modular migration core | archived root files under `archive/windmill_root/` (`archive/windmill_root/export_project_api.ts`, `archive/windmill_root/import_project_api.ts`, `archive/windmill_root/project_api_key_retrieval.ts`, `archive/windmill_root/project_migration_orchestrator.ts`) | Export, import, API-key status, composed migration | None | Recommend |
+| S4 | Entrypoints and local CLI | historical root entrypoints (now under `archive/windmill_root/`), `xyops/migration-cli.ts` | Windmill `main`, `DynSelect_*`, interactive CLI | None | Skip simplification; hardening note |
 | S5 | MCP agent infrastructure | `xyops/voiceflow/vf_contracts.ts`, `vf_auth.ts`, `vf_http.ts`, `vf_logux.ts`, `vf_catalog.ts`, `vf_planning.ts` | Stable envelopes, authentication, catalog discovery, plan construction | Folder-only contract test | Recommend |
 | S6 | MCP agent operations | `vf_check_session.ts`, list tools, `vf_plan_migration.ts`, `vf_execute_migration.ts`, `vf_export.ts`, `vf_import.ts`, `vf_api_key.ts` | Seven MCP-facing `main` tools | Folder-only contract test | Recommend |
-| S7 | Standalone and compatibility implementations | `migration_correct.ts`, `migration_script_single_file.ts`, `migrate_voiceflow_project.ts` | Alternative self-contained Windmill entrypoints | None | Recommend ownership clarification |
+| S7 | Standalone and compatibility implementations | `archive/windmill_root/migration_correct.ts`, `archive/windmill_root/migration_script_single_file.ts`, `archive/windmill_root/migrate_voiceflow_project.ts` | Historical alternative self-contained Windmill entrypoints | None | Recommend ownership clarification |
 | S8 | Tests | every `tests/*.ts` file | Production contracts, boundary effects, cleanup, and regression behavior | Self | Recommend targeted isolation/effect assertions |
 | S9 | Documentation and project policy | `README.md`, `xyops/voiceflow/README.md`, `AGENTS.md` | Deployment inventories, contracts, operational policy | N/A | Recommend |
 
@@ -32,10 +68,10 @@ No frontend application, generated `./wmill` module, package manifest,
 TypeScript project configuration, CI configuration, or Windmill deployment
 manifest is tracked in this baseline.
 
-## Executive summary
+## Historical executive summary
 
-The split packaging is intentional: `xyops/voiceflow/*` is the Windmill-facing
-form required by the platform, while `migration_correct.ts` is the one-file
+The split packaging was intentional: `xyops/voiceflow/*` was the Windmill-facing
+form required by the platform, while `archive/windmill_root/migration_correct.ts` was the one-file
 form. The split itself is not a maintainability defect and must not be
 collapsed. The split implementation generally follows the engineering style
 guardrails, but the audit found two high-priority boundary defects: destructive
@@ -53,7 +89,7 @@ Recommended sequence:
 5. Fix typed error/result-state and retry-policy defects.
 6. Add typed catalog projections and named transformation boundaries.
 
-## Engineering code-style guardrail audit
+## Historical engineering code-style guardrail audit
 
 This pass evaluates architecture and implementation style rather than cosmetic
 formatting. Semicolons, quote style, indentation, and line length remain owned
@@ -69,11 +105,11 @@ required tests.
 | --- | --- | --- |
 | Split private libraries in `xyops/voiceflow/*` | Partial compliance | Catalog composition is corrected; auth and plan-ID Promise stages still need work |
 | Split public tools in `xyops/voiceflow/*` | Partial compliance | Windmill adapters are appropriately small; confirmation, retry policy, and API-key state have contract defects |
-| Root modular implementation | Mostly compliant | Named transformations and bounded transports are strong; diagnostic construction, folder validation, result state, and orchestration naming need correction |
-| `migration_correct.ts` one-file form | Partial compliance | Packaging is accepted; unbounded effects, `any`, and unnamed selector pipelines violate guardrails |
-| `migration_script_single_file.ts` | Mostly compliant | Maintains internal named boundaries and bounded transport; folder validation remains incomplete; generated-copy naming changes are deferred |
-| `migrate_voiceflow_project.ts` | Partial compliance | Same unbounded transport, untrusted `any`, and unnamed selector-pipeline concerns as the one-file form |
-| Tests | Partial compliance | Ten files cover the major contracts; confirmation mock isolation and one zero-I/O assertion remain |
+| Archived root modular implementation | Mostly compliant | Historical named transformations and bounded transports were strong; diagnostic construction, folder validation, result state, and orchestration naming needed correction |
+| `archive/windmill_root/migration_correct.ts` one-file form | Partial compliance | Historical packaging was accepted; unbounded effects, `any`, and unnamed selector pipelines violated guardrails |
+| `archive/windmill_root/migration_script_single_file.ts` | Mostly compliant | Historical internal named boundaries and bounded transport; folder validation remained incomplete; generated-copy naming changes were deferred |
+| `archive/windmill_root/migrate_voiceflow_project.ts` | Partial compliance | Historical unbounded transport, untrusted `any`, and unnamed selector-pipeline concerns |
+| Historical tests | Partial compliance | The baseline suite covered major contracts; confirmation mock isolation and one zero-I/O assertion remained |
 
 ### CS1. Destructive confirmation must require a literal boolean
 
@@ -95,15 +131,16 @@ currently rely on coercion.
 **Priority:** P1
 **Guardrails:** Explicit resource ownership, cancellation, bounded external data
 
-- `migration_correct.ts:81-90,327-362` performs API-key, export, and import
+- `archive/windmill_root/migration_correct.ts:81-90,327-362` performs API-key, export, and import
   requests without a timeout or abort signal. `readBoundedResponse` checks the
   size only after `arrayBuffer()` has allocated the complete body.
-- `migrate_voiceflow_project.ts:53-73,285-324` reads dependency bodies without
+- `archive/windmill_root/migrate_voiceflow_project.ts:53-73,285-324` reads dependency bodies without
   bounded streaming or cancellation.
-- `xyops/voiceflow/vf_logux.ts:85-119`, `migration_correct.ts:149-205`, and
-  `migrate_voiceflow_project.ts:107-164` have no incoming frame-size or
+- `xyops/voiceflow/vf_logux.ts:85-119`, `archive/windmill_root/migration_correct.ts:149-205`, and
+  `archive/windmill_root/migrate_voiceflow_project.ts:107-164` have no incoming frame-size or
   accumulated-row bound.
-- The root `http_api_client.ts` and `logux_websocket_transport.ts:90-96`
+- The archived root `archive/windmill_root/http_api_client.ts` and
+  `archive/windmill_root/logux_websocket_transport.ts:90-96`
   demonstrate the intended bounded lifecycle.
 
 Add named one-file HTTP helpers that own one deadline across headers and body,
@@ -122,10 +159,10 @@ The split form defines the current policy in
 `xyops/voiceflow/vf_import.ts:12-17`, requiring a numeric folder ID. Other forms
 do not enforce it when called directly:
 
-- `migration_correct.ts:337-348`;
-- `migrate_voiceflow_project.ts:295-306`;
-- `migration_script_single_file.ts:388-407`;
-- `import_project_api.ts:40-59`.
+- `archive/windmill_root/migration_correct.ts:337-348`;
+- `archive/windmill_root/migrate_voiceflow_project.ts:295-306`;
+- `archive/windmill_root/migration_script_single_file.ts:388-407`;
+- `archive/windmill_root/import_project_api.ts:40-59`.
 
 Dynamic selectors are not validation boundaries. Introduce one named
 `parseDestinationFolderID` policy per required deployable form and use it both
@@ -143,7 +180,7 @@ calls on rejection.
 boundary. It becomes a style defect when exposed across catalog APIs:
 
 - `xyops/voiceflow/vf_catalog.ts:6,57-81` returns raw `Row[]` from public loaders;
-- `catalog_discovery_service.ts:5,53-54` exposes the same generic shape.
+- `archive/windmill_root/catalog_discovery_service.ts:5,53-54` exposes the same generic shape.
 
 Keep raw records private to transport parsing, then add tolerant runtime
 projectors for workspace, project, environment, and folder records. Public
@@ -157,11 +194,11 @@ workspace mismatch, and numeric-folder filtering.
 **Priority:** P2
 **Guardrails:** Make invalid states difficult to represent; explicit nullability
 
-- Root: `shared_contract_types.ts:28-35` independently models
+- Archived root: `archive/windmill_root/shared_contract_types.ts:28-35` independently models
   `apiKeyRetrieved` and optional `postImport`.
 - Split: `xyops/voiceflow/vf_api_key.ts:5-8` and
   `vf_execute_migration.ts:15-24` repeat the same independent fields.
-- `project_migration_orchestrator.ts:70-83` assembles those fields separately.
+- `archive/windmill_root/project_migration_orchestrator.ts:70-83` assembles those fields separately.
 
 These contracts permit success with a failure diagnostic and failure without
 one. Replace the independent fields with a discriminated success/failure union
@@ -174,7 +211,7 @@ for impossible combinations and runtime tests for both branches.
 **Priority:** P2
 **Guardrails:** Stable error boundaries and non-secret, bounded diagnostics
 
-`migration_diagnostics.ts:62-78` sanitizes `nextAction` and then spreads
+`archive/windmill_root/migration_diagnostics.ts:62-78` sanitizes `nextAction` and then spreads
 `...options` afterward, allowing the original unsanitized value to overwrite
 the invariant. Spread caller options first, then assign `phase`, `code`,
 generated ID, retry policy, and sanitized action. Test control characters,
@@ -202,8 +239,8 @@ result for `401`/`403`. Any retry consumer must use bounded backoff.
 The following inline expressions combine selection and projection without
 named policy stages:
 
-- `migration_correct.ts:234-239,251-256,309-314`;
-- `migrate_voiceflow_project.ts:192-197,209-214,267-272`.
+- `archive/windmill_root/migration_correct.ts:234-239,251-256,309-314`;
+- `archive/windmill_root/migrate_voiceflow_project.ts:192-197,209-214,267-272`.
 
 Extract precise policies such as `selectWorkspaceRows`,
 `selectProjectsForWorkspace`, `selectFoldersForWorkspace`, and
@@ -216,7 +253,8 @@ with focused pure tests.
 **Priority:** P2
 **Guardrails:** Type-first external boundaries; validate before use
 
-`migration_correct.ts:11,150` and `migrate_voiceflow_project.ts:11,108` use
+`archive/windmill_root/migration_correct.ts:11,150` and
+`archive/windmill_root/migrate_voiceflow_project.ts:11,108` use
 `Record<string, any>` and `message: any` for JWT and Logux payloads. Replace
 these with `unknown`, record/array guards, and typed protocol events before
 property access. The risk is accidentally tightening permissive payload
@@ -227,13 +265,13 @@ compatibility; test malformed frames and every accepted payload alias.
 **Priority:** P2
 **Guardrails:** Explicit naming, readable effect order, functional core/imperative shell
 
-`project_migration_orchestrator.ts:61-73` compresses sequential effects into
+`archive/windmill_root/project_migration_orchestrator.ts:61-73` compresses sequential effects into
 `a`, `ex`, and `im`, followed by one-line mutable post-import handling. Rename
 these to `auth`, `exportArtifact`, and `importResult`, and return the API-key
 outcome from a named function. This change should follow tests and CS5 so the
 new function returns the discriminated state rather than another wrapper.
 
-The copied occurrence in `migration_script_single_file.ts:889-901` is deferred
+The copied occurrence in `archive/windmill_root/migration_script_single_file.ts:889-901` is deferred
 until its generation/parity ownership is explicit; do not hand-normalize a
 generated or compatibility artifact independently.
 
@@ -248,11 +286,12 @@ immediately by one pure projection must use direct Promise composition. Pass a
 matching transformer directly or partially apply stable domain context to
 produce a unary stage.
 
-The current working tree fixes this in `xyops/voiceflow/vf_catalog.ts`. Remaining
-sites include the private authentication pipeline in `xyops/voiceflow/vf_auth.ts`,
-the digest tail in `xyops/voiceflow/vf_planning.ts`, root catalog operations in
-`catalog_discovery_service.ts`, and maintained one-file selectors in
-`migration_correct.ts`. Preserve Promise rejection timing, plan-ID bytes, and
+The pre-archive working tree fixed this in `xyops/voiceflow/vf_catalog.ts`.
+Remaining historical sites included the private authentication pipeline in
+`xyops/voiceflow/vf_auth.ts`, the digest tail in `xyops/voiceflow/vf_planning.ts`,
+archived root catalog operations in `archive/windmill_root/catalog_discovery_service.ts`,
+and archived one-file selectors in `archive/windmill_root/migration_correct.ts`.
+Preserve Promise rejection timing, plan-ID bytes, and
 Windmill export signatures with focused contract tests.
 
 ### Code-style findings explicitly rejected
@@ -269,7 +308,7 @@ Windmill export signatures with focused contract tests.
 - Do not add comments to self-explanatory transformations. Keep comments for
   compatibility, protocol, security, and resource-lifecycle rationale.
 
-## Confirmed recommendations
+## Historical confirmed recommendations
 
 ### R1. Document required packaging and parity ownership
 
@@ -283,12 +322,12 @@ Windmill export signatures with focused contract tests.
 
 - The project owner confirmed that `xyops/voiceflow/*` is intentionally split to
   satisfy Windmill's deployment requirements.
-- `migration_correct.ts` is intentionally the one-file form.
+- `archive/windmill_root/migration_correct.ts` was intentionally the one-file form.
 - `xyops/voiceflow/README.md` documents the ordered deployment of the split
   private libraries and public tools.
-- `migration_script_single_file.ts` embeds a separate 998-line copy of the
+- `archive/windmill_root/migration_script_single_file.ts` embeds a separate 998-line copy of the
   modular graph.
-- `migrate_voiceflow_project.ts` contains another standalone implementation.
+- `archive/windmill_root/migrate_voiceflow_project.ts` contains another standalone implementation.
 
 The required split and one-file forms have different packaging and interfaces.
 Those differences are not defects by themselves. The remaining audit concern
@@ -305,9 +344,9 @@ cannot distinguish intentional interface differences from accidental drift.
 
 Document these roles explicitly:
 
-- `xyops/voiceflow/*`: required split Windmill deployment form;
-- `migration_correct.ts`: one-file form;
-- each additional standalone file: generated artifact, compatibility form,
+- `xyops/voiceflow/*`: historical required split Windmill deployment form;
+- `archive/windmill_root/migration_correct.ts`: archived one-file form;
+- each additional archived standalone file: generated artifact, compatibility form,
   reference implementation, or legacy file.
 
 Record which business rules must remain equivalent across forms and which
@@ -340,12 +379,15 @@ not require changing, generating, or deleting production scripts.
 **Effort:** Medium
 **Blast radius:** Small
 
-#### Evidence
+#### Historical evidence
 
-The only tracked test is `tests/vf_folder_validation.test.ts`, covering two
-folder-ID cases.
+At the historical baseline, the only tracked test was
+`tests/vf_folder_validation.test.ts`, covering two folder-ID cases. Those root
+tests are now preserved under `archive/windmill_root/tests/`. The current
+`tests/` directory contains the eight XYOps-focused tests listed in the current
+tree status above.
 
-No tracked tests cover:
+At that historical baseline, no tracked tests covered:
 
 - JWT parsing and invalid claims;
 - HTTP timeout and response-size policy;
@@ -358,12 +400,12 @@ No tracked tests cover:
 - CLI exit behavior;
 - standalone migration contracts.
 
-#### Current complexity
+#### Historical complexity
 
 Destructive behavior is non-idempotent, yet its confirmation, ambiguity, and
 retry contracts are mostly protected by static reasoning rather than tests.
 
-#### Proposed representation
+#### Historical proposed representation
 
 Build a small behavior-oriented suite around the production
 `xyops/voiceflow/*` graph:
@@ -373,12 +415,12 @@ Build a small behavior-oriented suite around the production
 - orchestration order and failure-state tests;
 - contract snapshots for Windmill inputs/results.
 
-#### Risks
+#### Historical risks
 
 Over-mocking implementation details can make refactoring harder. Tests should
 target public contracts and effect ordering.
 
-#### Validation required
+#### Historical validation required
 
 Run the repository's owning test stack and ensure every destructive branch has
 a deterministic credential-free fixture.
@@ -530,7 +572,7 @@ multiple distinct valid keys.
 
 #### Evidence
 
-`shared_contract_types.ts:1-4` declares branded workspace, project, version,
+`archive/windmill_root/shared_contract_types.ts:1-4` declares branded workspace, project, version,
 and folder IDs, but actual domain fields remain plain strings. Some APIs accept
 `string | Brand`, which is effectively just `string`.
 
@@ -563,17 +605,19 @@ Search all consumers and type-check before removal.
 
 #### Evidence
 
-- `README.md` lists 14 canonical files and three entrypoints, then calls the
-  remaining files “nine helpers”; there are eleven.
-- `migration_correct.ts` and `migration_script_single_file.ts` are not assigned
-  an explicit deployment lifecycle.
+- The historical `README.md` listed 14 canonical files and three entrypoints,
+  then called the remaining files “nine helpers”; there were eleven.
+- The historical `archive/windmill_root/migration_correct.ts` and
+  `archive/windmill_root/migration_script_single_file.ts`
+  were not assigned an explicit deployment lifecycle; both are now archived
+  under `archive/windmill_root/`.
 
 #### Proposed representation
 
 Correct counts and add a deployment matrix using the confirmed split and
 one-file roles.
 
-## Explicit skip decisions
+## Historical explicit skip decisions
 
 ### Selector duplication
 
@@ -589,7 +633,7 @@ catalog boundary; it does not claim the wire data is already trustworthy.
 
 ### Root HTTP response lifecycle replacement
 
-Skip. The root modular lifecycle preserves one timeout across response headers
+Skip. The archived root modular lifecycle preserved one timeout across response headers
 and streamed body, with explicit cleanup. CS2 applies to the one-file/legacy
 forms and to missing WebSocket bounds, not this established helper.
 
@@ -608,7 +652,7 @@ exact runtime confirmation check, and CS5 requires a stronger result type.
 
 Skip. One short test file does not justify shared fixture infrastructure.
 
-## Cross-cutting risks and non-simplification findings
+## Historical cross-cutting risks and non-simplification findings
 
 These are important but are not simplification recommendations:
 
@@ -623,7 +667,7 @@ These are important but are not simplification recommendations:
 - There is no tracked package/TypeScript/CI/deployment manifest to validate
   generated schemas or dependency locks.
 
-## Priority and dependency order
+## Historical priority and dependency order
 
 1. Document the confirmed split, one-file, generated, and legacy ownership.
 2. Add focused tests for confirmation, transport bounds, and import validation.
@@ -636,7 +680,7 @@ These are important but are not simplification recommendations:
 9. Improve API-key diagnostic categories and resolve unused branded IDs.
 10. Address CLI cancellation as separate operational hardening.
 
-## Best first implementation slices
+## Historical best first implementation slices
 
 ### Slice 1 — documentation and ownership
 
@@ -672,7 +716,7 @@ These are important but are not simplification recommendations:
 - Expand abbreviated modular orchestration names.
 - Keep field-specific rules and public error contracts intact.
 
-## Superseded and rejected findings
+## Historical superseded and rejected findings
 
 - Consolidating `xyops/voiceflow/*` into the one-file form is rejected because
   the split is required by Windmill.
@@ -684,13 +728,13 @@ These are important but are not simplification recommendations:
 - A generic envelope redesign is deferred until plan/idempotency product
   semantics are decided; the narrow API-key outcome union in CS5 is accepted.
 
-## Semantic FP follow-up audit — current working tree
+## Historical semantic FP follow-up audit — pre-archive tree
 
-This follow-up audits the current working tree rather than replacing the
-historical `d163e95` baseline above. It covers all 49 current TypeScript files,
-all 15 test files, repository policy/docs, and the global engineering
-guardrails. Function declarations are permitted; findings concern purity,
-immutability, composition, effect ownership, and explicit failure data.
+This follow-up audits the pre-archive tree rather than replacing the historical
+`d163e95` baseline above. Its file and test counts describe that historical
+tree, not the current XYOps-only inventory at the top of this report. Function
+declarations are permitted; findings concern purity, immutability, composition,
+effect ownership, and explicit failure data.
 
 ### Findings and resolution
 
@@ -699,22 +743,22 @@ immutability, composition, effect ownership, and explicit failure data.
 | FP-AUTH | P2 | `xyops/voiceflow/vf_auth.ts` | Pure token/context stages with preserved rejected-Promise boundary | Resolved |
 | FP-PLAN | P2 | `xyops/voiceflow/vf_planning.ts` | Named SHA-256 digest formatter composed through `.then` | Resolved |
 | FP-KEYS | P2 | `xyops/voiceflow/vf_api_key.ts` | Named selection, normalization, validation, deduplication, and cardinality policies | Resolved |
-| FP-JWT | P2 | `jwt_authentication_context.ts` | Named token, claims, precedence, and creator-ID stages | Resolved |
-| FP-ROOT-CATALOG | P2 | root Logux/catalog modules | Direct Promise return plus partially applied unary catalog stages | Resolved |
-| FP-ORCHESTRATOR | P2 | root migration contracts/orchestrator | Discriminated API-key outcome and immutable post-import result | Resolved |
-| FP-ROOT-GUARDS | P2 | root import/orchestrator boundaries | Array-safe record guards replace unproven object assertions | Resolved |
-| FP-ONEFILE-LIFECYCLE | P1 | `migration_correct.ts` | Deterministic settlement, detached handlers, immutable snapshots, and safe send effects | Resolved |
-| FP-ONEFILE-TYPES | P2 | `migration_correct.ts` | Readonly `RawRecord` data and `unknown` guards at JWT/Logux boundaries | Resolved |
-| FP-ONEFILE-COMPOSE | P2 | `migration_correct.ts` | Partially applied selector stages and direct Promise composition | Resolved |
+| FP-JWT | P2 | archived `archive/windmill_root/jwt_authentication_context.ts` | Named token, claims, precedence, and creator-ID stages | Resolved |
+| FP-ROOT-CATALOG | P2 | archived root Logux/catalog modules | Direct Promise return plus partially applied unary catalog stages | Resolved |
+| FP-ORCHESTRATOR | P2 | archived root migration contracts/orchestrator | Discriminated API-key outcome and immutable post-import result | Resolved |
+| FP-ROOT-GUARDS | P2 | archived root import/orchestrator boundaries | Array-safe record guards replace unproven object assertions | Resolved |
+| FP-ONEFILE-LIFECYCLE | P1 | `archive/windmill_root/migration_correct.ts` | Deterministic settlement, detached handlers, immutable snapshots, and safe send effects | Resolved |
+| FP-ONEFILE-TYPES | P2 | `archive/windmill_root/migration_correct.ts` | Readonly `RawRecord` data and `unknown` guards at JWT/Logux boundaries | Resolved |
+| FP-ONEFILE-COMPOSE | P2 | `archive/windmill_root/migration_correct.ts` | Partially applied selector stages and direct Promise composition | Resolved |
 | FP-TEST-ISOLATION | P1 | test suite | Restored/isolated module and global effects | Resolved |
 | FP-TEST-EFFECT | P2 | test suite | Invalid folder paths prove zero request effects | Resolved |
 | FP-POLICY | P2 | policy and audit docs | Scripts/adapters explicitly retain semantic FP obligations | Resolved |
 
-### Explicit current skips
+### Explicit historical skips
 
-- `migration_script_single_file.ts` is not hand-normalized until its generation
-  and parity ownership are confirmed.
-- `migrate_voiceflow_project.ts` remains legacy/reference or compatibility code;
+- `archive/windmill_root/migration_script_single_file.ts` was not hand-normalized;
+  its generation and parity ownership were deferred.
+- `archive/windmill_root/migrate_voiceflow_project.ts` remains legacy/reference or compatibility code;
   remediation requires evidence that it is still maintained or deployed.
 - Windmill selector and `main` wrappers remain because static discovery and
   boundary translation are real platform contracts.
@@ -723,12 +767,12 @@ immutability, composition, effect ownership, and explicit failure data.
 - Agent export and broad root entrypoint `async` functions are not mechanically
   converted to `.then`; their status/error translation and dependent effects
   justify imperative orchestration.
-- Root direct-import numeric folder validation is decision-required because
+- Archived root direct-import numeric folder validation was decision-required because
   enforcing it would intentionally reject inputs that the historical root API
   currently forwards. It was not silently changed in a behavior-preserving
   refactor.
 
-### Completed behavior-preserving remediation sequence
+### Completed historical behavior-preserving remediation sequence
 
 1. Strengthen test isolation and zero-effect assertions.
 2. Add auth, plan-ID, API-key, JWT, and root-catalog contract fixtures.
@@ -761,14 +805,15 @@ immutability, composition, effect ownership, and explicit failure data.
 - No tests, builds, commits, or deployments were performed.
 - Repository remained at clean baseline `d163e95` until this report was added.
 
-### Current follow-up evidence
+### Historical follow-up evidence
 
-- All 49 current TypeScript files and all 15 tests received a semantic-FP
-  verdict; no maintained file was hidden by a broad subsystem row.
+- All 49 TypeScript files and all 15 tests in the pre-archive tree received a
+  semantic-FP verdict; no maintained file was hidden by a broad subsystem row.
 - 131 tests passed with 463 assertions across 15 files.
-- All split public tools, root entrypoints, CLI, maintained one-file,
+- All historical split public tools, root entrypoints, CLI, maintained one-file,
   generated/reference single-file, and legacy entry bundles compiled.
 - No live network or destructive Voiceflow migration was executed.
 - No files were staged or committed as part of this follow-up.
-- `migration_script_single_file.ts` and `migrate_voiceflow_project.ts` remain
-  explicitly deferred nonconformant scope pending ownership/deployment evidence.
+- `archive/windmill_root/migration_script_single_file.ts` and
+  `archive/windmill_root/migrate_voiceflow_project.ts` remain archived and are
+  outside current XYOps maintenance scope.

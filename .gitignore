@@ -1,1 +1,3 @@
 .slim/deepwork/
+node_modules/
+dist/
