@@ -80,7 +80,7 @@ export const isJobLaunch: IsJobLaunch = (value): value is Readonly<{ id: string 
   isRecord(value) && isNonEmptyString(value.id);
 
 export type XYOpsJob = Readonly<{
-  completed?: boolean | number;
+  completed?: boolean | number | null;
   code: number | string;
   output?: string;
   data?: unknown;
@@ -88,7 +88,7 @@ export type XYOpsJob = Readonly<{
 type IsXYOpsJob = (value: unknown) => value is XYOpsJob;
 export const isXYOpsJob: IsXYOpsJob = (value): value is XYOpsJob =>
   isRecord(value) &&
-  (!("completed" in value) || typeof value.completed === "boolean" || typeof value.completed === "number") &&
+  (!("completed" in value) || value.completed === null || typeof value.completed === "boolean" || typeof value.completed === "number") &&
   (typeof value.code === "number" || typeof value.code === "string") &&
   (!(("output" in value)) || typeof value.output === "string");
 
@@ -105,7 +105,7 @@ export type XYOpsWaitJob = Readonly<{
   code: number | string;
   output?: string;
   data?: unknown;
-  completed?: boolean | number;
+  completed?: boolean | number | null;
 }>;
 type IsXYOpsWaitJob = (value: unknown) => value is XYOpsWaitJob;
 export const isXYOpsWaitJob: IsXYOpsWaitJob = (value): value is XYOpsWaitJob =>
@@ -113,7 +113,7 @@ export const isXYOpsWaitJob: IsXYOpsWaitJob = (value): value is XYOpsWaitJob =>
   isNonEmptyString(value.id) &&
   (typeof value.code === "number" || typeof value.code === "string") &&
   (!("output" in value) || typeof value.output === "string") &&
-  (!("completed" in value) || typeof value.completed === "boolean" || typeof value.completed === "number");
+  (!("completed" in value) || value.completed === null || typeof value.completed === "boolean" || typeof value.completed === "number");
 
 export type XYOpsWaitResponse = Readonly<{
   code: number | string;

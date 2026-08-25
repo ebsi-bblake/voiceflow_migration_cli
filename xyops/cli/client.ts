@@ -304,7 +304,7 @@ const isRetryableReadError: IsRetryableReadError = (error) =>
     error.diagnostic.code === "network" ||
     error.diagnostic.code === "http");
 
-type IsCompletedJob = (completed: boolean | number | undefined) => boolean;
+type IsCompletedJob = (completed: boolean | number | null | undefined) => boolean;
 const isCompletedJob: IsCompletedJob = (completed) =>
   completed === true || (typeof completed === "number" && completed > 0);
 
@@ -340,7 +340,6 @@ const pollJob: RequestJob = async <T>(
       );
       continue;
     }
-    console.info(job);
     if (!isSuccessfulCode(job.code))
       throw fail("job", {
         endpoint: JOB_PATH,

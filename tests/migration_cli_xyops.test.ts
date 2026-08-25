@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createXYOpsClient } from "../xyops/cli/client";
 import { DEFAULT_XYOPS_BASE_URL, readXYOpsConfig } from "../xyops/cli/config";
 import { isOptionResult, isVoiceflowEnvelope } from "../xyops/cli/contracts";
-import { run } from "../migration-cli";
+import { run } from "../xyops/migration-cli";
 import {
   executeParameters,
   listFoldersParameters,
@@ -272,6 +272,7 @@ describe("XYOps CLI adapter", () => {
 
   test("uses a top-level launch ID and polls get_job exactly once per dispatch", async () => {
     const requests: Array<{ path: string; body: string }> = [];
+    let pollCount = 0;
     const client = createXYOpsClient(config, {
       fetcher: async (input, init) => {
         const path = new URL(String(input)).pathname;
@@ -279,19 +280,17 @@ describe("XYOps CLI adapter", () => {
         if (path === "/api/app/run_event/v1") {
           return new Response(JSON.stringify({ code: 0, id: "official-job-id" }), { status: 200 });
         }
-        return new Response(
-          JSON.stringify({
-            code: 0,
-            job: {
+        pollCount += 1;
+        const job = pollCount === 1
+          ? { id: "official-job-id", code: 0, completed: null, output: "", data: null }
+          : {
               id: "official-job-id",
               completed: 1787683968.928,
               code: 0,
               output: `${JSON.stringify({ ok: true, operation: "execute-migration", operationID: "operation-3", result: {}, warnings: [] })}\n`,
               data: null,
-            },
-          }),
-          { status: 200 },
-        );
+            };
+        return new Response(JSON.stringify({ code: 0, job }), { status: 200 });
       },
       sleeper: async () => undefined,
     });
@@ -312,8 +311,12 @@ describe("XYOps CLI adapter", () => {
     expect(requests.map(({ path }) => path)).toEqual([
       "/api/app/run_event/v1",
       "/api/app/get_job/v1",
+      "/api/app/get_job/v1",
     ]);
-    expect(JSON.parse(requests[1]?.body ?? "{}")).toEqual({ id: "official-job-id" });
+    expect(requests.slice(1).map(({ body }) => JSON.parse(body))).toEqual([
+      { id: "official-job-id" },
+      { id: "official-job-id" },
+    ]);
     expect(requests.filter(({ path }) => path === "/api/app/run_event/v1")).toHaveLength(1);
   });
 

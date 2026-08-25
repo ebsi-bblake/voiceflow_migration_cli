@@ -3,8 +3,8 @@ import {
   DEFAULT_XYOPS_BASE_URL,
   readXYOpsConfig,
   type XYOpsEventReference,
-} from "./xyops/cli/config";
-import { createXYOpsClient } from "./xyops/cli/client";
+} from "./cli/config";
+import { createXYOpsClient } from "./cli/client";
 import {
   isCheckSessionResult,
   isExecuteResult,
@@ -15,8 +15,8 @@ import {
   type ExecuteResult,
   type MigrationPlan,
   type VoiceflowWarning,
-} from "./xyops/cli/contracts";
-import { asCliError, cliErrorOutput, fail } from "./xyops/cli/diagnostics";
+} from "./cli/contracts";
+import { asCliError, cliErrorOutput, fail } from "./cli/diagnostics";
 import {
   executeParameters,
   eventParametersFor,
@@ -30,25 +30,38 @@ import {
   setStateValue,
   stateSelection,
   type MigrationState,
-} from "./xyops/cli/state";
-import type { EventParameters } from "./xyops/cli/contracts";
-import { bounded, chooseOption, PromptReader } from "./xyops/cli/prompt";
+} from "./cli/state";
+import type { EventParameters } from "./cli/contracts";
+import { bounded, chooseOption, PromptReader } from "./cli/prompt";
 
 type PrintHelp = () => void;
 const printHelp: PrintHelp = () => {
-  console.log("Usage: bun run migration-cli.ts");
-  console.log("Interactively plan and execute a Voiceflow migration through XYOps.");
-  console.log(`Local configuration: XYOPS_API_KEY=<key> (required), XYOPS_BASE_URL=<url> (default: ${DEFAULT_XYOPS_BASE_URL}).`);
-  console.log("Optional XYOPS_EVENT_* overrides accept title:<event-title> or id:<event-id>.");
-  console.log("Default event titles must match the configured XYOps Event titles.");
+  console.log("Usage: bun run xyops/migration-cli.ts");
+  console.log(
+    "Interactively plan and execute a Voiceflow migration through XYOps.",
+  );
+  console.log(
+    `Local configuration: XYOPS_API_KEY=<key> (required), XYOPS_BASE_URL=<url> (default: ${DEFAULT_XYOPS_BASE_URL}).`,
+  );
+  console.log(
+    "Optional XYOPS_EVENT_* overrides accept title:<event-title> or id:<event-id>.",
+  );
+  console.log(
+    "Default event titles must match the configured XYOps Event titles.",
+  );
 };
 
-type ReadOptions = (value: unknown, title: string) => readonly { value: string; label: string }[];
+type ReadOptions = (
+  value: unknown,
+  title: string,
+) => readonly { value: string; label: string }[];
 const readOptions: ReadOptions = (value, title) => {
   try {
     return requireEnvelopeResult(value, title, isOptionResult).options;
   } catch {
-    throw fail("envelope", { nextAction: `${title} returned no usable options.` });
+    throw fail("envelope", {
+      nextAction: `${title} returned no usable options.`,
+    });
   }
 };
 
@@ -81,9 +94,13 @@ const displayPlan: DisplayPlan = (plan) => {
   console.log(`Source workspace: ${bounded(plan.labels.sourceWorkspace)}`);
   console.log(`Source project: ${bounded(plan.labels.sourceProject)}`);
   console.log(`Source version: ${bounded(plan.labels.sourceVersion)}`);
-  console.log(`Destination workspace: ${bounded(plan.labels.destinationWorkspace)}`);
+  console.log(
+    `Destination workspace: ${bounded(plan.labels.destinationWorkspace)}`,
+  );
   console.log(`Destination folder: ${bounded(plan.labels.destinationFolder)}`);
-  console.log(`Target schema: ${bounded(plan.selection.targetSchemaVersion, 40)}`);
+  console.log(
+    `Target schema: ${bounded(plan.selection.targetSchemaVersion, 40)}`,
+  );
 };
 
 type IsWarning = (value: VoiceflowWarning, code: string) => boolean;
@@ -95,11 +112,22 @@ type NumberField = (
 ) => number;
 const numberField: NumberField = (value, key) => value[key];
 
-type SummarizeExecution = (value: unknown, planID: string) => Readonly<Record<string, unknown>>;
+type SummarizeExecution = (
+  value: unknown,
+  planID: string,
+) => Readonly<Record<string, unknown>>;
 const summarizeExecution: SummarizeExecution = (value, planID) => {
-  if (!isExecuteResult(value)) throw fail("envelope", { nextAction: "The execute event returned an invalid result." });
+  if (!isExecuteResult(value))
+    throw fail("envelope", {
+      nextAction: "The execute event returned an invalid result.",
+    });
   const summary: Record<string, unknown> = { migrationCompleted: true, planID };
-  for (const key of ["exportStatus", "exportBytes", "importStatus", "importBytes"] as const) {
+  for (const key of [
+    "exportStatus",
+    "exportBytes",
+    "importStatus",
+    "importBytes",
+  ] as const) {
     const field = numberField(value, key);
     summary[key] = field;
   }
@@ -116,8 +144,12 @@ export const run: Run = async () => {
     return;
   }
 
-  console.warn("WARNING: this performs a REAL Voiceflow export and import through XYOps.");
-  console.warn("Use only the intended source version and destination workspace.");
+  console.warn(
+    "WARNING: this performs a REAL Voiceflow export and import through XYOps.",
+  );
+  console.warn(
+    "Use only the intended source version and destination workspace.",
+  );
 
   const config = readXYOpsConfig();
   const client = createXYOpsClient(config);
@@ -130,8 +162,15 @@ export const run: Run = async () => {
       eventParametersFor("check-session"),
       isVoiceflowEnvelope(isCheckSessionResult),
     );
-    const session = requireEnvelopeResult(sessionResponse, "check-session", isCheckSessionResult);
-    if (!session.active) throw fail("envelope", { nextAction: "The configured Voiceflow session is not active." });
+    const session = requireEnvelopeResult(
+      sessionResponse,
+      "check-session",
+      isCheckSessionResult,
+    );
+    if (!session.active)
+      throw fail("envelope", {
+        nextAction: "The configured Voiceflow session is not active.",
+      });
 
     const sourceWorkspaceID = await selectCatalog(
       reader,
@@ -164,7 +203,11 @@ export const run: Run = async () => {
       listWorkspacesParameters(),
       "Destination workspace",
     );
-    state = setStateValue(state, "destinationWorkspaceID", destinationWorkspaceID);
+    state = setStateValue(
+      state,
+      "destinationWorkspaceID",
+      destinationWorkspaceID,
+    );
     const destinationFolderID = await selectCatalog(
       reader,
       client,
@@ -173,7 +216,8 @@ export const run: Run = async () => {
       "Destination folder",
     );
     state = setStateValue(state, "destinationFolderID", destinationFolderID);
-    const targetSchemaVersion = (await reader.ask("Target schema version [13.1]: ")).trim() || "13.1";
+    const targetSchemaVersion =
+      (await reader.ask("Target schema version [13.1]: ")).trim() || "13.1";
     state = setStateValue(state, "targetSchemaVersion", targetSchemaVersion);
 
     const selection = stateSelection(state);
@@ -182,12 +226,20 @@ export const run: Run = async () => {
       planParameters(selection),
       isVoiceflowEnvelope(isMigrationPlan),
     );
-    const plan = requireEnvelopeResult(planResponse, "plan-migration", isMigrationPlan);
+    const plan = requireEnvelopeResult(
+      planResponse,
+      "plan-migration",
+      isMigrationPlan,
+    );
     state = setStateValue(state, "planID", plan.planID);
     displayPlan(plan);
 
-    const confirmation = (await reader.ask("Perform this real migration? (yes/no): ")).trim().toLowerCase();
-    if (confirmation !== "yes" && confirmation !== "y") {
+    const confirmation = (
+      await reader.ask("Perform this real migration? (yes/no): ")
+    )
+      .trim()
+      .toLowerCase();
+    if (!["y", "yes"].includes(confirmation)) {
       console.log("Aborted; no migration performed.");
       return;
     }
@@ -198,10 +250,21 @@ export const run: Run = async () => {
       executeParameters(selection, planID),
       isVoiceflowEnvelope(isExecuteResult),
     );
-    const execute = requireEnvelopeResult(executeResponse, "execute-migration", isExecuteResult);
+    const execute = requireEnvelopeResult(
+      executeResponse,
+      "execute-migration",
+      isExecuteResult,
+    );
     console.log(JSON.stringify(summarizeExecution(execute, planID)));
-    if (executeResponse.ok && executeResponse.warnings.some((warning) => isWarning(warning, "API_KEY_RETRIEVAL_FAILED"))) {
-      console.error("WARNING: migration completed, but API-key retrieval failed.");
+    if (
+      executeResponse.ok &&
+      executeResponse.warnings.some((warning) =>
+        isWarning(warning, "API_KEY_RETRIEVAL_FAILED"),
+      )
+    ) {
+      console.error(
+        "WARNING: migration completed, but API-key retrieval failed.",
+      );
       process.exitCode = 2;
     }
   } finally {
@@ -212,9 +275,13 @@ export const run: Run = async () => {
 type HandleFailure = (error: unknown) => void;
 const handleFailure: HandleFailure = (error) => {
   process.exitCode = 1;
-  console.error(JSON.stringify({ migrationFailed: cliErrorOutput(asCliError(error)) }));
+  console.error(
+    JSON.stringify({ migrationFailed: cliErrorOutput(asCliError(error)) }),
+  );
 };
 
 if (import.meta.main) {
-  run().then(() => undefined).catch(handleFailure);
+  run()
+    .then(() => undefined)
+    .catch(handleFailure);
 }

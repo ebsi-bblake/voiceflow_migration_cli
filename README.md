@@ -142,11 +142,11 @@ Both requests use `Authorization: Bearer <raw JWT>`. Export reads the response a
 
 ## Local CLI harness
 
-`migration-cli.ts` is an interactive local harness for the modular implementation. Run it with:
+`xyops/migration-cli.ts` is an interactive local harness for the modular implementation. Run it with:
 
 ```sh
 export XYOPS_API_KEY='your-xyops-api-key'
-bun run migration-cli.ts
+bun run xyops/migration-cli.ts
 ```
 
 `XYOPS_API_KEY` is required. `XYOPS_BASE_URL` is optional and defaults to `http://localhost:5522`.
