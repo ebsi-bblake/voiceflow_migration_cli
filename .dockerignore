@@ -1,0 +1,24 @@
+# Archived and inactive implementations are never build inputs.
+windmill_agent_scripts/
+archive/
+
+# Tests and test fixtures are not build inputs.
+tests/
+**/tests/
+**/*test.*
+**/*spec.*
+
+# Local dependency, build, credential, and environment files are excluded.
+node_modules/
+dist/
+.env
+.env.*
+**/.env
+**/.env.*
+**/*.env
+credentials/
+**/credentials/
+**/*credential*
+**/*credentials*
+**/*.pem
+**/*.key

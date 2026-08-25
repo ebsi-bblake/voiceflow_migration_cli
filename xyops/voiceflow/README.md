@@ -1,66 +1,102 @@
-# Voiceflow MCP agent scripts
+# XYOps Voiceflow runner image
 
-Every script is deployed flat at the exact path
-`f/voiceflow/<filename-without-.ts>`. Relative extensionless imports are the
-intended supported structure when scripts are flat in the same Windmill folder.
+The active container entrypoint is `xyops/entry.ts`. The Bun builder bundles it
+and the runner modules into the Node-compatible ESM artifact
+`/opt/voiceflow/entry.mjs`. The final image contains that artifact and minimal
+image metadata only; it does not contain the TypeScript source, dependencies,
+archives, tests, or credentials.
 
-The initial bulk upload created dependent libraries before `vf_contracts`; remote
-timestamps show `vf_contracts` was created last. Windmill computes dependency
-locks when each script is saved and does not automatically relock scripts when a
-missing dependency is subsequently created.
+## Supported runners
 
-First-time deployment must be topological and sequential: wait for each
-dependency deployment/relock to succeed before deploying the next. If scripts
-were uploaded out of order, re-save/redeploy all failed dependents in
-topological order after `vf_contracts` exists. Check each script's
-`lock_error_logs` and build status before proceeding. Do not bulk-create these
-scripts concurrently.
-
-Deploy libraries first, in this exact order:
-
-1. `vf_contracts`
-2. `vf_http`
-3. `vf_auth`
-4. `vf_logux`
-5. `vf_catalog`
-6. `vf_planning`
-7. `vf_export`
-8. `vf_import`
-9. `vf_api_key`
-
-Then deploy the seven public tools.
-
-Bind the first `token` argument in Windmill to secret variable
-`f/voiceflow/jwt`. Do not use an SDK or `getVariable`. OpenCode never requests
-or prints the raw value; when MCP cannot inject a default, the wrapper passes
-the variable reference, not the secret.
-
-Public signatures:
+`RUNNER_NAME` selects the operation supplied by the XYOps Event:
 
 ```text
-vf_check_session(token)
-vf_list_workspaces(token)
-vf_list_projects(token, sourceWorkspaceID)
-vf_list_versions(token, sourceWorkspaceID, sourceProjectID)
-vf_list_folders(token, destinationWorkspaceID)
-vf_plan_migration(token, sourceWorkspaceID, sourceProjectID, sourceVersionID, destinationWorkspaceID, destinationFolderID, targetSchemaVersion)
-vf_execute_migration(token, planID, sourceWorkspaceID, sourceProjectID, sourceVersionID, destinationWorkspaceID, destinationFolderID, targetSchemaVersion, confirmed)
+check-session
+list-workspaces
+list-projects
+list-versions
+list-folders
+plan-migration
+execute-migration
 ```
 
-Suggested Windmill summaries and descriptions:
+The image entrypoint is fixed to:
 
-- **vf_check_session** — Summary: `Check Voiceflow session`. Description: `Validate the configured Voiceflow session without exposing credentials.`
-- **vf_list_workspaces** — Summary: `List Voiceflow workspaces`. Description: `Discover workspaces available to the authenticated session.`
-- **vf_list_projects** — Summary: `List Voiceflow projects`. Description: `List projects in a selected workspace.`
-- **vf_list_versions** — Summary: `List Voiceflow versions`. Description: `List versions for a selected project.`
-- **vf_list_folders** — Summary: `List Voiceflow folders`. Description: `List destination folders in a selected workspace.`
-- **vf_plan_migration** — Summary: `Plan Voiceflow migration`. Description: `Validate selections and produce the plan ID required for execution.`
-- **vf_execute_migration** — Summary: `Execute Voiceflow migration (destructive)`. Description: `Destructively export and import a version. Requires a prior plan, its exact plan ID, and explicit human confirmation.`
+```text
+node /opt/voiceflow/entry.mjs
+```
 
-Follow this sequence: session check -> discovery -> plan -> human confirmation
--> execute. `confirmed` is a cooperative policy signal, not server-enforced
-approval. Use `runScriptByPath` in production; preview is for testing only.
+Do not replace the entrypoint or use a command argument to select an operation.
+Set `RUNNER_NAME` and the operation parameters as Event environment variables.
+`VOICEFLOW_JWT` must be supplied by the XYOps Event's runtime Secret binding;
+it is never passed as a Docker build argument and is not baked into the image.
 
-There is no Base64 across MCP; bytes stay in one execute job. Operations are
-non-idempotent, and `IMPORT_OUTCOME_UNKNOWN` means do not retry until
-reconciled. Future authentication changes belong only at the `vf_auth` seam.
+## Pinned image inputs
+
+The Dockerfile pins the current multi-platform image indexes:
+
+```text
+oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da08ea6262ae30e
+node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
+```
+
+When updating either base image, update its tag and digest together. Verify
+that the digest is a multi-platform manifest containing both `linux/amd64` and
+`linux/arm64`; do not replace it with a mutable tag-only reference.
+
+## Build with buildx
+
+Build and load one platform into the local Docker image store:
+
+```sh
+docker buildx build \
+  --platform linux/amd64 \
+  --load \
+  -f Dockerfile.voiceflow \
+  -t voiceflow-runner:local-amd64 \
+  .
+```
+
+Use `--platform linux/arm64` and a different tag for a local arm64 image.
+`--load` accepts one platform at a time. To publish the combined manifest for
+both supported platforms, replace the placeholder owner and tag and use
+`--push`:
+
+```sh
+docker login ghcr.io
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --push \
+  -f Dockerfile.voiceflow \
+  -t ghcr.io/OWNER/voiceflow-runner:TAG \
+  .
+```
+
+After publishing, record the immutable digest reported by the registry and
+deploy `ghcr.io/OWNER/voiceflow-runner@sha256:<image-digest>` in XYOps when
+reproducible image selection is required. The base-image digests above pin the
+build inputs; the published image digest pins the deployable result.
+
+## XYOps Docker Plugin invocation
+
+Configure the XYOps Docker Plugin to start the published image without
+overriding its entrypoint. Each Event should provide `RUNNER_NAME`, the
+parameters for that operation, and the `VOICEFLOW_JWT` Secret binding at
+runtime. The plugin should capture the runner's single JSON envelope from
+stdout and retain stderr as diagnostic output without exposing environment
+values.
+
+A non-migration smoke invocation is:
+
+```sh
+export VOICEFLOW_JWT='injected-locally-for-this-check'
+docker run --rm \
+  --env RUNNER_NAME=check-session \
+  --env VOICEFLOW_JWT \
+  voiceflow-runner:local-amd64
+```
+
+`check-session` requires a valid runtime JWT and network access to the
+Voiceflow service. This invocation checks the container/event contract; it does
+not execute a migration. Never put a real JWT in a Dockerfile, image label,
+build argument, or committed command history.
