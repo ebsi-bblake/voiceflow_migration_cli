@@ -13,20 +13,20 @@ type ListFoldersResult = {
 };
 
 type ListFoldersForWorkspace = (
-  workspaceID: string,
+  destinationWorkspaceID: string,
 ) => (auth: Parameters<typeof listFolders>[0]) =>
   ReturnType<typeof listFolders>;
-const listFoldersForWorkspace: ListFoldersForWorkspace = (workspaceID) =>
-  (auth) => listFolders(auth, workspaceID);
+const listFoldersForWorkspace: ListFoldersForWorkspace = (destinationWorkspaceID) =>
+  (auth) => listFolders(auth, destinationWorkspaceID);
 
 type Main = (
   token: string,
-  workspaceID: string,
+  destinationWorkspaceID: string,
 ) => Promise<Envelope<ListFoldersResult>>;
-export const main: Main = (token, workspaceID) => {
+export const main: Main = (token, destinationWorkspaceID) => {
   const id = crypto.randomUUID();
   return resolveVoiceflowAuth(token)
-    .then(listFoldersForWorkspace(workspaceID))
+    .then(listFoldersForWorkspace(destinationWorkspaceID))
     .then((options) => success("list-folders", id, { options }))
     .catch((error) => failure("list-folders", id, error));
 };
@@ -36,13 +36,13 @@ type ListFoldersRunner = Runner<ListFoldersEnvelope>;
 
 type ListFoldersRequest = {
   readonly VOICEFLOW_JWT: string | undefined;
-  readonly WORKSPACE_ID: string | undefined;
+  readonly DESTINATION_WORKSPACE_ID: string | undefined;
 };
 
 type ReadListFoldersRequest = () => ListFoldersRequest;
 const readListFoldersRequest: ReadListFoldersRequest = () => ({
   VOICEFLOW_JWT: process.env.VOICEFLOW_JWT,
-  WORKSPACE_ID: process.env.WORKSPACE_ID,
+  DESTINATION_WORKSPACE_ID: process.env.DESTINATION_WORKSPACE_ID,
 });
 
 type CreateListFoldersRunner = () => ListFoldersRunner;
@@ -51,6 +51,9 @@ export const createListFoldersRunner: CreateListFoldersRunner = () =>
     const request = readListFoldersRequest();
     return main(
       requireEnvironmentValue("VOICEFLOW_JWT", request.VOICEFLOW_JWT),
-      requireEnvironmentValue("WORKSPACE_ID", request.WORKSPACE_ID),
+      requireEnvironmentValue(
+        "DESTINATION_WORKSPACE_ID",
+        request.DESTINATION_WORKSPACE_ID,
+      ),
     );
   });

@@ -2,23 +2,23 @@ import { describe, expect, mock, test } from "bun:test";
 import {
   resolveVoiceflowAuth as originalResolveVoiceflowAuth,
   type AuthContext,
-} from "../agent_scripts/vf_auth";
+} from "../xyops/voiceflow/vf_auth";
 import {
   retrieveApiKeyStatus as originalRetrieveApiKeyStatus,
   type ApiKeyStatus,
-} from "../agent_scripts/vf_api_key";
+} from "../xyops/voiceflow/vf_api_key";
 import type {
   ImportedReceipt,
   MigrationPlan,
   MigrationSelection,
   Warning,
-} from "../agent_scripts/vf_contracts";
+} from "../xyops/voiceflow/vf_contracts";
 import {
   exportVersion as originalExportVersion,
   type ExportArtifact,
-} from "../agent_scripts/vf_export";
-import { importVersion as originalImportVersion } from "../agent_scripts/vf_import";
-import { buildMigrationPlan as originalBuildMigrationPlan } from "../agent_scripts/vf_planning";
+} from "../xyops/voiceflow/vf_export";
+import { importVersion as originalImportVersion } from "../xyops/voiceflow/vf_import";
+import { buildMigrationPlan as originalBuildMigrationPlan } from "../xyops/voiceflow/vf_planning";
 
 type ExecuteScenario = "retrieval-failure" | "success";
 
@@ -111,27 +111,27 @@ const importVersion = mock(async () => imported);
 const retrieveApiKeyStatus = mock(async () => apiKeyOutcome);
 
 function installDependencyMocks(): void {
-  mock.module("../agent_scripts/vf_auth", () => ({ resolveVoiceflowAuth }));
-  mock.module("../agent_scripts/vf_planning", () => ({ buildMigrationPlan }));
-  mock.module("../agent_scripts/vf_export", () => ({ exportVersion }));
-  mock.module("../agent_scripts/vf_import", () => ({ importVersion }));
-  mock.module("../agent_scripts/vf_api_key", () => ({ retrieveApiKeyStatus }));
+  mock.module("../xyops/voiceflow/vf_auth", () => ({ resolveVoiceflowAuth }));
+  mock.module("../xyops/voiceflow/vf_planning", () => ({ buildMigrationPlan }));
+  mock.module("../xyops/voiceflow/vf_export", () => ({ exportVersion }));
+  mock.module("../xyops/voiceflow/vf_import", () => ({ importVersion }));
+  mock.module("../xyops/voiceflow/vf_api_key", () => ({ retrieveApiKeyStatus }));
 }
 
 function restoreDependencyModules(): void {
-  mock.module("../agent_scripts/vf_auth", () => ({
+  mock.module("../xyops/voiceflow/vf_auth", () => ({
     resolveVoiceflowAuth: originalResolveVoiceflowAuth,
   }));
-  mock.module("../agent_scripts/vf_planning", () => ({
+  mock.module("../xyops/voiceflow/vf_planning", () => ({
     buildMigrationPlan: originalBuildMigrationPlan,
   }));
-  mock.module("../agent_scripts/vf_export", () => ({
+  mock.module("../xyops/voiceflow/vf_export", () => ({
     exportVersion: originalExportVersion,
   }));
-  mock.module("../agent_scripts/vf_import", () => ({
+  mock.module("../xyops/voiceflow/vf_import", () => ({
     importVersion: originalImportVersion,
   }));
-  mock.module("../agent_scripts/vf_api_key", () => ({
+  mock.module("../xyops/voiceflow/vf_api_key", () => ({
     retrieveApiKeyStatus: originalRetrieveApiKeyStatus,
   }));
 }
@@ -148,7 +148,7 @@ async function executeMockedScenario(scenario: ExecuteScenario): Promise<unknown
 
   try {
     const { main: executeMigration } = await import(
-      "../agent_scripts/vf_execute_migration"
+      "../xyops/voiceflow/vf_execute_migration"
     );
     return await executeMigration(...executeArguments);
   } finally {

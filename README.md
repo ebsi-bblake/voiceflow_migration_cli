@@ -145,10 +145,25 @@ Both requests use `Authorization: Bearer <raw JWT>`. Export reads the response a
 `migration-cli.ts` is an interactive local harness for the modular implementation. Run it with:
 
 ```sh
+export XYOPS_API_KEY='your-xyops-api-key'
 bun run migration-cli.ts
 ```
 
-**Warning:** after confirmation, this command performs a real Voiceflow export and import. Use only the intended source version and destination workspace. It prompts for the raw JWT without echoing it and asks for confirmation before migration.
+`XYOPS_API_KEY` is required. `XYOPS_BASE_URL` is optional and defaults to `http://localhost:5522`.
+The default XYOps Event titles are `voiceflow_check_session`, `voiceflow_list_workspaces`,
+`voiceflow_list_projects`, `voiceflow_list_versions`, `voiceflow_list_folders`,
+`voiceflow_plan_migration`, and `voiceflow_execute_migration`. These titles must match the
+configured XYOps Event titles. Per-event overrides are optional:
+
+```sh
+export XYOPS_EVENT_CHECK_SESSION='title:my-check-session'
+export XYOPS_EVENT_EXECUTE_MIGRATION='id:your-event-id'
+```
+
+Use `title:` for an Event title or `id:` for an explicit Event ID. The CLI never asks for or
+sends `VOICEFLOW_JWT`; each XYOps Event supplies it through its configured Secret binding.
+After confirmation, this command performs a real Voiceflow export and import. Use only the
+intended source version and destination workspace.
 
 CLI exit codes: 0 for success, abort, or help; 2 when import succeeded but API-key retrieval failed; and 1 for fatal migration/import failure. Diagnostics do not expose keys, tokens, or raw response bodies.
 

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { syncCatalog } from "../agent_scripts/vf_logux";
+import { syncCatalog } from "../xyops/voiceflow/vf_logux";
 import {
   main as migrateOneFile,
   sourceWorkspaceID as listOneFileWorkspaces,

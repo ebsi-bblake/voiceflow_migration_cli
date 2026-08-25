@@ -13,20 +13,20 @@ type ListProjectsResult = {
 };
 
 type ListProjectsForWorkspace = (
-  workspaceID: string,
+  sourceWorkspaceID: string,
 ) => (auth: Parameters<typeof listProjects>[0]) =>
   ReturnType<typeof listProjects>;
-const listProjectsForWorkspace: ListProjectsForWorkspace = (workspaceID) =>
-  (auth) => listProjects(auth, workspaceID);
+const listProjectsForWorkspace: ListProjectsForWorkspace = (sourceWorkspaceID) =>
+  (auth) => listProjects(auth, sourceWorkspaceID);
 
 type Main = (
   token: string,
-  workspaceID: string,
+  sourceWorkspaceID: string,
 ) => Promise<Envelope<ListProjectsResult>>;
-export const main: Main = (token, workspaceID) => {
+export const main: Main = (token, sourceWorkspaceID) => {
   const id = crypto.randomUUID();
   return resolveVoiceflowAuth(token)
-    .then(listProjectsForWorkspace(workspaceID))
+    .then(listProjectsForWorkspace(sourceWorkspaceID))
     .then((options) => success("list-projects", id, { options }))
     .catch((error) => failure("list-projects", id, error));
 };
@@ -36,13 +36,13 @@ type ListProjectsRunner = Runner<ListProjectsEnvelope>;
 
 type ListProjectsRequest = {
   readonly VOICEFLOW_JWT: string | undefined;
-  readonly WORKSPACE_ID: string | undefined;
+  readonly SOURCE_WORKSPACE_ID: string | undefined;
 };
 
 type ReadListProjectsRequest = () => ListProjectsRequest;
 const readListProjectsRequest: ReadListProjectsRequest = () => ({
   VOICEFLOW_JWT: process.env.VOICEFLOW_JWT,
-  WORKSPACE_ID: process.env.WORKSPACE_ID,
+  SOURCE_WORKSPACE_ID: process.env.SOURCE_WORKSPACE_ID,
 });
 
 type CreateListProjectsRunner = () => ListProjectsRunner;
@@ -51,6 +51,9 @@ export const createListProjectsRunner: CreateListProjectsRunner = () =>
     const request = readListProjectsRequest();
     return main(
       requireEnvironmentValue("VOICEFLOW_JWT", request.VOICEFLOW_JWT),
-      requireEnvironmentValue("WORKSPACE_ID", request.WORKSPACE_ID),
+      requireEnvironmentValue(
+        "SOURCE_WORKSPACE_ID",
+        request.SOURCE_WORKSPACE_ID,
+      ),
     );
   });

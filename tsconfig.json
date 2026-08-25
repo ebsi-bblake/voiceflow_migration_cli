@@ -8,7 +8,7 @@
     "types": ["node"]
   },
   "include": [
-    "agent_scripts/**/*.ts",
+    "xyops/voiceflow/**/*.ts",
     "xyops/**/*.ts"
   ]
 }

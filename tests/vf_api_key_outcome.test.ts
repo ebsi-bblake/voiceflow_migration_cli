@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { AuthContext } from "../agent_scripts/vf_auth";
+import type { AuthContext } from "../xyops/voiceflow/vf_auth";
 import {
   retrieveApiKeyStatus,
   type ApiKeyStatus,
-} from "../agent_scripts/vf_api_key";
+} from "../xyops/voiceflow/vf_api_key";
 import { main as oneFileMain } from "../migration_correct";
 
 const auth: AuthContext = {

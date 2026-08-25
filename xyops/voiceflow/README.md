@@ -40,9 +40,9 @@ Public signatures:
 ```text
 vf_check_session(token)
 vf_list_workspaces(token)
-vf_list_projects(token, workspaceID)
-vf_list_versions(token, workspaceID, projectID)
-vf_list_folders(token, workspaceID)
+vf_list_projects(token, sourceWorkspaceID)
+vf_list_versions(token, sourceWorkspaceID, sourceProjectID)
+vf_list_folders(token, destinationWorkspaceID)
 vf_plan_migration(token, sourceWorkspaceID, sourceProjectID, sourceVersionID, destinationWorkspaceID, destinationFolderID, targetSchemaVersion)
 vf_execute_migration(token, planID, sourceWorkspaceID, sourceProjectID, sourceVersionID, destinationWorkspaceID, destinationFolderID, targetSchemaVersion, confirmed)
 ```

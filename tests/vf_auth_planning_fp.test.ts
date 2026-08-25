@@ -3,11 +3,11 @@ import { describe, expect, mock, test } from "bun:test";
 import {
   resolveVoiceflowAuth,
   type AuthContext,
-} from "../agent_scripts/vf_auth";
+} from "../xyops/voiceflow/vf_auth";
 import type {
   MigrationPlan,
   MigrationSelection,
-} from "../agent_scripts/vf_contracts";
+} from "../xyops/voiceflow/vf_contracts";
 
 const planningScenarioEnvironmentVariable =
   "VF_AUTH_PLANNING_FP_CATALOG_SCENARIO";
@@ -110,12 +110,12 @@ function installIsolatedCatalogMock(): void {
     wanted: string[],
   ): Promise<readonly unknown[]> => catalogRows(wanted[0]);
 
-  mock.module("../agent_scripts/vf_logux", () => ({ syncCatalog }));
+  mock.module("../xyops/voiceflow/vf_logux", () => ({ syncCatalog }));
 }
 
 async function runIsolatedPlanningScenario(): Promise<PlanningScenarioResult> {
   installIsolatedCatalogMock();
-  const { buildMigrationPlan } = await import("../agent_scripts/vf_planning");
+  const { buildMigrationPlan } = await import("../xyops/voiceflow/vf_planning");
   const auth: AuthContext = { token: "token", creatorID: "creator" };
   const changedSelection = {
     ...paddedSelection,
@@ -130,7 +130,7 @@ async function runIsolatedPlanningScenario(): Promise<PlanningScenarioResult> {
 
 async function runIsolatedDigestRejectionScenario(): Promise<DigestRejectionScenarioResult> {
   installIsolatedCatalogMock();
-  const { buildMigrationPlan } = await import("../agent_scripts/vf_planning");
+  const { buildMigrationPlan } = await import("../xyops/voiceflow/vf_planning");
   const rejection = new Error("digest rejection sentinel");
   const subtle = globalThis.crypto.subtle;
   const originalDigestDescriptor = Object.getOwnPropertyDescriptor(

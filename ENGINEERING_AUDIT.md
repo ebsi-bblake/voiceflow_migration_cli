@@ -22,11 +22,11 @@ dependencies, priorities, risks, and audit log.
 | S2 | Modular catalog and Logux transport | `logux_websocket_transport.ts`, `catalog_discovery_service.ts` | Workspace/project/version/folder discovery | None | Recommend semantic FP composition |
 | S3 | Modular migration core | `export_project_api.ts`, `import_project_api.ts`, `project_api_key_retrieval.ts`, `project_migration_orchestrator.ts` | Export, import, API-key status, composed migration | None | Recommend |
 | S4 | Entrypoints and local CLI | `export_script_entrypoint.ts`, `import_script_entrypoint.ts`, `migration_script_entrypoint.ts`, `migration-cli.ts` | Windmill `main`, `DynSelect_*`, interactive CLI | None | Skip simplification; hardening note |
-| S5 | MCP agent infrastructure | `agent_scripts/vf_contracts.ts`, `vf_auth.ts`, `vf_http.ts`, `vf_logux.ts`, `vf_catalog.ts`, `vf_planning.ts` | Stable envelopes, authentication, catalog discovery, plan construction | Folder-only contract test | Recommend |
+| S5 | MCP agent infrastructure | `xyops/voiceflow/vf_contracts.ts`, `vf_auth.ts`, `vf_http.ts`, `vf_logux.ts`, `vf_catalog.ts`, `vf_planning.ts` | Stable envelopes, authentication, catalog discovery, plan construction | Folder-only contract test | Recommend |
 | S6 | MCP agent operations | `vf_check_session.ts`, list tools, `vf_plan_migration.ts`, `vf_execute_migration.ts`, `vf_export.ts`, `vf_import.ts`, `vf_api_key.ts` | Seven MCP-facing `main` tools | Folder-only contract test | Recommend |
 | S7 | Standalone and compatibility implementations | `migration_correct.ts`, `migration_script_single_file.ts`, `migrate_voiceflow_project.ts` | Alternative self-contained Windmill entrypoints | None | Recommend ownership clarification |
 | S8 | Tests | every `tests/*.ts` file | Production contracts, boundary effects, cleanup, and regression behavior | Self | Recommend targeted isolation/effect assertions |
-| S9 | Documentation and project policy | `README.md`, `agent_scripts/README.md`, `AGENTS.md` | Deployment inventories, contracts, operational policy | N/A | Recommend |
+| S9 | Documentation and project policy | `README.md`, `xyops/voiceflow/README.md`, `AGENTS.md` | Deployment inventories, contracts, operational policy | N/A | Recommend |
 
 No frontend application, generated `./wmill` module, package manifest,
 TypeScript project configuration, CI configuration, or Windmill deployment
@@ -34,7 +34,7 @@ manifest is tracked in this baseline.
 
 ## Executive summary
 
-The split packaging is intentional: `agent_scripts/*` is the Windmill-facing
+The split packaging is intentional: `xyops/voiceflow/*` is the Windmill-facing
 form required by the platform, while `migration_correct.ts` is the one-file
 form. The split itself is not a maintainability defect and must not be
 collapsed. The split implementation generally follows the engineering style
@@ -47,7 +47,7 @@ split, one-file, and older variants must also be documented precisely.
 Recommended sequence:
 
 1. Document the required split and one-file forms and their parity policy.
-2. Add focused tests around the production `agent_scripts/*` form.
+2. Add focused tests around the production `xyops/voiceflow/*` form.
 3. Enforce literal confirmation and bounded HTTP/WebSocket reads.
 4. Apply destination-folder validation at every import boundary.
 5. Fix typed error/result-state and retry-policy defects.
@@ -67,8 +67,8 @@ required tests.
 
 | Implementation form | Result | Evidence summary |
 | --- | --- | --- |
-| Split private libraries in `agent_scripts/*` | Partial compliance | Catalog composition is corrected; auth and plan-ID Promise stages still need work |
-| Split public tools in `agent_scripts/*` | Partial compliance | Windmill adapters are appropriately small; confirmation, retry policy, and API-key state have contract defects |
+| Split private libraries in `xyops/voiceflow/*` | Partial compliance | Catalog composition is corrected; auth and plan-ID Promise stages still need work |
+| Split public tools in `xyops/voiceflow/*` | Partial compliance | Windmill adapters are appropriately small; confirmation, retry policy, and API-key state have contract defects |
 | Root modular implementation | Mostly compliant | Named transformations and bounded transports are strong; diagnostic construction, folder validation, result state, and orchestration naming need correction |
 | `migration_correct.ts` one-file form | Partial compliance | Packaging is accepted; unbounded effects, `any`, and unnamed selector pipelines violate guardrails |
 | `migration_script_single_file.ts` | Mostly compliant | Maintains internal named boundaries and bounded transport; folder validation remains incomplete; generated-copy naming changes are deferred |
@@ -80,7 +80,7 @@ required tests.
 **Priority:** P1
 **Guardrails:** Boundary validation, deliberate input handling, destructive-operation safety
 
-`agent_scripts/vf_execute_migration.ts:61-74` declares `confirmed` as a
+`xyops/voiceflow/vf_execute_migration.ts:61-74` declares `confirmed` as a
 boolean but checks it with `if (!confirmed)`. Runtime callers can supply a
 truthy string, number, or object and bypass the confirmation gate.
 
@@ -100,7 +100,7 @@ currently rely on coercion.
   size only after `arrayBuffer()` has allocated the complete body.
 - `migrate_voiceflow_project.ts:53-73,285-324` reads dependency bodies without
   bounded streaming or cancellation.
-- `agent_scripts/vf_logux.ts:85-119`, `migration_correct.ts:149-205`, and
+- `xyops/voiceflow/vf_logux.ts:85-119`, `migration_correct.ts:149-205`, and
   `migrate_voiceflow_project.ts:107-164` have no incoming frame-size or
   accumulated-row bound.
 - The root `http_api_client.ts` and `logux_websocket_transport.ts:90-96`
@@ -119,7 +119,7 @@ cleanup, and credential-safe errors.
 **Guardrails:** Validate untrusted input at the boundary; name domain policies
 
 The split form defines the current policy in
-`agent_scripts/vf_import.ts:12-17`, requiring a numeric folder ID. Other forms
+`xyops/voiceflow/vf_import.ts:12-17`, requiring a numeric folder ID. Other forms
 do not enforce it when called directly:
 
 - `migration_correct.ts:337-348`;
@@ -142,7 +142,7 @@ calls on rejection.
 `Record<string, unknown>` is appropriate inside the undocumented Logux wire
 boundary. It becomes a style defect when exposed across catalog APIs:
 
-- `agent_scripts/vf_catalog.ts:6,57-81` returns raw `Row[]` from public loaders;
+- `xyops/voiceflow/vf_catalog.ts:6,57-81` returns raw `Row[]` from public loaders;
 - `catalog_discovery_service.ts:5,53-54` exposes the same generic shape.
 
 Keep raw records private to transport parsing, then add tolerant runtime
@@ -159,7 +159,7 @@ workspace mismatch, and numeric-folder filtering.
 
 - Root: `shared_contract_types.ts:28-35` independently models
   `apiKeyRetrieved` and optional `postImport`.
-- Split: `agent_scripts/vf_api_key.ts:5-8` and
+- Split: `xyops/voiceflow/vf_api_key.ts:5-8` and
   `vf_execute_migration.ts:15-24` repeat the same independent fields.
 - `project_migration_orchestrator.ts:70-83` assembles those fields separately.
 
@@ -185,7 +185,7 @@ length limits, defaults, and preservation of allowed metadata.
 **Priority:** P2
 **Guardrails:** Distinguish retryable from permanent dependency failures
 
-`agent_scripts/vf_check_session.ts:31-32` marks every unexpected non-2xx status
+`xyops/voiceflow/vf_check_session.ts:31-32` marks every unexpected non-2xx status
 retryable, while `vf_export.ts:30-31` marks every non-2xx status permanent via
 the `OperationFault` default at `vf_contracts.ts:76-80`.
 
@@ -248,16 +248,16 @@ immediately by one pure projection must use direct Promise composition. Pass a
 matching transformer directly or partially apply stable domain context to
 produce a unary stage.
 
-The current working tree fixes this in `agent_scripts/vf_catalog.ts`. Remaining
-sites include the private authentication pipeline in `agent_scripts/vf_auth.ts`,
-the digest tail in `agent_scripts/vf_planning.ts`, root catalog operations in
+The current working tree fixes this in `xyops/voiceflow/vf_catalog.ts`. Remaining
+sites include the private authentication pipeline in `xyops/voiceflow/vf_auth.ts`,
+the digest tail in `xyops/voiceflow/vf_planning.ts`, root catalog operations in
 `catalog_discovery_service.ts`, and maintained one-file selectors in
 `migration_correct.ts`. Preserve Promise rejection timing, plan-ID bytes, and
 Windmill export signatures with focused contract tests.
 
 ### Code-style findings explicitly rejected
 
-- Do not merge `agent_scripts/*`; the split is required by Windmill.
+- Do not merge `xyops/voiceflow/*`; the split is required by Windmill.
 - Do not remove direct selector/entrypoint adapters; they translate a real
   static-discovery and MCP contract.
 - Do not extract `vf_logux.ts` protocol interpretation solely to make its
@@ -281,10 +281,10 @@ Windmill export signatures with focused contract tests.
 
 #### Evidence
 
-- The project owner confirmed that `agent_scripts/*` is intentionally split to
+- The project owner confirmed that `xyops/voiceflow/*` is intentionally split to
   satisfy Windmill's deployment requirements.
 - `migration_correct.ts` is intentionally the one-file form.
-- `agent_scripts/README.md` documents the ordered deployment of the split
+- `xyops/voiceflow/README.md` documents the ordered deployment of the split
   private libraries and public tools.
 - `migration_script_single_file.ts` embeds a separate 998-line copy of the
   modular graph.
@@ -305,7 +305,7 @@ cannot distinguish intentional interface differences from accidental drift.
 
 Document these roles explicitly:
 
-- `agent_scripts/*`: required split Windmill deployment form;
+- `xyops/voiceflow/*`: required split Windmill deployment form;
 - `migration_correct.ts`: one-file form;
 - each additional standalone file: generated artifact, compatibility form,
   reference implementation, or legacy file.
@@ -366,7 +366,7 @@ retry contracts are mostly protected by static reasoning rather than tests.
 #### Proposed representation
 
 Build a small behavior-oriented suite around the production
-`agent_scripts/*` graph:
+`xyops/voiceflow/*` graph:
 
 - pure validation/catalog/plan tests;
 - mocked HTTP and WebSocket boundary tests;
@@ -397,7 +397,7 @@ a deterministic credential-free fixture.
 - `vf_execute_migration.ts` rebuilds that plan and compares only `planID`.
 - `vf_contracts.ts` has success/failure envelopes but no durable plan state,
   expiry, idempotency key, reconciliation record, or phase status.
-- `agent_scripts/README.md` explicitly documents cooperative confirmation and
+- `xyops/voiceflow/README.md` explicitly documents cooperative confirmation and
   non-idempotent execution.
 
 #### Current complexity and invalid states
@@ -487,7 +487,7 @@ inputs at each boundary.
 
 #### Evidence
 
-`agent_scripts/vf_api_key.ts` collapses all of these into one diagnostic:
+`xyops/voiceflow/vf_api_key.ts` collapses all of these into one diagnostic:
 
 - timeout;
 - HTTP failure;
@@ -674,7 +674,7 @@ These are important but are not simplification recommendations:
 
 ## Superseded and rejected findings
 
-- Consolidating `agent_scripts/*` into the one-file form is rejected because
+- Consolidating `xyops/voiceflow/*` into the one-file form is rejected because
   the split is required by Windmill.
 - Physical deletion of other standalone variants is superseded by explicit
   lifecycle documentation.
@@ -696,9 +696,9 @@ immutability, composition, effect ownership, and explicit failure data.
 
 | ID | Priority | Ownership | Resolution | Status |
 | --- | --- | --- | --- | --- |
-| FP-AUTH | P2 | `agent_scripts/vf_auth.ts` | Pure token/context stages with preserved rejected-Promise boundary | Resolved |
-| FP-PLAN | P2 | `agent_scripts/vf_planning.ts` | Named SHA-256 digest formatter composed through `.then` | Resolved |
-| FP-KEYS | P2 | `agent_scripts/vf_api_key.ts` | Named selection, normalization, validation, deduplication, and cardinality policies | Resolved |
+| FP-AUTH | P2 | `xyops/voiceflow/vf_auth.ts` | Pure token/context stages with preserved rejected-Promise boundary | Resolved |
+| FP-PLAN | P2 | `xyops/voiceflow/vf_planning.ts` | Named SHA-256 digest formatter composed through `.then` | Resolved |
+| FP-KEYS | P2 | `xyops/voiceflow/vf_api_key.ts` | Named selection, normalization, validation, deduplication, and cardinality policies | Resolved |
 | FP-JWT | P2 | `jwt_authentication_context.ts` | Named token, claims, precedence, and creator-ID stages | Resolved |
 | FP-ROOT-CATALOG | P2 | root Logux/catalog modules | Direct Promise return plus partially applied unary catalog stages | Resolved |
 | FP-ORCHESTRATOR | P2 | root migration contracts/orchestrator | Discriminated API-key outcome and immutable post-import result | Resolved |

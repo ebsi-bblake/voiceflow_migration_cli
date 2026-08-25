@@ -1,12 +1,12 @@
-import { createCheckSessionRunner } from "../agent_scripts/vf_check_session";
-import { createExecuteMigrationRunner } from "../agent_scripts/vf_execute_migration";
-import { createListFoldersRunner } from "../agent_scripts/vf_list_folders";
-import { createListProjectsRunner } from "../agent_scripts/vf_list_projects";
-import { createListVersionsRunner } from "../agent_scripts/vf_list_versions";
-import { createListWorkspacesRunner } from "../agent_scripts/vf_list_workspaces";
-import { createPlanMigrationRunner } from "../agent_scripts/vf_plan_migration";
-import type { Envelope } from "../agent_scripts/vf_contracts";
-import type { Runner } from "../agent_scripts/runner_runtime";
+import { createCheckSessionRunner } from "./voiceflow/vf_check_session";
+import { createExecuteMigrationRunner } from "./voiceflow/vf_execute_migration";
+import { createListFoldersRunner } from "./voiceflow/vf_list_folders";
+import { createListProjectsRunner } from "./voiceflow/vf_list_projects";
+import { createListVersionsRunner } from "./voiceflow/vf_list_versions";
+import { createListWorkspacesRunner } from "./voiceflow/vf_list_workspaces";
+import { createPlanMigrationRunner } from "./voiceflow/vf_plan_migration";
+import type { Envelope } from "./voiceflow/vf_contracts";
+import type { Runner } from "./voiceflow/runner_runtime";
 
 export type RunnerName =
   | "check-session"

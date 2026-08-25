@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { exportVersion } from "../agent_scripts/vf_export";
+import { exportVersion } from "../xyops/voiceflow/vf_export";
 
 const TOKEN = "aaa.eyJzdWIiOiJjcmVhdG9yIn0.zzz";
 const AUTH = { token: TOKEN, creatorID: "creator" };
@@ -17,7 +17,7 @@ function expectedRetryability(status: number): boolean {
 
 function runCheckSessionScenario(status: number): unknown {
   installStatusResponse(status);
-  return import("../agent_scripts/vf_check_session").then(({ main }) => main(TOKEN));
+  return import("../xyops/voiceflow/vf_check_session").then(({ main }) => main(TOKEN));
 }
 
 function runIsolatedCheckSession(status: number): unknown {

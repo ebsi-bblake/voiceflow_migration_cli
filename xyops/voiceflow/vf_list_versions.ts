@@ -13,24 +13,24 @@ type ListVersionsResult = {
 };
 
 type ListVersionsForSelection = (
-  workspaceID: string,
-  projectID: string,
+  sourceWorkspaceID: string,
+  sourceProjectID: string,
 ) => (auth: Parameters<typeof listVersions>[0]) =>
   ReturnType<typeof listVersions>;
 const listVersionsForSelection: ListVersionsForSelection = (
-  workspaceID,
-  projectID,
-) => (auth) => listVersions(auth, workspaceID, projectID);
+  sourceWorkspaceID,
+  sourceProjectID,
+) => (auth) => listVersions(auth, sourceWorkspaceID, sourceProjectID);
 
 type Main = (
   token: string,
-  workspaceID: string,
-  projectID: string,
+  sourceWorkspaceID: string,
+  sourceProjectID: string,
 ) => Promise<Envelope<ListVersionsResult>>;
-export const main: Main = (token, workspaceID, projectID) => {
+export const main: Main = (token, sourceWorkspaceID, sourceProjectID) => {
   const id = crypto.randomUUID();
   return resolveVoiceflowAuth(token)
-    .then(listVersionsForSelection(workspaceID, projectID))
+    .then(listVersionsForSelection(sourceWorkspaceID, sourceProjectID))
     .then((options) => success("list-versions", id, { options }))
     .catch((error) => failure("list-versions", id, error));
 };
@@ -40,15 +40,15 @@ type ListVersionsRunner = Runner<ListVersionsEnvelope>;
 
 type ListVersionsRequest = {
   readonly VOICEFLOW_JWT: string | undefined;
-  readonly WORKSPACE_ID: string | undefined;
-  readonly PROJECT_ID: string | undefined;
+  readonly SOURCE_WORKSPACE_ID: string | undefined;
+  readonly SOURCE_PROJECT_ID: string | undefined;
 };
 
 type ReadListVersionsRequest = () => ListVersionsRequest;
 const readListVersionsRequest: ReadListVersionsRequest = () => ({
   VOICEFLOW_JWT: process.env.VOICEFLOW_JWT,
-  WORKSPACE_ID: process.env.WORKSPACE_ID,
-  PROJECT_ID: process.env.PROJECT_ID,
+  SOURCE_WORKSPACE_ID: process.env.SOURCE_WORKSPACE_ID,
+  SOURCE_PROJECT_ID: process.env.SOURCE_PROJECT_ID,
 });
 
 type CreateListVersionsRunner = () => ListVersionsRunner;
@@ -57,7 +57,10 @@ export const createListVersionsRunner: CreateListVersionsRunner = () =>
     const request = readListVersionsRequest();
     return main(
       requireEnvironmentValue("VOICEFLOW_JWT", request.VOICEFLOW_JWT),
-      requireEnvironmentValue("WORKSPACE_ID", request.WORKSPACE_ID),
-      requireEnvironmentValue("PROJECT_ID", request.PROJECT_ID),
+      requireEnvironmentValue(
+        "SOURCE_WORKSPACE_ID",
+        request.SOURCE_WORKSPACE_ID,
+      ),
+      requireEnvironmentValue("SOURCE_PROJECT_ID", request.SOURCE_PROJECT_ID),
     );
   });

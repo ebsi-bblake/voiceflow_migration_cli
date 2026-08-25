@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { folderOptions } from "../agent_scripts/vf_catalog";
-import { importVersion } from "../agent_scripts/vf_import";
+import { folderOptions } from "../xyops/voiceflow/vf_catalog";
+import { importVersion } from "../xyops/voiceflow/vf_import";
 
 describe("Voiceflow destination-folder validation", () => {
   test("excludes project IDs from folder options", () => {
