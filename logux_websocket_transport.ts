@@ -40,7 +40,7 @@ function appendValidObjectRows(rows: Record<string, unknown>[], values: unknown[
   rows.push(...values.filter(isRecord));
 }
 
-export async function sync(
+export function sync(
   auth: AuthContext,
   channel: string,
   wanted: string[],

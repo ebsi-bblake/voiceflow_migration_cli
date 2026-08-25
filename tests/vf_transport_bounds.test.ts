@@ -143,6 +143,16 @@ function buildIgnoredLoguxValuesFrame(rowCount: number): string {
   ]);
 }
 
+function buildOneFileWorkspaceFrame(
+  rows: readonly Record<string, unknown>[],
+): string {
+  return JSON.stringify([
+    "sync",
+    1,
+    { type: "workspace.CRUD:REPLACE", payload: { values: rows } },
+  ]);
+}
+
 class FakeSocket {
   static last: FakeSocket;
   closeCalls = 0;
@@ -186,6 +196,68 @@ class ThrowingSendSocket {
     this.closeCalls += 1;
     this.onclose?.();
   }
+}
+
+class OneFileThrowingSendSocket {
+  static last: OneFileThrowingSendSocket;
+  static throwOnSendCall = 1;
+  closeCalls = 0;
+  sendCalls = 0;
+  sentFrames: unknown[][] = [];
+  onopen: (() => void) | null = null;
+  onmessage: ((event: { data: string }) => void) | null = null;
+  onerror: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+
+  constructor() {
+    OneFileThrowingSendSocket.last = this;
+  }
+
+  send(frame: string): void {
+    this.sendCalls += 1;
+    this.sentFrames.push(JSON.parse(frame) as unknown[]);
+    if (this.sendCalls === OneFileThrowingSendSocket.throwOnSendCall) {
+      throw new Error("controlled one-file WebSocket send failure");
+    }
+  }
+
+  close(): void {
+    this.closeCalls += 1;
+    this.onclose?.();
+  }
+}
+
+async function captureImmediateRejection(
+  promise: Promise<unknown>,
+): Promise<unknown> {
+  let rejected = false;
+  let rejection: unknown;
+  void promise.then(
+    () => undefined,
+    (error: unknown) => {
+      rejected = true;
+      rejection = error;
+    },
+  );
+
+  for (let promiseTurn = 0; promiseTurn < 8 && !rejected; promiseTurn += 1) {
+    await Promise.resolve();
+  }
+
+  expect(rejected).toBe(true);
+  return rejection;
+}
+
+function expectOneFileSocketCleanup(
+  socket: OneFileThrowingSendSocket,
+  timers: ControlledTimers,
+): void {
+  expect(socket.closeCalls).toBe(1);
+  expect(socket.onopen).toBeNull();
+  expect(socket.onmessage).toBeNull();
+  expect(socket.onerror).toBeNull();
+  expect(socket.onclose).toBeNull();
+  expect(timers.pendingCount()).toBe(0);
 }
 
 test("rejects an oversized UTF-8 Logux frame", async () => {
@@ -450,6 +522,126 @@ test("closes the one-file WebSocket exactly once on an oversized frame", async (
       "Logux response exceeded the allowed size",
     );
     expect(socket.closeCalls).toBe(1);
+  } finally {
+    globalThis.WebSocket = previousWebSocket;
+  }
+});
+
+test("immediately rejects and cleans up when the one-file connect send throws", async () => {
+  const previousWebSocket = globalThis.WebSocket;
+  const timers = installControlledTimers();
+  OneFileThrowingSendSocket.throwOnSendCall = 1;
+  globalThis.WebSocket =
+    OneFileThrowingSendSocket as unknown as typeof WebSocket;
+
+  try {
+    const result = listOneFileWorkspaces(TOKEN);
+    const socket = OneFileThrowingSendSocket.last;
+    const capturedOpen = socket.onopen;
+    const capturedMessage = socket.onmessage;
+
+    expect(timers.delays).toEqual([15_000]);
+    capturedOpen?.();
+
+    const failure = await captureImmediateRejection(result);
+    expect(failure).toEqual(new Error("Logux websocket error"));
+    expect(socket.sendCalls).toBe(1);
+    expect(socket.sentFrames[0]?.[0]).toBe("connect");
+    expectOneFileSocketCleanup(socket, timers);
+
+    capturedOpen?.();
+    capturedMessage?.({ data: JSON.stringify(["connected"]) });
+    expect(socket.sendCalls).toBe(1);
+    expect(socket.closeCalls).toBe(1);
+  } finally {
+    globalThis.WebSocket = previousWebSocket;
+    timers.restore();
+  }
+});
+
+test("immediately rejects and cleans up when a one-file subscription send throws", async () => {
+  const previousWebSocket = globalThis.WebSocket;
+  const timers = installControlledTimers();
+  OneFileThrowingSendSocket.throwOnSendCall = 2;
+  globalThis.WebSocket =
+    OneFileThrowingSendSocket as unknown as typeof WebSocket;
+
+  try {
+    const result = listOneFileWorkspaces(TOKEN);
+    const socket = OneFileThrowingSendSocket.last;
+    const capturedOpen = socket.onopen;
+    const capturedMessage = socket.onmessage;
+
+    expect(timers.delays).toEqual([15_000]);
+    capturedOpen?.();
+    expect(socket.sentFrames[0]?.[0]).toBe("connect");
+    capturedMessage?.({ data: JSON.stringify(["connected"]) });
+
+    const failure = await captureImmediateRejection(result);
+    expect(failure).toEqual(new Error("Logux websocket error"));
+    expect(socket.sendCalls).toBe(2);
+    expect(socket.sentFrames[1]?.[0]).toBe("sync");
+    expectOneFileSocketCleanup(socket, timers);
+
+    capturedOpen?.();
+    capturedMessage?.({ data: JSON.stringify(["connected"]) });
+    expect(socket.sendCalls).toBe(2);
+    expect(socket.closeCalls).toBe(1);
+  } finally {
+    globalThis.WebSocket = previousWebSocket;
+    timers.restore();
+  }
+});
+
+test("settles a successful one-file catalog sync before stale callbacks can add rows", async () => {
+  const previousWebSocket = globalThis.WebSocket;
+  globalThis.WebSocket = FakeSocket as unknown as typeof WebSocket;
+
+  try {
+    const result = listOneFileWorkspaces(TOKEN);
+    await Promise.resolve();
+    const socket = FakeSocket.last;
+    const capturedMessage = socket.onmessage;
+    const capturedError = socket.onerror;
+
+    expect(capturedMessage).not.toBeNull();
+    expect(capturedError).not.toBeNull();
+    capturedMessage?.({
+      data: buildOneFileWorkspaceFrame([
+        { id: "wanted", name: "Wanted Workspace" },
+      ]),
+    });
+
+    expect(socket.closeCalls).toBe(1);
+    expect(socket.onopen).toBeNull();
+    expect(socket.onmessage).toBeNull();
+    expect(socket.onerror).toBeNull();
+    expect(socket.onclose).toBeNull();
+
+    capturedMessage?.({
+      data: buildOneFileWorkspaceFrame([
+        { id: "too-early", name: "Pre-continuation Workspace" },
+      ]),
+    });
+
+    const resolved = await result;
+    expect(resolved).toEqual([
+      { value: "wanted", label: "Wanted Workspace" },
+    ]);
+
+    capturedError?.();
+    capturedMessage?.({
+      data: buildOneFileWorkspaceFrame([
+        { id: "too-late", name: "Late Workspace" },
+      ]),
+    });
+
+    expect(resolved).toEqual([
+      { value: "wanted", label: "Wanted Workspace" },
+    ]);
+    expect(socket.closeCalls).toBe(1);
+    expect(socket.onmessage).toBeNull();
+    expect(socket.onerror).toBeNull();
   } finally {
     globalThis.WebSocket = previousWebSocket;
   }

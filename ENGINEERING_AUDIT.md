@@ -1,6 +1,6 @@
 # Engineering Audit
 
-## Scope and baseline
+## Scope and baseline — historical `d163e95` audit
 
 - Repository: Voiceflow project migration tooling
 - Baseline commit: `d163e95`
@@ -19,13 +19,13 @@ dependencies, priorities, risks, and audit log.
 | ID | Subsystem | Exact ownership | Public interfaces and callers | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
 | S1 | Modular contracts and infrastructure | `shared_contract_types.ts`, `migration_diagnostics.ts`, `jwt_authentication_context.ts`, `http_api_client.ts` | Shared migration types, diagnostics, JWT context, bounded HTTP | None | Recommend |
-| S2 | Modular catalog and Logux transport | `logux_websocket_transport.ts`, `catalog_discovery_service.ts`, `windmill_dynamic_selectors.ts` | Workspace/project/version/folder discovery and Windmill selector exports | None | Skip simplification; coverage gap |
+| S2 | Modular catalog and Logux transport | `logux_websocket_transport.ts`, `catalog_discovery_service.ts` | Workspace/project/version/folder discovery | None | Recommend semantic FP composition |
 | S3 | Modular migration core | `export_project_api.ts`, `import_project_api.ts`, `project_api_key_retrieval.ts`, `project_migration_orchestrator.ts` | Export, import, API-key status, composed migration | None | Recommend |
-| S4 | Entrypoints and local CLI | `export_script_entrypoint.ts`, `import_script_entrypoint.ts`, `migration_script_entrypoint.ts`, `test-migration-cli.ts` | Windmill `main`, `DynSelect_*`, interactive CLI | None | Skip simplification; hardening note |
+| S4 | Entrypoints and local CLI | `export_script_entrypoint.ts`, `import_script_entrypoint.ts`, `migration_script_entrypoint.ts`, `migration-cli.ts` | Windmill `main`, `DynSelect_*`, interactive CLI | None | Skip simplification; hardening note |
 | S5 | MCP agent infrastructure | `agent_scripts/vf_contracts.ts`, `vf_auth.ts`, `vf_http.ts`, `vf_logux.ts`, `vf_catalog.ts`, `vf_planning.ts` | Stable envelopes, authentication, catalog discovery, plan construction | Folder-only contract test | Recommend |
 | S6 | MCP agent operations | `vf_check_session.ts`, list tools, `vf_plan_migration.ts`, `vf_execute_migration.ts`, `vf_export.ts`, `vf_import.ts`, `vf_api_key.ts` | Seven MCP-facing `main` tools | Folder-only contract test | Recommend |
 | S7 | Standalone and compatibility implementations | `migration_correct.ts`, `migration_script_single_file.ts`, `migrate_voiceflow_project.ts` | Alternative self-contained Windmill entrypoints | None | Recommend ownership clarification |
-| S8 | Tests | `tests/vf_folder_validation.test.ts` | Folder-option and import folder-ID validation | Self | Recommend coverage expansion |
+| S8 | Tests | every `tests/*.ts` file | Production contracts, boundary effects, cleanup, and regression behavior | Self | Recommend targeted isolation/effect assertions |
 | S9 | Documentation and project policy | `README.md`, `agent_scripts/README.md`, `AGENTS.md` | Deployment inventories, contracts, operational policy | N/A | Recommend |
 
 No frontend application, generated `./wmill` module, package manifest,
@@ -67,13 +67,13 @@ required tests.
 
 | Implementation form | Result | Evidence summary |
 | --- | --- | --- |
-| Split private libraries in `agent_scripts/*` | Partial compliance | Strong auth, HTTP, planning, and envelope boundaries; catalog projections and WebSocket bounds need work |
+| Split private libraries in `agent_scripts/*` | Partial compliance | Catalog composition is corrected; auth and plan-ID Promise stages still need work |
 | Split public tools in `agent_scripts/*` | Partial compliance | Windmill adapters are appropriately small; confirmation, retry policy, and API-key state have contract defects |
 | Root modular implementation | Mostly compliant | Named transformations and bounded transports are strong; diagnostic construction, folder validation, result state, and orchestration naming need correction |
 | `migration_correct.ts` one-file form | Partial compliance | Packaging is accepted; unbounded effects, `any`, and unnamed selector pipelines violate guardrails |
 | `migration_script_single_file.ts` | Mostly compliant | Maintains internal named boundaries and bounded transport; folder validation remains incomplete; generated-copy naming changes are deferred |
 | `migrate_voiceflow_project.ts` | Partial compliance | Same unbounded transport, untrusted `any`, and unnamed selector-pipeline concerns as the one-file form |
-| Tests | Incomplete | One focused folder-validation file does not cover transport, confirmation, retry, error, or result-state contracts |
+| Tests | Partial compliance | Ten files cover the major contracts; confirmation mock isolation and one zero-I/O assertion remain |
 
 ### CS1. Destructive confirmation must require a literal boolean
 
@@ -236,6 +236,24 @@ new function returns the discriminated state rather than another wrapper.
 The copied occurrence in `migration_script_single_file.ts:889-901` is deferred
 until its generation/parity ownership is explicit; do not hand-normalize a
 generated or compatibility artifact independently.
+
+### CS11. Compose one-effect boundaries with pure unary stages
+
+**Priority:** P2
+**Guardrails:** Functional core/imperative shell, Promise composition, partial application
+
+Windmill exports are legitimate platform adapters and may remain named function
+declarations. Within any adapter or service, one dependency effect followed
+immediately by one pure projection must use direct Promise composition. Pass a
+matching transformer directly or partially apply stable domain context to
+produce a unary stage.
+
+The current working tree fixes this in `agent_scripts/vf_catalog.ts`. Remaining
+sites include the private authentication pipeline in `agent_scripts/vf_auth.ts`,
+the digest tail in `agent_scripts/vf_planning.ts`, root catalog operations in
+`catalog_discovery_service.ts`, and maintained one-file selectors in
+`migration_correct.ts`. Preserve Promise rejection timing, plan-ID bytes, and
+Windmill export signatures with focused contract tests.
 
 ### Code-style findings explicitly rejected
 
@@ -547,7 +565,6 @@ Search all consumers and type-check before removal.
 
 - `README.md` lists 14 canonical files and three entrypoints, then calls the
   remaining files “nine helpers”; there are eleven.
-- The legacy section references nonexistent `test-migration.ts`.
 - `migration_correct.ts` and `migration_script_single_file.ts` are not assigned
   an explicit deployment lifecycle.
 
@@ -667,7 +684,59 @@ These are important but are not simplification recommendations:
 - A generic envelope redesign is deferred until plan/idempotency product
   semantics are decided; the narrow API-key outcome union in CS5 is accepted.
 
-## Audit log
+## Semantic FP follow-up audit — current working tree
+
+This follow-up audits the current working tree rather than replacing the
+historical `d163e95` baseline above. It covers all 49 current TypeScript files,
+all 15 test files, repository policy/docs, and the global engineering
+guardrails. Function declarations are permitted; findings concern purity,
+immutability, composition, effect ownership, and explicit failure data.
+
+### Findings and resolution
+
+| ID | Priority | Ownership | Resolution | Status |
+| --- | --- | --- | --- | --- |
+| FP-AUTH | P2 | `agent_scripts/vf_auth.ts` | Pure token/context stages with preserved rejected-Promise boundary | Resolved |
+| FP-PLAN | P2 | `agent_scripts/vf_planning.ts` | Named SHA-256 digest formatter composed through `.then` | Resolved |
+| FP-KEYS | P2 | `agent_scripts/vf_api_key.ts` | Named selection, normalization, validation, deduplication, and cardinality policies | Resolved |
+| FP-JWT | P2 | `jwt_authentication_context.ts` | Named token, claims, precedence, and creator-ID stages | Resolved |
+| FP-ROOT-CATALOG | P2 | root Logux/catalog modules | Direct Promise return plus partially applied unary catalog stages | Resolved |
+| FP-ORCHESTRATOR | P2 | root migration contracts/orchestrator | Discriminated API-key outcome and immutable post-import result | Resolved |
+| FP-ROOT-GUARDS | P2 | root import/orchestrator boundaries | Array-safe record guards replace unproven object assertions | Resolved |
+| FP-ONEFILE-LIFECYCLE | P1 | `migration_correct.ts` | Deterministic settlement, detached handlers, immutable snapshots, and safe send effects | Resolved |
+| FP-ONEFILE-TYPES | P2 | `migration_correct.ts` | Readonly `RawRecord` data and `unknown` guards at JWT/Logux boundaries | Resolved |
+| FP-ONEFILE-COMPOSE | P2 | `migration_correct.ts` | Partially applied selector stages and direct Promise composition | Resolved |
+| FP-TEST-ISOLATION | P1 | test suite | Restored/isolated module and global effects | Resolved |
+| FP-TEST-EFFECT | P2 | test suite | Invalid folder paths prove zero request effects | Resolved |
+| FP-POLICY | P2 | policy and audit docs | Scripts/adapters explicitly retain semantic FP obligations | Resolved |
+
+### Explicit current skips
+
+- `migration_script_single_file.ts` is not hand-normalized until its generation
+  and parity ownership are confirmed.
+- `migrate_voiceflow_project.ts` remains legacy/reference or compatibility code;
+  remediation requires evidence that it is still maintained or deployed.
+- Windmill selector and `main` wrappers remain because static discovery and
+  boundary translation are real platform contracts.
+- HTTP/WebSocket local mutation, CLI reader state, and `async`/`await` for
+  dependent effects, branching, cleanup, and error translation are retained.
+- Agent export and broad root entrypoint `async` functions are not mechanically
+  converted to `.then`; their status/error translation and dependent effects
+  justify imperative orchestration.
+- Root direct-import numeric folder validation is decision-required because
+  enforcing it would intentionally reject inputs that the historical root API
+  currently forwards. It was not silently changed in a behavior-preserving
+  refactor.
+
+### Completed behavior-preserving remediation sequence
+
+1. Strengthen test isolation and zero-effect assertions.
+2. Add auth, plan-ID, API-key, JWT, and root-catalog contract fixtures.
+3. Apply low-risk named pure stages and Promise composition.
+4. Repair maintained one-file callback settlement and untrusted boundary types.
+5. Replace root mutable post-import state with one immutable outcome.
+
+### Initial baseline audit log — historical
 
 - Established four explicit review boundaries plus generated/deployment
   ownership.
@@ -682,7 +751,24 @@ These are important but are not simplification recommendations:
   required Windmill wrappers, and unjustified protocol extraction.
 - Recorded ten concrete guardrail findings with exact evidence, risk, and
   validation requirements.
+- Correction after follow-up review: the audit failed to flag single-effect
+  `async` wrappers in `vf_catalog.ts` that immediately applied pure option
+  transformations and then initially retained inline forwarding closures. The
+  repository and global guardrails now require direct Promise composition and
+  partially applied unary stages for that shape.
 - Rejected intentional selector duplication and speculative abstractions.
 - No production files were edited.
 - No tests, builds, commits, or deployments were performed.
 - Repository remained at clean baseline `d163e95` until this report was added.
+
+### Current follow-up evidence
+
+- All 49 current TypeScript files and all 15 tests received a semantic-FP
+  verdict; no maintained file was hidden by a broad subsystem row.
+- 131 tests passed with 463 assertions across 15 files.
+- All split public tools, root entrypoints, CLI, maintained one-file,
+  generated/reference single-file, and legacy entry bundles compiled.
+- No live network or destructive Voiceflow migration was executed.
+- No files were staged or committed as part of this follow-up.
+- `migration_script_single_file.ts` and `migrate_voiceflow_project.ts` remain
+  explicitly deferred nonconformant scope pending ownership/deployment evidence.

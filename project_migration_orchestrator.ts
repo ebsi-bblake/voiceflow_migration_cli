@@ -3,11 +3,19 @@ import { exportVersion } from "./export_project_api";
 import { importFile } from "./import_project_api";
 import { retrieveProjectApiKey } from "./project_api_key_retrieval";
 import { diagnostic, asMigrationError } from "./migration_diagnostics";
-import type { MigrationResult, MigrationSelection } from "./shared_contract_types";
+import type {
+  MigrationApiKeyOutcome,
+  MigrationResult,
+  MigrationSelection,
+} from "./shared_contract_types";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 
 function isMigrationSelection(value: unknown): value is MigrationSelection {
-  if (!value || typeof value !== "object") return false;
-  const selection = value as Record<string, unknown>;
+  if (!isRecord(value)) return false;
+  const selection = value;
   return [
     selection.sourceWorkspaceID,
     selection.sourceProjectID,
@@ -45,6 +53,31 @@ function selectMigrationIDs(
   return normalizeMigrationSelection(selection);
 }
 
+function normalizeImportedProjectID(projectID: unknown): string {
+  return typeof projectID === "string" ? projectID.trim() : "";
+}
+
+async function retrieveApiKeyOutcome(
+  auth: Awaited<ReturnType<typeof authenticate>>,
+  importedProjectID: string,
+): Promise<MigrationApiKeyOutcome> {
+  try {
+    const apiKey = await retrieveProjectApiKey(auth, importedProjectID);
+    return {
+      apiKeyRetrieved: apiKey.startsWith("VF.DM."),
+      postImport: undefined,
+    };
+  } catch (error) {
+    return {
+      apiKeyRetrieved: false,
+      postImport: {
+        apiKeyRetrieved: false,
+        diagnostic: asMigrationError(error, "API-key retrieval").diagnostic,
+      },
+    };
+  }
+}
+
 export async function migrateProject(
   token: string,
   sourceWorkspaceID: string,
@@ -58,28 +91,24 @@ export async function migrateProject(
     sourceWorkspaceID, sourceProjectID, sourceVersionID,
     destinationWorkspaceID, destinationFolderID,
   );
-  const a = authenticate(token),
-    ex = await exportVersion(a, selection.sourceVersionID),
-    im = await importFile(a, {
-      artifact: ex,
+  const auth = authenticate(token);
+  const exportArtifact = await exportVersion(auth, selection.sourceVersionID);
+  const importResult = await importFile(auth, {
+      artifact: exportArtifact,
       destinationWorkspaceID: selection.destinationWorkspaceID,
       folderID: selection.destinationFolderID,
       targetSchemaVersion,
     });
-  const importedProjectID = typeof im.receipt.projectID === "string" ? im.receipt.projectID.trim() : "";
-  let apiKeyRetrieved = false;
-  let postImport: MigrationResult["postImport"];
-  try { apiKeyRetrieved = (await retrieveProjectApiKey(a, importedProjectID)).startsWith("VF.DM."); }
-  catch (error) { postImport = { apiKeyRetrieved: false, diagnostic: asMigrationError(error, "API-key retrieval").diagnostic }; }
+  const importedProjectID = normalizeImportedProjectID(importResult.receipt.projectID);
+  const apiKeyOutcome = await retrieveApiKeyOutcome(auth, importedProjectID);
   return {
-    exportStatus: ex.status,
-    importStatus: im.status,
-    exportBytes: ex.bytes.byteLength,
+    exportStatus: exportArtifact.status,
+    importStatus: importResult.status,
+    exportBytes: exportArtifact.bytes.byteLength,
     selected: {
       ...selection,
     },
-    imported: im.receipt,
-    apiKeyRetrieved,
-    postImport,
+    imported: importResult.receipt,
+    ...apiKeyOutcome,
   };
 }

@@ -1,4 +1,7 @@
-import { describe, expect, mock, test } from "bun:test";
+import { afterAll, describe, expect, mock, test } from "bun:test";
+import { resolveVoiceflowAuth as importedResolveVoiceflowAuth } from "../agent_scripts/vf_auth";
+
+const originalResolveVoiceflowAuth = importedResolveVoiceflowAuth;
 
 let authenticationCalls = 0;
 
@@ -10,6 +13,12 @@ mock.module("../agent_scripts/vf_auth", () => ({
 }));
 
 const { main } = await import("../agent_scripts/vf_execute_migration");
+
+afterAll(() => {
+  mock.module("../agent_scripts/vf_auth", () => ({
+    resolveVoiceflowAuth: originalResolveVoiceflowAuth,
+  }));
+});
 
 const executeArguments = [
   "token",

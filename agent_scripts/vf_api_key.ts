@@ -27,11 +27,13 @@ const PROJECT_ID_UNAVAILABLE: ApiKeyDiagnostic = {
   message: "Imported project ID was unavailable.",
 };
 
-function successfulApiKeyOutcome(): ApiKeyStatus {
+type SuccessfulApiKeyOutcome = () => ApiKeyStatus;
+const successfulApiKeyOutcome: SuccessfulApiKeyOutcome = () => {
   return { apiKeyRetrieved: true };
-}
+};
 
-function failedApiKeyOutcome(diagnostic: ApiKeyDiagnostic): ApiKeyStatus {
+type FailedApiKeyOutcome = (diagnostic: ApiKeyDiagnostic) => ApiKeyStatus;
+const failedApiKeyOutcome: FailedApiKeyOutcome = (diagnostic) => {
   return {
     apiKeyRetrieved: false,
     postImport: {
@@ -39,38 +41,61 @@ function failedApiKeyOutcome(diagnostic: ApiKeyDiagnostic): ApiKeyStatus {
       diagnostic,
     },
   };
-}
+};
 
-function missingProjectApiKeyOutcome(): ApiKeyStatus {
+type MissingProjectApiKeyOutcome = () => ApiKeyStatus;
+const missingProjectApiKeyOutcome: MissingProjectApiKeyOutcome = () => {
   return failedApiKeyOutcome(PROJECT_ID_UNAVAILABLE);
-}
+};
 
-function failedApiKeyRetrievalOutcome(): ApiKeyStatus {
+type FailedApiKeyRetrievalOutcome = () => ApiKeyStatus;
+const failedApiKeyRetrievalOutcome: FailedApiKeyRetrievalOutcome = () => {
   return failedApiKeyOutcome(API_KEY_RETRIEVAL_FAILED);
-}
+};
 
-function keyCandidates(value: unknown): string[] {
+type IsRecord = (value: unknown) => value is Readonly<Record<string, unknown>>;
+const isRecord: IsRecord = (
+  value,
+): value is Readonly<Record<string, unknown>> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+type KeyCandidates = (value: unknown) => string[];
+const keyCandidates: KeyCandidates = (value) => {
   if (typeof value === "string") return [value.trim()];
-  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
-  const row = value as Record<string, unknown>;
-  return [row.apiKey, row.api_key, row.key, row.token]
+  if (!isRecord(value)) return [];
+  return [value.apiKey, value.api_key, value.key, value.token]
     .filter((item): item is string => typeof item === "string")
     .map((item) => item.trim());
-}
+};
 
-function parseKeys(bytes: ArrayBuffer): string[] {
+type ParseKeys = (bytes: ArrayBuffer) => string[];
+const parseKeys: ParseKeys = (bytes) => {
   const text = new TextDecoder().decode(bytes).trim();
   try {
-    return keyCandidates(JSON.parse(text));
+    const value: unknown = JSON.parse(text);
+    return keyCandidates(value);
   } catch {
     return keyCandidates(text);
   }
-}
+};
 
-export async function retrieveApiKeyStatus(
+type SelectVoiceflowApiKeys = (keys: readonly string[]) => string[];
+const selectVoiceflowApiKeys: SelectVoiceflowApiKeys = (keys) =>
+  keys.filter((key) => /^VF\.DM\..+/.test(key));
+
+type DeduplicateStrings = (values: readonly string[]) => string[];
+const deduplicateStrings: DeduplicateStrings = (values) => [
+  ...new Set(values),
+];
+
+type RetrieveApiKeyStatus = (
   auth: AuthContext,
   projectID?: string,
-): Promise<ApiKeyStatus> {
+) => Promise<ApiKeyStatus>;
+export const retrieveApiKeyStatus: RetrieveApiKeyStatus = async (
+  auth,
+  projectID,
+) => {
   const id = projectID?.trim();
   if (!id) {
     return missingProjectApiKeyOutcome();
@@ -85,12 +110,13 @@ export async function retrieveApiKeyStatus(
       maxBytes: 1_048_576,
       timeoutMs: 30_000,
     });
-    const keys = [...new Set(
-      parseKeys(response.bytes).filter((key) => /^VF\.DM\..+/.test(key)),
-    )];
-    if (response.status < 200 || response.status >= 300 || keys.length !== 1) throw new Error("retrieval failed");
+    const keys = deduplicateStrings(
+      selectVoiceflowApiKeys(parseKeys(response.bytes)),
+    );
+    if (response.status < 200 || response.status >= 300 || keys.length !== 1)
+      throw new Error("retrieval failed");
     return successfulApiKeyOutcome();
   } catch {
     return failedApiKeyRetrievalOutcome();
   }
-}
+};

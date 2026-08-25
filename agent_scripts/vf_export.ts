@@ -10,16 +10,18 @@ export type ExportArtifact = {
 const EXPORT_URL =
   "https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/export-json";
 
-function parseSourceVersionID(value: unknown): string {
+type ParseSourceVersionID = (value: unknown) => string;
+const parseSourceVersionID: ParseSourceVersionID = (value) => {
   if (typeof value !== "string" || !value.trim())
     throw new OperationFault("INVALID_ARGUMENT");
   return value.trim();
-}
+};
 
-export async function exportVersion(
+type ExportVersion = (
   auth: AuthContext,
   sourceVersionID: string,
-): Promise<ExportArtifact> {
+) => Promise<ExportArtifact>;
+export const exportVersion: ExportVersion = async (auth, sourceVersionID) => {
   const id = parseSourceVersionID(sourceVersionID);
   const response = await requestBytes({
     url: `${EXPORT_URL}/${encodeURIComponent(id)}`,
@@ -38,4 +40,4 @@ export async function exportVersion(
     filename: `voiceflow-${id}.vf`,
     contentType: "application/octet-stream",
   };
-}
+};

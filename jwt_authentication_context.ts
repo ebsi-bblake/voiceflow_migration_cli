@@ -4,15 +4,22 @@ export type AuthContext = {
   readonly creatorID: string;
 };
 type Claims = Record<string, unknown>;
-export function authenticate(rawToken: unknown): AuthContext {
+
+function normalizeRawToken(rawToken: unknown): string {
   if (typeof rawToken !== "string" || !rawToken.trim())
     throw diagnostic("Authentication", "invalid-input");
-  const token = rawToken.trim();
+  return rawToken.trim();
+}
+
+function validateJWTShape(token: string): string {
   if (!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(token))
     throw diagnostic("Authentication", "authentication-failed");
-  let claims: Claims;
+  return token.split(".")[1];
+}
+
+function decodeAndParseClaims(claimPart: string): Claims {
   try {
-    const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const part = claimPart.replace(/-/g, "+").replace(/_/g, "/");
     const parsed: unknown = JSON.parse(
       new TextDecoder().decode(
         Uint8Array.from(
@@ -23,15 +30,29 @@ export function authenticate(rawToken: unknown): AuthContext {
     );
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
       throw diagnostic("Authentication", "authentication-failed");
-    claims = parsed as Claims;
+    return parsed as Claims;
   } catch {
     throw diagnostic("Authentication", "authentication-failed");
   }
-  const id = claims.creatorID ?? claims.userID ?? claims.user_id ?? claims.sub;
+}
+
+function selectCreatorClaim(claims: Claims): unknown {
+  return claims.creatorID ?? claims.userID ?? claims.user_id ?? claims.sub;
+}
+
+function normalizeCreatorID(id: unknown): string {
   if (
     (typeof id !== "string" && typeof id !== "number") ||
     String(id).trim() === ""
   )
     throw diagnostic("Authentication", "authentication-failed");
-  return { token, creatorID: String(id) };
+  return String(id);
+}
+
+export function authenticate(rawToken: unknown): AuthContext {
+  const token = normalizeRawToken(rawToken);
+  const claimPart = validateJWTShape(token);
+  const claims = decodeAndParseClaims(claimPart);
+  const creatorID = normalizeCreatorID(selectCreatorClaim(claims));
+  return { token, creatorID };
 }

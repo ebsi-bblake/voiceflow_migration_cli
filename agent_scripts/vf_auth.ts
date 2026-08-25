@@ -1,6 +1,14 @@
 import { OperationFault } from "./vf_contracts";
-export type AuthContext = { token: string; creatorID: string };
-async function acquireVoiceflowToken(input: unknown): Promise<string> {
+
+export type AuthContext = Readonly<{ token: string; creatorID: string }>;
+type Claims = Readonly<Record<string, unknown>>;
+
+type IsClaims = (value: unknown) => value is Claims;
+const isClaims: IsClaims = (value): value is Claims =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+type NormalizeVoiceflowToken = (input: unknown) => string;
+const normalizeVoiceflowToken: NormalizeVoiceflowToken = (input) => {
   if (typeof input !== "string")
     throw new OperationFault("AUTHENTICATION_FAILED");
   const token = input
@@ -10,8 +18,10 @@ async function acquireVoiceflowToken(input: unknown): Promise<string> {
   if (!token || token.split(".").length !== 3)
     throw new OperationFault("AUTHENTICATION_FAILED");
   return token;
-}
-function decodeClaims(token: string): Record<string, unknown> {
+};
+
+type DecodeClaims = (token: string) => Claims;
+const decodeClaims: DecodeClaims = (token) => {
   try {
     const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
     const padded = part.padEnd(Math.ceil(part.length / 4) * 4, "=");
@@ -19,14 +29,15 @@ function decodeClaims(token: string): Record<string, unknown> {
       character.charCodeAt(0),
     );
     const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
-    if (!value || typeof value !== "object" || Array.isArray(value))
-      throw new Error();
-    return value as Record<string, unknown>;
+    if (!isClaims(value)) throw new Error();
+    return value;
   } catch {
     throw new OperationFault("AUTHENTICATION_FAILED");
   }
-}
-function extractCreatorID(claims: Record<string, unknown>): string {
+};
+
+type ExtractCreatorID = (claims: Claims) => string;
+const extractCreatorID: ExtractCreatorID = (claims) => {
   const value =
     claims.creatorID ?? claims.userID ?? claims.user_id ?? claims.sub;
   if (typeof value !== "string" && typeof value !== "number") {
@@ -37,10 +48,18 @@ function extractCreatorID(claims: Record<string, unknown>): string {
     throw new OperationFault("AUTHENTICATION_FAILED");
   }
   return creatorID;
-}
-export async function resolveVoiceflowAuth(
-  input: unknown,
-): Promise<AuthContext> {
-  const token = await acquireVoiceflowToken(input);
-  return { token, creatorID: extractCreatorID(decodeClaims(token)) };
-}
+};
+
+type AuthContextFromToken = (token: string) => AuthContext;
+const authContextFromToken: AuthContextFromToken = (token) => ({
+  token,
+  creatorID: extractCreatorID(decodeClaims(token)),
+});
+
+type AcquireVoiceflowToken = (input: unknown) => Promise<string>;
+const acquireVoiceflowToken: AcquireVoiceflowToken = (input) =>
+  Promise.resolve().then(() => normalizeVoiceflowToken(input));
+
+type ResolveVoiceflowAuth = (input: unknown) => Promise<AuthContext>;
+export const resolveVoiceflowAuth: ResolveVoiceflowAuth = (input) =>
+  acquireVoiceflowToken(input).then(authContextFromToken);

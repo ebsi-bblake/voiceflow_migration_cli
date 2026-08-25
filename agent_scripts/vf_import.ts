@@ -2,68 +2,86 @@ import type { AuthContext } from "./vf_auth";
 import type { ExportArtifact } from "./vf_export";
 import type { ImportedReceipt } from "./vf_contracts";
 import { OperationFault } from "./vf_contracts";
-import { requestBytes } from "./vf_http";
-function requiredID(value: unknown): string {
+import { requestBytes, type HttpBytes } from "./vf_http";
+
+type RecordValue = Readonly<Record<string, unknown>>;
+
+type IsRecord = (value: unknown) => value is RecordValue;
+const isRecord: IsRecord = (value): value is RecordValue =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+type RequiredID = (value: unknown) => string;
+const requiredID: RequiredID = (value) => {
   if (typeof value !== "string" || !value.trim())
     throw new OperationFault("INVALID_ARGUMENT");
   return value.trim();
-}
+};
 
-function requiredFolderID(value: unknown): string {
+type RequiredFolderID = (value: unknown) => string;
+const requiredFolderID: RequiredFolderID = (value) => {
   const folderID = requiredID(value);
   if (!/^\d+$/.test(folderID)) {
     throw new OperationFault("INVALID_ARGUMENT");
   }
   return folderID;
-}
-function validFilename(value: string): string {
+};
+
+type ValidFilename = (value: string) => string;
+const validFilename: ValidFilename = (value) => {
   const name = value.trim();
   if (!/^[^/\\]+\.vf$/i.test(name) || name.includes(".."))
     throw new OperationFault("INVALID_ARGUMENT");
   return name;
-}
-function primitiveID(value: unknown): string | undefined {
+};
+
+type PrimitiveID = (value: unknown) => string | undefined;
+const primitiveID: PrimitiveID = (value) => {
   if (typeof value !== "string" && typeof value !== "number") return undefined;
   const id = String(value).trim();
   return id || undefined;
-}
-function nestedProjectID(row: Record<string, unknown>): string | undefined {
-  if (
-    !row.project ||
-    typeof row.project !== "object" ||
-    Array.isArray(row.project)
-  )
-    return undefined;
-  return primitiveID((row.project as Record<string, unknown>)._id);
-}
-function receipt(
+};
+
+type NestedProjectID = (row: RecordValue) => string | undefined;
+const nestedProjectID: NestedProjectID = (row) => {
+  if (!isRecord(row.project)) return undefined;
+  return primitiveID(row.project._id);
+};
+
+type Receipt = (
   value: unknown,
   status: number,
   bytes: number,
-): ImportedReceipt {
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
-  const row = value as Record<string, unknown>;
+) => ImportedReceipt;
+const receipt: Receipt = (value, status, bytes) => {
+  if (!isRecord(value)) throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
   const projectID =
-    primitiveID(row.projectID ?? row.projectId ?? row.id) ??
-    nestedProjectID(row);
+    primitiveID(value.projectID ?? value.projectId ?? value.id) ??
+    nestedProjectID(value);
   if (!projectID) throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
   return {
     importStatus: status,
     importBytes: bytes,
     projectID,
-    assistantID: primitiveID(row.assistantID),
-    workspaceID: primitiveID(row.workspaceID),
-    folderID: primitiveID(row.folderID),
+    assistantID: primitiveID(value.assistantID),
+    workspaceID: primitiveID(value.workspaceID),
+    folderID: primitiveID(value.folderID),
   };
-}
-export async function importVersion(
+};
+
+type ImportVersion = (
   auth: AuthContext,
   artifact: ExportArtifact,
   destinationWorkspaceID: string,
   destinationFolderID: string,
   targetSchemaVersion: string,
-): Promise<ImportedReceipt> {
+) => Promise<ImportedReceipt>;
+export const importVersion: ImportVersion = async (
+  auth,
+  artifact,
+  destinationWorkspaceID,
+  destinationFolderID,
+  targetSchemaVersion,
+) => {
   const workspace = requiredID(destinationWorkspaceID);
   const folder = requiredFolderID(destinationFolderID);
   const schema = requiredID(targetSchemaVersion);
@@ -77,7 +95,7 @@ export async function importVersion(
   );
   form.append("targetSchemaVersion", schema);
   form.append("folderID", folder);
-  let response;
+  let response: HttpBytes;
   try {
     response = await requestBytes({
       url: `https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/import-file/${encodeURIComponent(workspace)}`,
@@ -110,9 +128,9 @@ export async function importVersion(
     throw new OperationFault("DEPENDENCY_FAILURE");
   }
   try {
-    const body = JSON.parse(new TextDecoder().decode(response.bytes));
+    const body: unknown = JSON.parse(new TextDecoder().decode(response.bytes));
     return receipt(body, response.status, artifact.bytes.byteLength);
   } catch {
     throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
   }
-}
+};

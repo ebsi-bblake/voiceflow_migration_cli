@@ -142,10 +142,10 @@ Both requests use `Authorization: Bearer <raw JWT>`. Export reads the response a
 
 ## Local CLI harness
 
-`test-migration-cli.ts` is an interactive local harness for the modular implementation. Run it with:
+`migration-cli.ts` is an interactive local harness for the modular implementation. Run it with:
 
 ```sh
-bun run test-migration-cli.ts
+bun run migration-cli.ts
 ```
 
 **Warning:** after confirmation, this command performs a real Voiceflow export and import. Use only the intended source version and destination workspace. It prompts for the raw JWT without echoing it and asks for confirmation before migration.
@@ -162,4 +162,4 @@ CLI exit codes: 0 for success, abort, or help; 2 when import succeeded but API-k
 
 ## Legacy files
 
-Legacy files, including `migrate_voiceflow_project.ts` and `test-migration.ts`, remain separate for reference or compatibility. They are not the canonical modular Windmill entries and should not be deployed as canonical modular entries. Use the three descriptive entrypoints above instead.
+Legacy files, including `migrate_voiceflow_project.ts`, remain separate for reference or compatibility. They are not the canonical modular Windmill entries and should not be deployed as canonical modular entries. Use the three descriptive entrypoints above instead.

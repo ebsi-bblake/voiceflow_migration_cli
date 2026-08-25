@@ -11,6 +11,11 @@ import {
   type MigrationSelection,
   type Warning,
 } from "./vf_contracts";
+import {
+  createRunner,
+  requireEnvironmentValue,
+  type Runner,
+} from "./runner_runtime";
 
 type ExecuteResultBase = {
   planID: string;
@@ -23,14 +28,22 @@ type ExecuteResultBase = {
 };
 export type ExecuteResult = ExecuteResultBase & ApiKeyStatus;
 
-function migrationSelection(
+type MigrationSelectionForArguments = (
   sourceWorkspaceID: string,
   sourceProjectID: string,
   sourceVersionID: string,
   destinationWorkspaceID: string,
   destinationFolderID: string,
   targetSchemaVersion: string,
-): MigrationSelection {
+) => MigrationSelection;
+const migrationSelection: MigrationSelectionForArguments = (
+  sourceWorkspaceID,
+  sourceProjectID,
+  sourceVersionID,
+  destinationWorkspaceID,
+  destinationFolderID,
+  targetSchemaVersion,
+) => {
   return {
     sourceWorkspaceID,
     sourceProjectID,
@@ -39,9 +52,10 @@ function migrationSelection(
     destinationFolderID,
     targetSchemaVersion,
   };
-}
+};
 
-function executeWarnings(apiKeyRetrieved: boolean): Warning[] {
+type ExecuteWarnings = (apiKeyRetrieved: boolean) => Warning[];
+const executeWarnings: ExecuteWarnings = (apiKeyRetrieved) => {
   const warnings: Warning[] = [
     {
       code: "NOT_IDEMPOTENT",
@@ -55,13 +69,14 @@ function executeWarnings(apiKeyRetrieved: boolean): Warning[] {
     });
   }
   return warnings;
-}
+};
 
-function isConfirmationGranted(confirmed: unknown): confirmed is true {
+type IsConfirmationGranted = (confirmed: unknown) => confirmed is true;
+const isConfirmationGranted: IsConfirmationGranted = (confirmed) => {
   return confirmed === true;
-}
+};
 
-export async function main(
+type Main = (
   token: string,
   planID: string,
   sourceWorkspaceID: string,
@@ -69,9 +84,20 @@ export async function main(
   sourceVersionID: string,
   destinationWorkspaceID: string,
   destinationFolderID: string,
+  targetSchemaVersion?: string,
+  confirmed?: boolean,
+) => Promise<Envelope<ExecuteResult>>;
+export const main: Main = async (
+  token,
+  planID,
+  sourceWorkspaceID,
+  sourceProjectID,
+  sourceVersionID,
+  destinationWorkspaceID,
+  destinationFolderID,
   targetSchemaVersion = "13.1",
   confirmed = false,
-): Promise<Envelope<ExecuteResult>> {
+) => {
   const operationID = crypto.randomUUID();
   if (!isConfirmationGranted(confirmed)) {
     return failure(
@@ -127,3 +153,57 @@ export async function main(
     return failure("execute-migration", operationID, error);
   }
 }
+
+type ExecuteMigrationEnvelope = Awaited<ReturnType<typeof main>>;
+type ExecuteMigrationRunner = Runner<ExecuteMigrationEnvelope>;
+
+type ExecuteMigrationRequest = {
+  readonly VOICEFLOW_JWT: string | undefined;
+  readonly PLAN_ID: string | undefined;
+  readonly SOURCE_WORKSPACE_ID: string | undefined;
+  readonly SOURCE_PROJECT_ID: string | undefined;
+  readonly SOURCE_VERSION_ID: string | undefined;
+  readonly DESTINATION_WORKSPACE_ID: string | undefined;
+  readonly DESTINATION_FOLDER_ID: string | undefined;
+  readonly TARGET_SCHEMA_VERSION: string | undefined;
+  readonly CONFIRMED: string | undefined;
+};
+
+type ReadExecuteMigrationRequest = () => ExecuteMigrationRequest;
+const readExecuteMigrationRequest: ReadExecuteMigrationRequest = () => ({
+  VOICEFLOW_JWT: process.env.VOICEFLOW_JWT,
+  PLAN_ID: process.env.PLAN_ID,
+  SOURCE_WORKSPACE_ID: process.env.SOURCE_WORKSPACE_ID,
+  SOURCE_PROJECT_ID: process.env.SOURCE_PROJECT_ID,
+  SOURCE_VERSION_ID: process.env.SOURCE_VERSION_ID,
+  DESTINATION_WORKSPACE_ID: process.env.DESTINATION_WORKSPACE_ID,
+  DESTINATION_FOLDER_ID: process.env.DESTINATION_FOLDER_ID,
+  TARGET_SCHEMA_VERSION: process.env.TARGET_SCHEMA_VERSION,
+  CONFIRMED: process.env.CONFIRMED,
+});
+
+type CreateExecuteMigrationRunner = () => ExecuteMigrationRunner;
+export const createExecuteMigrationRunner: CreateExecuteMigrationRunner = () =>
+  createRunner("execute-migration", () => {
+    const request = readExecuteMigrationRequest();
+    return main(
+      requireEnvironmentValue("VOICEFLOW_JWT", request.VOICEFLOW_JWT),
+      requireEnvironmentValue("PLAN_ID", request.PLAN_ID),
+      requireEnvironmentValue(
+        "SOURCE_WORKSPACE_ID",
+        request.SOURCE_WORKSPACE_ID,
+      ),
+      requireEnvironmentValue("SOURCE_PROJECT_ID", request.SOURCE_PROJECT_ID),
+      requireEnvironmentValue("SOURCE_VERSION_ID", request.SOURCE_VERSION_ID),
+      requireEnvironmentValue(
+        "DESTINATION_WORKSPACE_ID",
+        request.DESTINATION_WORKSPACE_ID,
+      ),
+      requireEnvironmentValue(
+        "DESTINATION_FOLDER_ID",
+        request.DESTINATION_FOLDER_ID,
+      ),
+      request.TARGET_SCHEMA_VERSION,
+      request.CONFIRMED === "true",
+    );
+  });

@@ -11,55 +11,55 @@ export type ErrorCode =
   | "INTERNAL_ERROR";
 
 export type WarningCode = "NOT_IDEMPOTENT" | "API_KEY_RETRIEVAL_FAILED";
-export type Warning = { code: WarningCode; message: string };
-export type OperationError = {
+export type Warning = Readonly<{ code: WarningCode; message: string }>;
+export type OperationError = Readonly<{
   code: ErrorCode;
   message: string;
   retryable: boolean;
-};
+}>;
 export type Success<T> = {
-  ok: true;
-  operation: string;
-  operationID: string;
-  result: T;
-  warnings: Warning[];
+  readonly ok: true;
+  readonly operation: string;
+  readonly operationID: string;
+  readonly result: T;
+  readonly warnings: readonly Warning[];
 };
 export type Failure = {
-  ok: false;
-  operation: string;
-  operationID: string;
-  error: OperationError;
+  readonly ok: false;
+  readonly operation: string;
+  readonly operationID: string;
+  readonly error: OperationError;
 };
 export type Envelope<T> = Success<T> | Failure;
 export type MigrationSelection = {
-  sourceWorkspaceID: string;
-  sourceProjectID: string;
-  sourceVersionID: string;
-  destinationWorkspaceID: string;
-  destinationFolderID: string;
-  targetSchemaVersion: string;
+  readonly sourceWorkspaceID: string;
+  readonly sourceProjectID: string;
+  readonly sourceVersionID: string;
+  readonly destinationWorkspaceID: string;
+  readonly destinationFolderID: string;
+  readonly targetSchemaVersion: string;
 };
 export type MigrationPlan = {
-  planID: string;
-  selection: MigrationSelection;
-  labels: {
+  readonly planID: string;
+  readonly selection: MigrationSelection;
+  readonly labels: Readonly<{
     sourceWorkspace: string;
     sourceProject: string;
     sourceVersion: string;
     destinationWorkspace: string;
     destinationFolder: string;
-  };
+  }>;
 };
 export type ImportedReceipt = {
-  importStatus: number;
-  importBytes: number;
-  projectID: string;
-  assistantID?: string;
-  workspaceID?: string;
-  folderID?: string;
+  readonly importStatus: number;
+  readonly importBytes: number;
+  readonly projectID: string;
+  readonly assistantID?: string;
+  readonly workspaceID?: string;
+  readonly folderID?: string;
 };
 
-const messages: Record<ErrorCode, string> = {
+const messages: Readonly<Record<ErrorCode, string>> = {
   INVALID_ARGUMENT: "The supplied arguments are invalid.",
   AUTHENTICATION_FAILED: "Authentication failed.",
   VOICEFLOW_LOGIN_REQUIRED: "Voiceflow login is required.",
@@ -82,7 +82,8 @@ export class OperationFault extends Error {
   }
 }
 
-export function toOperationError(error: unknown): OperationError {
+type ToOperationError = (error: unknown) => OperationError;
+export const toOperationError: ToOperationError = (error) => {
   if (error instanceof OperationFault) {
     return {
       code: error.code,
@@ -95,21 +96,28 @@ export function toOperationError(error: unknown): OperationError {
     message: messages.INTERNAL_ERROR,
     retryable: false,
   };
-}
+};
 
-export function success<T>(
+type SuccessEnvelope = <T>(
   operation: string,
   operationID: string,
   result: T,
-  warnings: Warning[] = [],
-): Success<T> {
+  warnings?: readonly Warning[],
+) => Success<T>;
+export const success: SuccessEnvelope = (
+  operation,
+  operationID,
+  result,
+  warnings = [],
+) => {
   return { ok: true, operation, operationID, result, warnings };
-}
+};
 
-export function failure(
+type FailureEnvelope = (
   operation: string,
   operationID: string,
   error: unknown,
-): Failure {
+) => Failure;
+export const failure: FailureEnvelope = (operation, operationID, error) => {
   return { ok: false, operation, operationID, error: toOperationError(error) };
-}
+};

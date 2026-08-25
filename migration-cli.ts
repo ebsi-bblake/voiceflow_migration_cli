@@ -12,7 +12,7 @@ import { asMigrationError, diagnostic } from "./migration_diagnostics";
 type Option = { label: string; value: string };
 
 const help = (): void => {
-  console.log("Usage: bun test-migration-cli.ts");
+  console.log("Usage: bun run migration-cli.ts");
   console.log(
     "Interactively export a Voiceflow version and import it into another workspace.",
   );

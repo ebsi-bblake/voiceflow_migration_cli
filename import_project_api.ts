@@ -13,6 +13,10 @@ import {
 } from "./http_api_client";
 import { diagnostic } from "./migration_diagnostics";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 const normalizeRequiredImportValue = (value: unknown): string => {
   if (typeof value !== "string" || !value.trim())
     throw diagnostic("Import", "invalid-input");
@@ -67,18 +71,9 @@ export async function importFile(
     },
   );
   const value = await readResponseJson(r, "Import", 2_000_000);
-  const root =
-    value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  const project =
-    root.project && typeof root.project === "object"
-      ? (root.project as Record<string, unknown>)
-      : {};
-  const assistant =
-    root.assistant && typeof root.assistant === "object"
-      ? (root.assistant as Record<string, unknown>)
-      : {};
+  const root = isRecord(value) ? value : {};
+  const project = isRecord(root.project) ? root.project : {};
+  const assistant = isRecord(root.assistant) ? root.assistant : {};
   const projectID = normalizeReceiptValue(project._id);
   if (!projectID)
     throw diagnostic("Import", "invalid-import-receipt", { status: r.status });

@@ -25,12 +25,22 @@ export type ImportedIDs = {
   sourceProjectID?: string;
 };
 export type ImportReceipt = ImportedIDs;
-export type MigrationResult = {
+export type MigrationResultBase = {
   exportStatus: number;
   importStatus: number;
   exportBytes: number;
   selected: MigrationSelection;
   imported: ImportedIDs;
-  apiKeyRetrieved: boolean;
-  postImport?: { readonly apiKeyRetrieved: false; readonly diagnostic: import("./migration_diagnostics").MigrationDiagnostic };
 };
+
+export type MigrationApiKeyOutcome =
+  | { readonly apiKeyRetrieved: true; readonly postImport?: undefined }
+  | {
+      readonly apiKeyRetrieved: false;
+      readonly postImport: {
+        readonly apiKeyRetrieved: false;
+        readonly diagnostic: import("./migration_diagnostics").MigrationDiagnostic;
+      };
+    };
+
+export type MigrationResult = MigrationResultBase & MigrationApiKeyOutcome;

@@ -1,9 +1,9 @@
 import type { AuthContext } from "./vf_auth";
 import { OperationFault } from "./vf_contracts";
 
-type Row = Record<string, unknown>;
+type Row = Readonly<Record<string, unknown>>;
 const URL = "wss://realtime.empyrean.voiceflow.com/";
-const SUPPORTED_WANTED_TYPES = new Set([
+const SUPPORTED_WANTED_TYPES: ReadonlySet<string> = new Set([
   "workspace.CRUD:REPLACE",
   "project.CRUD:REPLACE",
   "workspace-folder.REPLACE",
@@ -12,24 +12,31 @@ const MAX_INCOMING_FRAME_BYTES = 1_048_576;
 const MAX_INCOMING_BYTES = 8_388_608;
 const MAX_INCOMING_ROWS = 100_000;
 
-function random8(): string {
-  return crypto.randomUUID().replaceAll("-", "").slice(0, 8);
-}
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function isRowArray(value: unknown): value is Row[] {
-  return Array.isArray(value) && value.every((row) => isObject(row));
-}
-function sendFrame(ws: WebSocket, frame: unknown[]): void {
-  ws.send(JSON.stringify(frame));
-}
+type Random8 = () => string;
+const random8: Random8 = () =>
+  crypto.randomUUID().replaceAll("-", "").slice(0, 8);
 
-export function syncCatalog(
+type IsObject = (value: unknown) => value is Readonly<Record<string, unknown>>;
+const isObject: IsObject = (
+  value,
+): value is Readonly<Record<string, unknown>> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+type IsRowArray = (value: unknown) => value is readonly Row[];
+const isRowArray: IsRowArray = (value) =>
+  Array.isArray(value) && value.every((row) => isObject(row));
+
+type SendFrame = (ws: WebSocket, frame: readonly unknown[]) => void;
+const sendFrame: SendFrame = (ws, frame) => {
+  ws.send(JSON.stringify(frame));
+};
+
+type SyncCatalog = (
   auth: AuthContext,
   channel: string,
-  wanted: string[],
-): Promise<Row[]> {
+  wanted: readonly string[],
+) => Promise<readonly Row[]>;
+export const syncCatalog: SyncCatalog = (auth, channel, wanted) => {
   if (
     wanted.length === 0 ||
     wanted.some((type) => !SUPPORTED_WANTED_TYPES.has(type))
@@ -47,7 +54,8 @@ export function syncCatalog(
     let actionTime = 1;
     let incomingBytes = 0;
     let timer: ReturnType<typeof setTimeout>;
-    const settle = (error?: OperationFault): void => {
+    type Settle = (error?: OperationFault) => void;
+    const settle: Settle = (error) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
@@ -63,7 +71,8 @@ export function syncCatalog(
         ws.onmessage = null;
       }
     };
-    const safeSend = (frame: unknown[]): void => {
+    type SafeSend = (frame: readonly unknown[]) => void;
+    const safeSend: SafeSend = (frame) => {
       try {
         sendFrame(ws, frame);
       } catch {
@@ -90,7 +99,10 @@ export function syncCatalog(
       if (typeof event.data !== "string") return;
       const frameBytes = new TextEncoder().encode(event.data).byteLength;
       incomingBytes += frameBytes;
-      if (frameBytes > MAX_INCOMING_FRAME_BYTES || incomingBytes > MAX_INCOMING_BYTES) {
+      if (
+        frameBytes > MAX_INCOMING_FRAME_BYTES ||
+        incomingBytes > MAX_INCOMING_BYTES
+      ) {
         settle(new OperationFault("DEPENDENCY_FAILURE"));
         return;
       }
@@ -102,9 +114,10 @@ export function syncCatalog(
       }
       if (!Array.isArray(frame)) return;
       if (frame[0] === "error") {
-        const code = frame[1] === "wrong-credentials"
-          ? "AUTHENTICATION_FAILED"
-          : "DEPENDENCY_FAILURE";
+        const code =
+          frame[1] === "wrong-credentials"
+            ? "AUTHENTICATION_FAILED"
+            : "DEPENDENCY_FAILURE";
         settle(new OperationFault(code));
         return;
       }
@@ -133,4 +146,4 @@ export function syncCatalog(
       if ([...wantedSet].every((wantedType) => seen.has(wantedType))) settle();
     };
   });
-}
+};

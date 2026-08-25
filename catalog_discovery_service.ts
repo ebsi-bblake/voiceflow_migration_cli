@@ -50,20 +50,39 @@ const buildRowOptions = (
   return sortOptionsDeterministically(deduplicateOptionsByValue(optionsById));
 };
 
-export const buildOptions = (rows: Row[]) => buildRowOptions(rows, () => true);
+const includeAllRows = (_row: Row): boolean => true;
+
+const projectBelongsToWorkspace = (workspaceID: string) => (row: Row): boolean =>
+  String(row.workspaceID) === workspaceID;
+
+const assistantFolderBelongsToWorkspace = (workspaceID: string) => (row: Row): boolean => {
+  const id = String(row.id ?? "").trim();
+  const name = typeof row.name === "string" ? row.name.trim() : "";
+  const scope = row.scope;
+  return (
+    /^\d+$/.test(id) &&
+    String(row.workspaceID) === workspaceID &&
+    name.length > 0 &&
+    (scope === undefined || scope === "assistant")
+  );
+};
+
+const rowOptionsForWorkspace = (workspaceID: string) => (rows: Row[]): Option[] =>
+  buildRowOptions(rows, projectBelongsToWorkspace(workspaceID));
+
+const assistantFolderOptionsForWorkspace = (workspaceID: string) => (rows: Row[]): Option[] =>
+  buildRowOptions(rows, assistantFolderBelongsToWorkspace(workspaceID));
+
+export const buildOptions = (rows: Row[]) => buildRowOptions(rows, includeAllRows);
 export const listWorkspaces = async (token: string) => {
   const a = authenticate(token);
-  return buildRowOptions(
-    await sync(a, `creator/${a.creatorID}`, ["workspace.CRUD:REPLACE"]),
-    () => true,
-  );
+  return sync(a, `creator/${a.creatorID}`, ["workspace.CRUD:REPLACE"]).then(buildOptions);
 };
 export const listProjects = async (token: string, workspaceID: string) => {
   const a = authenticate(token);
   workspaceID = validId(workspaceID, "workspace ID");
-  return buildRowOptions(
-    await sync(a, `workspace/${workspaceID}`, ["project.CRUD:REPLACE"]),
-    (r) => String(r.workspaceID) === workspaceID,
+  return sync(a, `workspace/${workspaceID}`, ["project.CRUD:REPLACE"]).then(
+    rowOptionsForWorkspace(workspaceID),
   );
 };
 export const listVersions = async (
@@ -73,36 +92,31 @@ export const listVersions = async (
 ) => {
   workspaceID = validId(workspaceID, "workspace ID");
   projectID = validId(projectID, "project ID");
-  const a = authenticate(token),
-    p = (
-      await sync(a, `workspace/${workspaceID}`, ["project.CRUD:REPLACE"])
-    ).find(
-      (r) =>
-        String(r.id) === projectID && String(r.workspaceID) === workspaceID,
-    );
-  const environments = normalizeEnvironments(p?.environments);
-  return sortVersionOptions(
-    environments.flatMap((environment) =>
-      buildVersionOptionsForEnvironment(environment, getProjectLabel(p, projectID)),
-    ),
-  );
+  const a = authenticate(token);
+  return sync(a, `workspace/${workspaceID}`, ["project.CRUD:REPLACE"])
+    .then(selectProject(workspaceID, projectID))
+    .then(versionOptionsForSelection(projectID));
 };
 export const listFolders = async (token: string, workspaceID: string) => {
   const a = authenticate(token);
   workspaceID = validId(workspaceID, "workspace ID");
-  return buildRowOptions(
-    await sync(a, `workspace/${workspaceID}`, ["workspace-folder.REPLACE"]),
-    (r) => {
-      const id = String(r.id ?? "").trim();
-      const name = typeof r.name === "string" ? r.name.trim() : "";
-      const scope = r.scope;
-      return (
-        /^\d+$/.test(id) &&
-        String(r.workspaceID) === workspaceID &&
-        name.length > 0 &&
-        (scope === undefined || scope === "assistant")
-      );
-    },
+  return sync(a, `workspace/${workspaceID}`, ["workspace-folder.REPLACE"]).then(
+    assistantFolderOptionsForWorkspace(workspaceID),
+  );
+};
+
+const selectProject = (workspaceID: string, projectID: string) =>
+  (rows: Row[]): Row | undefined => rows.find(
+    (row) => String(row.id) === projectID && String(row.workspaceID) === workspaceID,
+  );
+
+const versionOptionsForSelection = (projectID: string) => (project: Row | undefined): Option[] => {
+  const environments = normalizeEnvironments(project?.environments);
+  const projectLabel = getProjectLabel(project, projectID);
+  return sortVersionOptions(
+    environments.flatMap((environment) =>
+      buildVersionOptionsForEnvironment(environment, projectLabel),
+    ),
   );
 };
 

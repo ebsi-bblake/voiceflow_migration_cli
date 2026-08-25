@@ -203,7 +203,7 @@ describe("catalog raw-boundary projection", () => {
         environments: [],
       },
     ]);
-    expect(projectOptions(projects, "42")).toEqual([
+    expect(projectOptions("42")(projects)).toEqual([
       { value: "project-map", label: "Alpha Project" },
       { value: "project-label", label: "Beta Project" },
       { value: "Delta", label: "Delta" },
@@ -235,7 +235,7 @@ describe("catalog raw-boundary projection", () => {
 
     const projects = await loadProjects(auth, "42");
 
-    expect(versionOptions(projects, "42", "200")).toEqual([
+    expect(versionOptions("42", "200")(projects)).toEqual([
       { value: "101", label: "[Draft] Zulu Project — Alpha" },
       { value: "draft-beta", label: "[Draft] Zulu Project — Beta" },
       {
@@ -274,7 +274,7 @@ describe("catalog raw-boundary projection", () => {
       { id: "007", label: "Alpha Folder", workspaceID: "42" },
       { id: "88", label: "Other Folder", workspaceID: "other-workspace" },
     ]);
-    expect(folderOptions(folders, "42")).toEqual([
+    expect(folderOptions("42")(folders)).toEqual([
       { value: "007", label: "Alpha Folder" },
       { value: "20", label: "Zulu Folder" },
     ]);

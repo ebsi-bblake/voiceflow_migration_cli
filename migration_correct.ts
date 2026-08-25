@@ -8,7 +8,20 @@ export type DynSelect_destinationWorkspaceID = string;
 export type DynSelect_destinationFolderID = string;
 
 type Option = { value: string; label: string };
-type AnyRecord = Record<string, any>;
+type RawRecord = Record<string, unknown>;
+type LoguxFrame = readonly unknown[];
+
+function isRecord(value: unknown): value is RawRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isRecordArray(value: unknown): value is RawRecord[] {
+  return Array.isArray(value) && value.every(isRecord);
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
 type PostImportDiagnostic = {
   readonly code: string;
   readonly message: string;
@@ -82,11 +95,11 @@ function extractImportedProjectID(input: unknown): string | undefined {
     const value = String(input).trim();
     return value || undefined;
   }
-  if (!input || typeof input !== "object") return undefined;
-  const record = input as Record<string, unknown>;
+  if (!isRecord(input)) return undefined;
+  const record = input;
   const project = record.project;
-  if (project && typeof project === "object") {
-    const projectID = (project as Record<string, unknown>)._id;
+  if (isRecord(project)) {
+    const projectID = project._id;
     if (typeof projectID === "string" || typeof projectID === "number") {
       const value = String(projectID).trim();
       if (value) return value;
@@ -103,8 +116,8 @@ function extractImportedProjectID(input: unknown): string | undefined {
 }
 
 function collectApiKeyCandidates(input: unknown): string[] {
-  if (!input || typeof input !== "object") return [];
-  const record = input as Record<string, unknown>;
+  if (!isRecord(input)) return [];
+  const record = input;
   return ["apiKey", "api_key", "key", "token"]
     .map((field) => record[field])
     .filter((value): value is string => typeof value === "string")
@@ -117,23 +130,97 @@ function validateDestinationFolderID(input: unknown): string | undefined {
   return input.trim();
 }
 
-function selectRowsForWorkspace(rows: AnyRecord[], workspaceID: string): AnyRecord[] {
+function selectRowsForWorkspace(rows: readonly RawRecord[], workspaceID: string): RawRecord[] {
   return rows.filter((row) => String(row.workspaceID) === workspaceID);
 }
 
-function selectNumericDestinationFolders(rows: AnyRecord[]): Array<AnyRecord & { id: string }> {
+function selectNumericDestinationFolders(rows: readonly RawRecord[]): Array<RawRecord & { id: string }> {
   return rows.flatMap((row) => {
     const id = validateDestinationFolderID(row.id);
     return id ? [{ ...row, id }] : [];
   });
 }
 
-function projectFolderOptions(rows: Array<AnyRecord & { id: string }>): Option[] {
+function projectFolderOptions(rows: Array<RawRecord & { id: string }>): Option[] {
   return rows.map((row) => ({
     value: row.id,
     label: String(row.name ?? row.title ?? row.id),
   }));
 }
+
+function normalizeRawID(value: unknown): string | undefined {
+  return value ? String(value) : undefined;
+}
+
+function normalizeRawLabel(record: RawRecord): string {
+  return String(record.name ?? record.title ?? record.id);
+}
+
+function selectRecordsByWorkspace(rows: readonly RawRecord[], workspaceID: string): RawRecord[] {
+  return rows.filter((row) => String(row.workspaceID) === workspaceID);
+}
+
+function selectProjectByWorkspaceAndID(
+  rows: readonly RawRecord[],
+  workspaceID: string,
+  projectID: string,
+): RawRecord | undefined {
+  return selectRecordsByWorkspace(rows, workspaceID).find(
+    (row) => String(row.id) === projectID,
+  );
+}
+
+function projectWorkspaceOptions(rows: readonly RawRecord[]): Option[] {
+  return rows.flatMap((row) => {
+    const value = normalizeRawID(row.id);
+    return value ? [{ value, label: normalizeRawLabel(row) }] : [];
+  });
+}
+
+function projectProjectOptions(rows: readonly RawRecord[], workspaceID: string): Option[] {
+  return projectWorkspaceOptions(selectRecordsByWorkspace(rows, workspaceID));
+}
+
+export const workspaceOptions = (rows: readonly RawRecord[]): Option[] =>
+  projectWorkspaceOptions(rows);
+
+export const projectOptions = (workspaceID: string) => (rows: readonly RawRecord[]): Option[] =>
+  projectProjectOptions(rows, workspaceID);
+
+function normalizeArrayMapEnvironments(value: unknown): RawRecord[] {
+  if (Array.isArray(value)) return value.filter(isRecord);
+  if (!isRecord(value)) return [];
+  return Object.values(value).filter(isRecord);
+}
+
+function buildVersionOptions(
+  project: RawRecord | undefined,
+  projectID: string,
+): Option[] {
+  if (!project) return [];
+  const projectLabel = String(project.name ?? project.title ?? projectID);
+  return normalizeArrayMapEnvironments(project.environments).flatMap((environment) => {
+    const name = String(environment.name ?? environment.label ?? environment.id ?? "Environment");
+    const options: Option[] = [];
+    const draftID = normalizeRawID(environment.draftVersionID);
+    const publishedID = normalizeRawID(environment.publishedVersionID);
+    if (draftID) options.push({ value: draftID, label: `[Draft] ${projectLabel} — ${name}` });
+    if (publishedID) options.push({ value: publishedID, label: `[Published] ${projectLabel} — ${name}` });
+    return options;
+  });
+}
+
+export const versionOptions = (workspaceID: string, projectID: string) =>
+  (rows: readonly RawRecord[]): Option[] =>
+    buildVersionOptions(
+      selectProjectByWorkspaceAndID(rows, workspaceID, projectID),
+      projectID,
+    );
+
+export const folderOptions = (workspaceID: string) => (rows: readonly RawRecord[]): Option[] =>
+  projectFolderOptions(
+    selectNumericDestinationFolders(selectRowsForWorkspace(rows, workspaceID)),
+  );
 
 async function readBoundedBytes(response: Response, limit: number): Promise<Uint8Array> {
   if (!response.body) throw new Error("HTTP response has no body");
@@ -220,11 +307,11 @@ async function retrievePostImportApiKeyOutcome(
   }
 }
 
-function jwtClaims(token: string): AnyRecord {
+function jwtClaims(token: string): RawRecord {
   const part = token.split(".")[1];
   if (!part) throw new Error("JWT has no claims");
   const normalized = part.replace(/-/g, "+").replace(/_/g, "/");
-  return JSON.parse(
+  const claims: unknown = JSON.parse(
     new TextDecoder().decode(
       Uint8Array.from(
         atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")),
@@ -232,6 +319,8 @@ function jwtClaims(token: string): AnyRecord {
       ),
     ),
   );
+  if (!isRecord(claims)) throw new Error("JWT claims must be an object");
+  return claims;
 }
 
 function creatorID(token: string): string {
@@ -249,36 +338,54 @@ function sync(
   token: string,
   channels: string[],
   wanted: string[],
-): Promise<AnyRecord[]> {
+): Promise<readonly RawRecord[]> {
   return new Promise((resolve, reject) => {
     const authToken = normalizeToken(token);
     const ws = new WebSocket(REALTIME);
     const clientID = `${creatorID(authToken)}:${random8()}:${random8()}`;
-    const found: AnyRecord[] = [];
+    const found: RawRecord[] = [];
     const receivedTypes = new Set<string>();
     const requestID = Math.floor(Math.random() * 1_000_000_000) + 1;
     let nextActionID = -1;
     let nextActionTime = 1;
     let settled = false;
+    let closed = false;
     let incomingBytes = 0;
     let incomingRows = 0;
     const finish = (error?: Error) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      try { ws.close(); } catch { /* settlement must not be interrupted */ }
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onerror = null;
+      ws.onclose = null;
+      if (!closed) {
+        closed = true;
+        try { ws.close(); } catch { /* settlement must not be interrupted */ }
+      }
       if (error) reject(error);
-      else resolve(found);
+      else resolve(Object.freeze(found.slice()));
+    };
+    const safeSend = (frame: unknown): void => {
+      if (settled) return;
+      try {
+        ws.send(JSON.stringify(frame));
+      } catch {
+        finish(new Error("Logux websocket error"));
+      }
     };
     const timer = setTimeout(() => {
       finish(new Error("Logux connection timed out"));
     }, 15000);
     ws.onerror = () => finish(new Error("Logux websocket error"));
     ws.onclose = () => {
+      if (settled) return;
       if (found.length === 0)
         finish(new Error("Logux websocket closed before sync"));
     };
     ws.onmessage = (event) => {
+      if (settled) return;
       const raw = String(event.data);
       const frameBytes = new TextEncoder().encode(raw).byteLength;
       incomingBytes += frameBytes;
@@ -286,27 +393,29 @@ function sync(
         finish(new Error("Logux response exceeded the allowed size"));
         return;
       }
-      let message: any;
+      let message: unknown;
       try {
         message = JSON.parse(raw);
       } catch {
         return;
       }
-      if (message?.[0] === "error") {
+      if (!Array.isArray(message)) return;
+      const frame: LoguxFrame = message;
+      if (frame[0] === "error") {
         // Do not include the server frame: an error frame could echo credentials.
         const reason =
-          message?.[1] === "wrong-credentials"
+          frame[1] === "wrong-credentials"
             ? "wrong-credentials"
             : "server-rejected";
         finish(new Error(`Logux connection rejected (${reason})`));
         return;
       }
-      if (message?.[0] === "connected") {
+      if (frame[0] === "connected") {
         // Logux subscriptions are sync actions. A bare ["subscribe", ...]
         // frame is rejected by the realtime server as an unknown message.
         for (const channel of channels) {
-          ws.send(
-            JSON.stringify([
+          if (settled) return;
+          safeSend([
               "sync",
               requestID,
               {
@@ -315,15 +424,15 @@ function sync(
                 since: { id: "0", time: 0 },
               },
               { id: nextActionID--, time: nextActionTime++ },
-            ]),
-          );
+            ]);
         }
         return;
       }
-      if (message?.[0] !== "sync") return;
-      const action = message[2];
-      const values = Array.isArray(action?.payload?.values) ? action.payload.values
-        : Array.isArray(action?.payload?.data) ? action.payload.data : [];
+      if (frame[0] !== "sync") return;
+      const action = isRecord(frame[2]) ? frame[2] : undefined;
+      const payload = action && isRecord(action.payload) ? action.payload : undefined;
+      const values = isUnknownArray(payload?.values) ? payload.values
+        : isUnknownArray(payload?.data) ? payload.data : [];
       incomingRows += values.length;
       if (incomingRows > MAX_LOGUX_ROWS) {
         finish(new Error("Logux response exceeded the allowed row count"));
@@ -332,128 +441,85 @@ function sync(
       if (typeof action?.type === "string") receivedTypes.add(action.type);
       if (
         action?.type === "workspace.CRUD:REPLACE" &&
-        Array.isArray(action.payload?.values)
+        isUnknownArray(payload?.values)
       )
-        found.push(...action.payload.values);
+        found.push(...payload.values.filter(isRecord));
       if (
         action?.type === "project.CRUD:REPLACE" &&
-        Array.isArray(action.payload?.values)
+        isUnknownArray(payload?.values)
       )
-        found.push(...action.payload.values);
+        found.push(...payload.values.filter(isRecord));
       if (
         action?.type === "workspace-folder.REPLACE" &&
-        Array.isArray(action.payload?.data)
+        isUnknownArray(payload?.data)
       )
-        found.push(...action.payload.data);
+        found.push(...payload.data.filter(isRecord));
       if (wanted.every((t) => receivedTypes.has(t))) {
         finish();
       }
     };
     ws.onopen = () => {
-      ws.send(
-        JSON.stringify([
+      if (settled) return;
+      safeSend([
           "connect",
           4,
           clientID,
           0,
           { token: authToken, subprotocol: "1.9.0" },
-        ]),
-      );
+        ]);
     };
   });
 }
 
-async function records(
+function records(
   token: string,
   channel: string,
   types: string[],
-): Promise<AnyRecord[]> {
-  return sync(normalizeToken(token), [channel], types);
+): Promise<readonly RawRecord[]> {
+  return sync(token, [channel], types);
 }
 
 export async function sourceWorkspaceID(token: string): Promise<Option[]> {
   const authToken = normalizeToken(token);
-  const rows = await records(authToken, `creator/${creatorID(authToken)}`, [
+  return records(authToken, `creator/${creatorID(authToken)}`, [
     "workspace.CRUD:REPLACE",
-  ]);
-  return rows
-    .filter((x) => x.id)
-    .map((x) => ({
-      value: String(x.id),
-      label: String(x.name ?? x.title ?? x.id),
-    }));
+  ]).then(workspaceOptions);
 }
 
-export async function sourceProjectID(
+export function sourceProjectID(
   token: string,
   sourceWorkspaceID: string,
 ): Promise<Option[]> {
-  const rows = await records(
-    normalizeToken(token),
+  return records(
+    token,
     `workspace/${sourceWorkspaceID}`,
     ["project.CRUD:REPLACE"],
-  );
-  return rows
-    .filter((x) => String(x.workspaceID) === sourceWorkspaceID && x.id)
-    .map((x) => ({
-      value: String(x.id),
-      label: String(x.name ?? x.title ?? x.id),
-    }));
+  ).then(projectOptions(sourceWorkspaceID));
 }
 
-export async function sourceVersionID(
+export function sourceVersionID(
   token: string,
   sourceWorkspaceID: string,
   sourceProjectID: string,
 ): Promise<Option[]> {
-  const rows = await records(
-    normalizeToken(token),
+  return records(
+    token,
     `workspace/${sourceWorkspaceID}`,
     ["project.CRUD:REPLACE"],
-  );
-  const project = rows.find(
-    (x) =>
-      String(x.id) === sourceProjectID &&
-      String(x.workspaceID) === sourceWorkspaceID,
-  );
-  const environments = Array.isArray(project?.environments)
-    ? project.environments
-    : Object.values(project?.environments ?? {});
-  const options: Option[] = [];
-  for (const environment of environments as AnyRecord[]) {
-    const name = String(
-      environment.name ?? environment.label ?? environment.id ?? "Environment",
-    );
-    if (project) {
-      if (environment.draftVersionID)
-        options.push({
-          value: String(environment.draftVersionID),
-          label: `[Draft] ${project.name ?? project.title ?? sourceProjectID} — ${name}`,
-        });
-      if (environment.publishedVersionID)
-        options.push({
-          value: String(environment.publishedVersionID),
-          label: `[Published] ${project.name ?? project.title ?? sourceProjectID} — ${name}`,
-        });
-    }
-  }
-  return options;
+  ).then(versionOptions(sourceWorkspaceID, sourceProjectID));
 }
 
-export async function destinationWorkspaceID(token: string): Promise<Option[]> {
+export function destinationWorkspaceID(token: string): Promise<Option[]> {
   return sourceWorkspaceID(token);
 }
 
-export async function destinationFolderID(
+export function destinationFolderID(
   token: string,
   destinationWorkspaceID: string,
 ): Promise<Option[]> {
-  const rows = await records(token, `workspace/${destinationWorkspaceID}`, [
+  return records(token, `workspace/${destinationWorkspaceID}`, [
     "workspace-folder.REPLACE",
-  ]);
-  const workspaceRows = selectRowsForWorkspace(rows, destinationWorkspaceID);
-  const numericFolders = selectNumericDestinationFolders(workspaceRows);
-  return projectFolderOptions(numericFolders);
+  ]).then(folderOptions(destinationWorkspaceID));
 }
 
 export async function main(
