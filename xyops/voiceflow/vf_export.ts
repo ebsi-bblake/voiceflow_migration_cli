@@ -1,6 +1,7 @@
 import type { AuthContext } from "./vf_auth";
 import { isRetryableHttpStatus, requestBytes } from "./vf_http";
 import { OperationFault } from "./vf_contracts";
+import { requireVoiceflowString } from "./vf_validation";
 export type ExportArtifact = {
   status: number;
   bytes: ArrayBuffer;
@@ -10,19 +11,12 @@ export type ExportArtifact = {
 const EXPORT_URL =
   "https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/export-json";
 
-type ParseSourceVersionID = (value: unknown) => string;
-const parseSourceVersionID: ParseSourceVersionID = (value) => {
-  if (typeof value !== "string" || !value.trim())
-    throw new OperationFault("INVALID_ARGUMENT");
-  return value.trim();
-};
-
 type ExportVersion = (
   auth: AuthContext,
   sourceVersionID: string,
 ) => Promise<ExportArtifact>;
 export const exportVersion: ExportVersion = async (auth, sourceVersionID) => {
-  const id = parseSourceVersionID(sourceVersionID);
+  const id = requireVoiceflowString(sourceVersionID);
   const response = await requestBytes({
     url: `${EXPORT_URL}/${encodeURIComponent(id)}`,
     init: { headers: { Authorization: `Bearer ${auth.token}` } },

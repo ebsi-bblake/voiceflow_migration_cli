@@ -45,13 +45,7 @@ type PlanningScenarioResult = {
   readonly changed: MigrationPlan;
 };
 
-type DigestRejectionScenarioResult = {
-  readonly digestCallCount: number;
-  readonly propagatedUnchanged: boolean;
-  readonly unexpectedlyResolved: boolean;
-};
-
-type PlanningScenario = "catalog" | "digest-rejection";
+type PlanningScenario = "catalog";
 
 function encodeClaims(claims: Record<string, unknown>): string {
   const payload = btoa(JSON.stringify(claims))
@@ -128,52 +122,6 @@ async function runIsolatedPlanningScenario(): Promise<PlanningScenarioResult> {
   return { first, repeated, changed };
 }
 
-async function runIsolatedDigestRejectionScenario(): Promise<DigestRejectionScenarioResult> {
-  installIsolatedCatalogMock();
-  const { buildMigrationPlan } = await import("../xyops/voiceflow/vf_planning");
-  const rejection = new Error("digest rejection sentinel");
-  const subtle = globalThis.crypto.subtle;
-  const originalDigestDescriptor = Object.getOwnPropertyDescriptor(
-    subtle,
-    "digest",
-  );
-  let digestCallCount = 0;
-
-  Object.defineProperty(subtle, "digest", {
-    configurable: true,
-    value: () => {
-      digestCallCount += 1;
-      return Promise.reject(rejection);
-    },
-  });
-
-  try {
-    try {
-      await buildMigrationPlan(
-        { token: "token", creatorID: "creator" },
-        paddedSelection,
-      );
-      return {
-        digestCallCount,
-        propagatedUnchanged: false,
-        unexpectedlyResolved: true,
-      };
-    } catch (error) {
-      return {
-        digestCallCount,
-        propagatedUnchanged: error === rejection,
-        unexpectedlyResolved: false,
-      };
-    }
-  } finally {
-    if (originalDigestDescriptor) {
-      Object.defineProperty(subtle, "digest", originalDigestDescriptor);
-    } else {
-      Reflect.deleteProperty(subtle, "digest");
-    }
-  }
-}
-
 function decode(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
 }
@@ -215,11 +163,9 @@ const requestedPlanningScenario =
   process.env[planningScenarioEnvironmentVariable];
 
 if (requestedPlanningScenario !== undefined) {
-  let result: PlanningScenarioResult | DigestRejectionScenarioResult;
+  let result: PlanningScenarioResult;
   if (requestedPlanningScenario === "catalog") {
     result = await runIsolatedPlanningScenario();
-  } else if (requestedPlanningScenario === "digest-rejection") {
-    result = await runIsolatedDigestRejectionScenario();
   } else {
     throw new Error(`Unknown isolated planning scenario: ${requestedPlanningScenario}`);
   }
@@ -260,6 +206,22 @@ if (requestedPlanningScenario !== undefined) {
         await expect(resolveVoiceflowAuth(token)).resolves.toEqual({
           token,
           creatorID: `${alias}-value`,
+        });
+      });
+    }
+
+    for (const creatorID of [
+      "auth0|123456",
+      "creator=id",
+      "creator-id",
+      "creator.id",
+    ]) {
+      test(`accepts creator ID ${creatorID}`, async () => {
+        const token = encodeClaims({ sub: creatorID });
+
+        await expect(resolveVoiceflowAuth(token)).resolves.toEqual({
+          token,
+          creatorID,
         });
       });
     }
@@ -310,6 +272,17 @@ if (requestedPlanningScenario !== undefined) {
 
       return expectAuthenticationFailure(token);
     });
+
+    for (const creatorID of [
+      "",
+      "creator\nID",
+      "creator/ID",
+      "creator\\ID",
+      "x".repeat(129),
+    ]) {
+      test(`rejects unsafe creator ID ${JSON.stringify(creatorID)}`, () =>
+        expectAuthenticationFailure(encodeClaims({ sub: creatorID })));
+    }
   });
 
   describe("buildMigrationPlan functional contract", () => {
@@ -336,17 +309,5 @@ if (requestedPlanningScenario !== undefined) {
       expect(changed.planID).not.toBe(first.planID);
     });
 
-    test("propagates the exact crypto digest rejection unchanged", () => {
-      const result =
-        scenarioResultFromIsolatedProcess<DigestRejectionScenarioResult>(
-          "digest-rejection",
-        );
-
-      expect(result).toEqual({
-        digestCallCount: 1,
-        propagatedUnchanged: true,
-        unexpectedlyResolved: false,
-      });
-    });
   });
 }

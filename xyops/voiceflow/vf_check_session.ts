@@ -10,11 +10,7 @@ import {
   requestBytes,
   type HttpBytes,
 } from "./vf_http";
-import {
-  createRunner,
-  requireEnvironmentValue,
-  type Runner,
-} from "./runner_runtime";
+import { createUUID } from "./vf_uuid";
 
 type CheckSessionResult = {
   active: boolean;
@@ -42,7 +38,7 @@ const sessionResult: SessionResult = (response) => {
 type Main = (token: string) => Promise<Envelope<CheckSessionResult>>;
 export const main: Main = async (token) => {
   const operation = "check-session";
-  const id = crypto.randomUUID();
+  const id = createUUID();
   try {
     const auth = await resolveVoiceflowAuth(token);
     const response = await requestBytes({
@@ -56,22 +52,3 @@ export const main: Main = async (token) => {
     return failure(operation, id, error);
   }
 };
-
-type CheckSessionEnvelope = Awaited<ReturnType<typeof main>>;
-type CheckSessionRunner = Runner<CheckSessionEnvelope>;
-
-type CheckSessionRequest = {
-  readonly VOICEFLOW_JWT: string | undefined;
-};
-
-type ReadCheckSessionRequest = () => CheckSessionRequest;
-const readCheckSessionRequest: ReadCheckSessionRequest = () => ({
-  VOICEFLOW_JWT: process.env.VOICEFLOW_JWT,
-});
-
-type CreateCheckSessionRunner = () => CheckSessionRunner;
-export const createCheckSessionRunner: CreateCheckSessionRunner = () =>
-  createRunner("check-session", () => {
-    const request = readCheckSessionRequest();
-    return main(requireEnvironmentValue("VOICEFLOW_JWT", request.VOICEFLOW_JWT));
-  });

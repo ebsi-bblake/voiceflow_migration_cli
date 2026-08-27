@@ -2,7 +2,8 @@ import type { AuthContext } from "./vf_auth";
 import type { ExportArtifact } from "./vf_export";
 import type { ImportedReceipt } from "./vf_contracts";
 import { OperationFault } from "./vf_contracts";
-import { requestBytes, type HttpBytes } from "./vf_http";
+import { isRetryableHttpStatus, requestBytes, type HttpBytes } from "./vf_http";
+import { requireVoiceflowString } from "./vf_validation";
 
 type RecordValue = Readonly<Record<string, unknown>>;
 
@@ -10,16 +11,9 @@ type IsRecord = (value: unknown) => value is RecordValue;
 const isRecord: IsRecord = (value): value is RecordValue =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-type RequiredID = (value: unknown) => string;
-const requiredID: RequiredID = (value) => {
-  if (typeof value !== "string" || !value.trim())
-    throw new OperationFault("INVALID_ARGUMENT");
-  return value.trim();
-};
-
 type RequiredFolderID = (value: unknown) => string;
 const requiredFolderID: RequiredFolderID = (value) => {
-  const folderID = requiredID(value);
+  const folderID = requireVoiceflowString(value);
   if (!/^\d+$/.test(folderID)) {
     throw new OperationFault("INVALID_ARGUMENT");
   }
@@ -46,6 +40,10 @@ const nestedProjectID: NestedProjectID = (row) => {
   if (!isRecord(row.project)) return undefined;
   return primitiveID(row.project._id);
 };
+
+type IsImportOutcomeUnknownStatus = (status: number) => boolean;
+export const isImportOutcomeUnknownStatus: IsImportOutcomeUnknownStatus = (status) =>
+  isRetryableHttpStatus(status) || status >= 600;
 
 type Receipt = (
   value: unknown,
@@ -82,9 +80,9 @@ export const importVersion: ImportVersion = async (
   destinationFolderID,
   targetSchemaVersion,
 ) => {
-  const workspace = requiredID(destinationWorkspaceID);
+  const workspace = requireVoiceflowString(destinationWorkspaceID);
   const folder = requiredFolderID(destinationFolderID);
-  const schema = requiredID(targetSchemaVersion);
+  const schema = requireVoiceflowString(targetSchemaVersion);
   if (artifact.bytes.byteLength > 50_000_000)
     throw new OperationFault("INVALID_ARGUMENT");
   const form = new FormData();
@@ -117,11 +115,7 @@ export const importVersion: ImportVersion = async (
     }
     throw error;
   }
-  if (
-    response.status === 408 ||
-    response.status === 429 ||
-    response.status >= 500
-  ) {
+  if (isImportOutcomeUnknownStatus(response.status)) {
     throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
   }
   if (response.status < 200 || response.status >= 300) {

@@ -1,9 +1,20 @@
 import { expect, test } from "bun:test";
 
 import { exportVersion } from "../xyops/voiceflow/vf_export";
+import {
+  importVersion,
+  isImportOutcomeUnknownStatus,
+} from "../xyops/voiceflow/vf_import";
+import { isRetryableHttpStatus } from "../xyops/voiceflow/vf_http";
 
 const TOKEN = "aaa.eyJzdWIiOiJjcmVhdG9yIn0.zzz";
 const AUTH = { token: TOKEN, creatorID: "creator" };
+const IMPORT_ARTIFACT = {
+  status: 200,
+  bytes: new ArrayBuffer(0),
+  filename: "voiceflow-export.vf",
+  contentType: "application/octet-stream",
+} as const;
 const originalFetch = globalThis.fetch;
 const scenarioEnvironmentVariable = "VF_HTTP_RETRY_POLICY_SCENARIO";
 
@@ -71,6 +82,19 @@ if (requestedScenario !== undefined) {
     });
   }
 
+  for (const status of [408, 429, 500, 503]) {
+    test(`import preserves unknown outcomes for HTTP ${status}`, async () => {
+      installStatusResponse(status);
+      try {
+        await expect(
+          importVersion(AUTH, IMPORT_ARTIFACT, "workspace", "42", "13.1"),
+        ).rejects.toMatchObject({ code: "IMPORT_OUTCOME_UNKNOWN" });
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+  }
+
   for (const status of [401, 403]) {
     test(`check-session treats HTTP ${status} as login required`, () => {
       expect(runIsolatedCheckSession(status)).toMatchObject({
@@ -83,4 +107,11 @@ if (requestedScenario !== undefined) {
       });
     });
   }
+
+  test("keeps retry and import-outcome policies bounded conservatively", () => {
+    expect(isRetryableHttpStatus(599)).toBe(true);
+    expect(isRetryableHttpStatus(600)).toBe(false);
+    expect(isImportOutcomeUnknownStatus(599)).toBe(true);
+    expect(isImportOutcomeUnknownStatus(600)).toBe(true);
+  });
 }

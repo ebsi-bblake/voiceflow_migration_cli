@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import {
   folderOptions,
   loadFolders,
@@ -17,13 +18,7 @@ import {
   type MigrationPlan,
   type MigrationSelection,
 } from "./vf_contracts";
-
-type Required = (value: unknown) => string;
-const required: Required = (value) => {
-  if (typeof value !== "string" || !value.trim())
-    throw new OperationFault("INVALID_ARGUMENT");
-  return value.trim();
-};
+import { requireVoiceflowString } from "./vf_validation";
 
 type NormalizeMigrationSelection = (
   input: MigrationSelection,
@@ -31,12 +26,12 @@ type NormalizeMigrationSelection = (
 export const normalizeMigrationSelection: NormalizeMigrationSelection = (
   input,
 ) => ({
-  sourceWorkspaceID: required(input?.sourceWorkspaceID),
-  sourceProjectID: required(input?.sourceProjectID),
-  sourceVersionID: required(input?.sourceVersionID),
-  destinationWorkspaceID: required(input?.destinationWorkspaceID),
-  destinationFolderID: required(input?.destinationFolderID),
-  targetSchemaVersion: required(input?.targetSchemaVersion),
+  sourceWorkspaceID: requireVoiceflowString(input?.sourceWorkspaceID),
+  sourceProjectID: requireVoiceflowString(input?.sourceProjectID),
+  sourceVersionID: requireVoiceflowString(input?.sourceVersionID),
+  destinationWorkspaceID: requireVoiceflowString(input?.destinationWorkspaceID),
+  destinationFolderID: requireVoiceflowString(input?.destinationFolderID),
+  targetSchemaVersion: requireVoiceflowString(input?.targetSchemaVersion),
 });
 
 type FindLabel = (options: readonly Option[], value: string) => string;
@@ -46,9 +41,9 @@ const findLabel: FindLabel = (options, value) => {
   return option.label;
 };
 
-type FormatPlanID = (bytes: ArrayBuffer) => string;
+type FormatPlanID = (bytes: Uint8Array) => string;
 const formatPlanID: FormatPlanID = (bytes) =>
-  [...new Uint8Array(bytes)]
+  [...bytes]
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("")
     .slice(0, 24);
@@ -56,7 +51,9 @@ const formatPlanID: FormatPlanID = (bytes) =>
 type PlanID = (selection: MigrationSelection) => Promise<string>;
 const planID: PlanID = (selection) => {
   const bytes = new TextEncoder().encode(JSON.stringify(selection));
-  return crypto.subtle.digest("SHA-256", bytes).then(formatPlanID);
+  return Promise.resolve().then(() =>
+    formatPlanID(createHash("sha256").update(bytes).digest()),
+  );
 };
 
 type CatalogSnapshot = readonly [

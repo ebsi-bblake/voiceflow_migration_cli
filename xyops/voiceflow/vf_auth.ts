@@ -25,15 +25,23 @@ const decodeClaims: DecodeClaims = (token) => {
   try {
     const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
     const padded = part.padEnd(Math.ceil(part.length / 4) * 4, "=");
-    const bytes = Uint8Array.from(atob(padded), (character) =>
-      character.charCodeAt(0),
-    );
-    const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    const value: unknown = JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
     if (!isClaims(value)) throw new Error();
     return value;
   } catch {
     throw new OperationFault("AUTHENTICATION_FAILED");
   }
+};
+
+type IsValidCreatorID = (value: string) => boolean;
+const isValidCreatorID: IsValidCreatorID = (value) => {
+  const creatorID = value.trim();
+  return (
+    creatorID.length > 0 &&
+    Array.from(creatorID).length <= 128 &&
+    !/[\u0000-\u001f\u007f-\u009f]/.test(value) &&
+    !/[\\/]/.test(value)
+  );
 };
 
 type ExtractCreatorID = (claims: Claims) => string;
@@ -43,8 +51,9 @@ const extractCreatorID: ExtractCreatorID = (claims) => {
   if (typeof value !== "string" && typeof value !== "number") {
     throw new OperationFault("AUTHENTICATION_FAILED");
   }
-  const creatorID = String(value).trim();
-  if (!/^[A-Za-z0-9_-]{1,128}$/.test(creatorID)) {
+  const rawCreatorID = String(value);
+  const creatorID = rawCreatorID.trim();
+  if (!isValidCreatorID(rawCreatorID)) {
     throw new OperationFault("AUTHENTICATION_FAILED");
   }
   return creatorID;

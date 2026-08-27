@@ -1,6 +1,7 @@
 import type { AuthContext } from "./vf_auth";
 import { syncCatalog } from "./vf_logux";
 import { OperationFault } from "./vf_contracts";
+import { requireVoiceflowString } from "./vf_validation";
 
 export type Option = Readonly<{ value: string; label: string }>;
 export type WorkspaceRecord = Readonly<{ id: string; label: string }>;
@@ -125,16 +126,9 @@ const projectRows: ProjectRows = (projector) => (rows) => {
   return projectedRows;
 };
 
-type NormalizeID = (value: string) => string;
-const normalizeID: NormalizeID = (value) => {
-  if (typeof value !== "string" || !value.trim())
-    throw new OperationFault("INVALID_ARGUMENT");
-  return value.trim();
-};
-
 type NormalizeIDAsync = (value: string) => Promise<string>;
 const normalizeIDAsync: NormalizeIDAsync = (value) =>
-  Promise.resolve().then(() => normalizeID(value));
+  Promise.resolve().then(() => requireVoiceflowString(value));
 
 type ProjectOptionValues = (
   rows: readonly Readonly<{ id: string; label: string }>[],
@@ -230,7 +224,7 @@ type ProjectOptions = (
   workspaceID: string,
 ) => (rows: readonly ProjectRecord[]) => Option[];
 export const projectOptions: ProjectOptions = (workspaceID) => (rows) => {
-  const id = normalizeID(workspaceID);
+  const id = requireVoiceflowString(workspaceID);
   return buildOptions(selectProjectsInWorkspace(rows, id));
 };
 
@@ -238,7 +232,7 @@ type FolderOptions = (
   workspaceID: string,
 ) => (rows: readonly FolderRecord[]) => Option[];
 export const folderOptions: FolderOptions = (workspaceID) => (rows) => {
-  const id = normalizeID(workspaceID);
+  const id = requireVoiceflowString(workspaceID);
   return buildOptions(selectFoldersInWorkspace(rows, id));
 };
 
@@ -248,8 +242,8 @@ type VersionOptions = (
 ) => (rows: readonly ProjectRecord[]) => Option[];
 export const versionOptions: VersionOptions =
   (workspaceID, projectID) => (rows) => {
-    const workspace = normalizeID(workspaceID);
-    const id = normalizeID(projectID);
+    const workspace = requireVoiceflowString(workspaceID);
+    const id = requireVoiceflowString(projectID);
     const project = rows.find(
       (row) => row.id === id && row.workspaceID === workspace,
     );

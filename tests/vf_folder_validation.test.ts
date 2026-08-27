@@ -2,8 +2,15 @@ import { describe, expect, test } from "bun:test";
 
 import { folderOptions } from "../xyops/voiceflow/vf_catalog";
 import { importVersion } from "../xyops/voiceflow/vf_import";
+import { requireVoiceflowString } from "../xyops/voiceflow/vf_validation";
 
 describe("Voiceflow destination-folder validation", () => {
+  test("shares required-string trimming and rejection across Voiceflow boundaries", () => {
+    expect(requireVoiceflowString("  workspace-1 ")).toBe("workspace-1");
+    expect(() => requireVoiceflowString(" \t ")).toThrow("invalid");
+    expect(() => requireVoiceflowString(undefined)).toThrow("invalid");
+  });
+
   test("excludes project IDs from folder options", () => {
     const options = folderOptions("workspace-1")([
       {
