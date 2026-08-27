@@ -14,9 +14,10 @@ type SetStateValue = <K extends keyof MigrationState>(
 export const setStateValue: SetStateValue = (state, key, value) => ({ ...state, [key]: value });
 
 type RequireStateValue = (state: MigrationState, key: keyof MigrationState) => string;
+const isPresentStateValue = (value: unknown): value is string => typeof value === "string" && value.trim() !== "";
 export const requireStateValue: RequireStateValue = (state, key) => {
   const value = state[key];
-  if (typeof value !== "string" || value.trim() === "") throw new Error(`Missing state value: ${key}`);
+  if (!isPresentStateValue(value)) throw new Error(`Missing state value: ${key}`);
   return value;
 };
 

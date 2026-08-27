@@ -111,6 +111,8 @@ type NumberField = (
   key: "exportStatus" | "exportBytes" | "importStatus" | "importBytes",
 ) => number;
 const numberField: NumberField = (value, key) => value[key];
+const executionFieldKeys = ["exportStatus", "exportBytes", "importStatus", "importBytes"] as const;
+const apiKeySummary = (value: ExecuteResult): Readonly<Record<string, unknown>> => typeof value.apiKeyRetrieved === "boolean" ? { apiKeyRetrieved: value.apiKeyRetrieved } : {};
 
 type SummarizeExecution = (
   value: unknown,
@@ -121,29 +123,54 @@ const summarizeExecution: SummarizeExecution = (value, planID) => {
     throw fail("envelope", {
       nextAction: "The execute event returned an invalid result.",
     });
-  const summary: Record<string, unknown> = { migrationCompleted: true, planID };
-  for (const key of [
-    "exportStatus",
-    "exportBytes",
-    "importStatus",
-    "importBytes",
-  ] as const) {
-    const field = numberField(value, key);
-    summary[key] = field;
-  }
-  for (const key of ["apiKeyRetrieved"] as const) {
-    if (typeof value[key] === "boolean") summary[key] = value[key];
-  }
-  return summary;
+  const fields = Object.fromEntries(executionFieldKeys.map((key) => [key, numberField(value, key)]));
+  return { migrationCompleted: true, planID, ...fields, ...apiKeySummary(value) };
 };
 
 type Run = () => Promise<void>;
-export const run: Run = async () => {
-  if (process.argv.includes("--help") || process.argv.includes("-h")) {
-    printHelp();
-    return;
+const helpRequested = (): boolean => process.argv.includes("--help") || process.argv.includes("-h");
+const requireActiveSession = (active: boolean): void => {
+  if (!active) throw fail("envelope", { nextAction: "The configured Voiceflow session is not active." });
+};
+const requireConfirmation = (confirmation: string): boolean => ["y", "yes"].includes(confirmation);
+const hasAPIKeyRetrievalWarning = (response: Awaited<ReturnType<ReturnType<typeof createXYOpsClient>["executeEvent"]>>): boolean => response.ok && response.warnings.some((warning) => isWarning(warning, "API_KEY_RETRIEVAL_FAILED"));
+const warnAPIKeyRetrieval = (response: Awaited<ReturnType<ReturnType<typeof createXYOpsClient>["executeEvent"]>>): void => {
+  if (hasAPIKeyRetrievalWarning(response)) {
+    console.error("WARNING: migration completed, but API-key retrieval failed.");
+    process.exitCode = 2;
   }
-
+};
+const defaultSchemaVersion = (value: string): string => value || "13.1";
+type PerformMigration = (reader: PromptReader, client: ReturnType<typeof createXYOpsClient>, config: ReturnType<typeof readXYOpsConfig>) => Promise<void>;
+const performMigration: PerformMigration = async (reader, client, config) => {
+  const sessionResponse = await client.readEvent(config.events.checkSession, eventParametersFor("check-session"), isVoiceflowEnvelope(isCheckSessionResult));
+  requireActiveSession(requireEnvelopeResult(sessionResponse, "check-session", isCheckSessionResult).active);
+  let state: MigrationState = initialMigrationState();
+  const sourceWorkspaceID = await selectCatalog(reader, client, config.events.listWorkspaces, listWorkspacesParameters(), "Source workspace");
+  state = setStateValue(state, "sourceWorkspaceID", sourceWorkspaceID);
+  const sourceProjectID = await selectCatalog(reader, client, config.events.listProjects, listProjectsParameters(sourceWorkspaceID), "Source project");
+  state = setStateValue(state, "sourceProjectID", sourceProjectID);
+  const sourceVersionID = await selectCatalog(reader, client, config.events.listVersions, listVersionsParameters(sourceWorkspaceID, sourceProjectID), "Source draft/published version");
+  state = setStateValue(state, "sourceVersionID", sourceVersionID);
+  const destinationWorkspaceID = await selectCatalog(reader, client, config.events.listWorkspaces, listWorkspacesParameters(), "Destination workspace");
+  state = setStateValue(state, "destinationWorkspaceID", destinationWorkspaceID);
+  const destinationFolderID = await selectCatalog(reader, client, config.events.listFolders, listFoldersParameters(destinationWorkspaceID), "Destination folder");
+  state = setStateValue(state, "destinationFolderID", destinationFolderID);
+  state = setStateValue(state, "targetSchemaVersion", defaultSchemaVersion((await reader.ask("Target schema version [13.1]: ")).trim()));
+  const selection = stateSelection(state);
+  const plan = requireEnvelopeResult(await client.readEvent(config.events.planMigration, planParameters(selection), isVoiceflowEnvelope(isMigrationPlan)), "plan-migration", isMigrationPlan);
+  state = setStateValue(state, "planID", plan.planID);
+  displayPlan(plan);
+  const confirmation = (await reader.ask("Perform this real migration? (yes/no): ")).trim().toLowerCase();
+  if (!requireConfirmation(confirmation)) { console.log("Aborted; no migration performed."); return; }
+  const planID = requireStateValue(state, "planID");
+  const executeResponse = await client.executeEvent(config.events.executeMigration, executeParameters(selection, planID), isVoiceflowEnvelope(isExecuteResult));
+  const execute = requireEnvelopeResult(executeResponse, "execute-migration", isExecuteResult);
+  console.log(JSON.stringify(summarizeExecution(execute, planID)));
+  warnAPIKeyRetrieval(executeResponse);
+};
+export const run: Run = async () => {
+  if (helpRequested()) { printHelp(); return; }
   console.warn(
     "WARNING: this performs a REAL Voiceflow export and import through XYOps.",
   );
@@ -154,119 +181,8 @@ export const run: Run = async () => {
   const config = readXYOpsConfig();
   const client = createXYOpsClient(config);
   const reader = new PromptReader();
-  let state: MigrationState = initialMigrationState();
-
   try {
-    const sessionResponse = await client.readEvent(
-      config.events.checkSession,
-      eventParametersFor("check-session"),
-      isVoiceflowEnvelope(isCheckSessionResult),
-    );
-    const session = requireEnvelopeResult(
-      sessionResponse,
-      "check-session",
-      isCheckSessionResult,
-    );
-    if (!session.active)
-      throw fail("envelope", {
-        nextAction: "The configured Voiceflow session is not active.",
-      });
-
-    const sourceWorkspaceID = await selectCatalog(
-      reader,
-      client,
-      config.events.listWorkspaces,
-      listWorkspacesParameters(),
-      "Source workspace",
-    );
-    state = setStateValue(state, "sourceWorkspaceID", sourceWorkspaceID);
-    const sourceProjectID = await selectCatalog(
-      reader,
-      client,
-      config.events.listProjects,
-      listProjectsParameters(sourceWorkspaceID),
-      "Source project",
-    );
-    state = setStateValue(state, "sourceProjectID", sourceProjectID);
-    const sourceVersionID = await selectCatalog(
-      reader,
-      client,
-      config.events.listVersions,
-      listVersionsParameters(sourceWorkspaceID, sourceProjectID),
-      "Source draft/published version",
-    );
-    state = setStateValue(state, "sourceVersionID", sourceVersionID);
-    const destinationWorkspaceID = await selectCatalog(
-      reader,
-      client,
-      config.events.listWorkspaces,
-      listWorkspacesParameters(),
-      "Destination workspace",
-    );
-    state = setStateValue(
-      state,
-      "destinationWorkspaceID",
-      destinationWorkspaceID,
-    );
-    const destinationFolderID = await selectCatalog(
-      reader,
-      client,
-      config.events.listFolders,
-      listFoldersParameters(destinationWorkspaceID),
-      "Destination folder",
-    );
-    state = setStateValue(state, "destinationFolderID", destinationFolderID);
-    const targetSchemaVersion =
-      (await reader.ask("Target schema version [13.1]: ")).trim() || "13.1";
-    state = setStateValue(state, "targetSchemaVersion", targetSchemaVersion);
-
-    const selection = stateSelection(state);
-    const planResponse = await client.readEvent(
-      config.events.planMigration,
-      planParameters(selection),
-      isVoiceflowEnvelope(isMigrationPlan),
-    );
-    const plan = requireEnvelopeResult(
-      planResponse,
-      "plan-migration",
-      isMigrationPlan,
-    );
-    state = setStateValue(state, "planID", plan.planID);
-    displayPlan(plan);
-
-    const confirmation = (
-      await reader.ask("Perform this real migration? (yes/no): ")
-    )
-      .trim()
-      .toLowerCase();
-    if (!["y", "yes"].includes(confirmation)) {
-      console.log("Aborted; no migration performed.");
-      return;
-    }
-
-    const planID = requireStateValue(state, "planID");
-    const executeResponse = await client.executeEvent(
-      config.events.executeMigration,
-      executeParameters(selection, planID),
-      isVoiceflowEnvelope(isExecuteResult),
-    );
-    const execute = requireEnvelopeResult(
-      executeResponse,
-      "execute-migration",
-      isExecuteResult,
-    );
-    console.log(JSON.stringify(summarizeExecution(execute, planID)));
-    if (
-      executeResponse.ok &&
-      executeResponse.warnings.some((warning) =>
-        isWarning(warning, "API_KEY_RETRIEVAL_FAILED"),
-      )
-    ) {
-      console.error(
-        "WARNING: migration completed, but API-key retrieval failed.",
-      );
-      process.exitCode = 2;
-    }
+    await performMigration(reader, client, config);
   } finally {
     reader.close();
   }

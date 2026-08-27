@@ -30,6 +30,29 @@ type FetchJSON = (
   timeoutMs: number,
   endpoint: string,
 ) => Promise<XYOpsResponse>;
+type FetchRequest = (fetcher: typeof fetch, url: string, apiKey: string, body: Readonly<Record<string, unknown>>, timeoutMs: number, endpoint: string) => Promise<Response>;
+const fetchRequest: FetchRequest = async (fetcher, url, apiKey, body, timeoutMs, endpoint) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  return fetcher(url, { method: "POST", headers: { "content-type": "application/json", "X-API-Key": apiKey }, body: JSON.stringify(body), signal: controller.signal }).catch((error) => Promise.reject(toFetchError(error, endpoint))).finally(() => clearTimeout(timeout));
+};
+const isAbortError = (error: unknown): boolean => error instanceof DOMException && error.name === "AbortError";
+const toFetchError = (error: unknown, endpoint: string): CliError => isAbortError(error) ? fail("timeout", { endpoint, retryable: true }) : fail("network", { endpoint, retryable: true });
+const requireHTTPResponse = (response: Response, endpoint: string): Response => {
+  if (!response.ok) throw fail("http", { endpoint, status: response.status, retryable: isRetryableStatus(response.status) });
+  return response;
+};
+const parseJSONResponse = async (response: Response, endpoint: string): Promise<unknown> => {
+  return response.json().catch(() => Promise.reject(fail("api", { endpoint, nextAction: "XYOps returned an invalid JSON response." })));
+};
+const validateAPIResponse = (value: unknown, endpoint: string): XYOpsResponse => {
+  if (!isXYOpsResponse(value)) throw fail("api", { endpoint, nextAction: "XYOps returned an invalid response." });
+  return validateSuccessfulAPIResponse(value, endpoint);
+};
+const validateSuccessfulAPIResponse = (value: XYOpsResponse, endpoint: string): XYOpsResponse => {
+  if (!isSuccessfulCode(value.code)) throw fail("api", { endpoint, nextAction: "XYOps rejected the migration event." });
+  return value;
+};
 const fetchJSON: FetchJSON = async (
   fetcher,
   url,
@@ -38,55 +61,22 @@ const fetchJSON: FetchJSON = async (
   timeoutMs,
   endpoint,
 ) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  let response: Response;
-  try {
-    response = await fetcher(url, {
-      method: "POST",
-      headers: { "content-type": "application/json", "X-API-Key": apiKey },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-  } catch (error) {
-    clearTimeout(timeout);
-    if (error instanceof DOMException && error.name === "AbortError")
-      throw fail("timeout", { endpoint, retryable: true });
-    throw fail("network", { endpoint, retryable: true });
-  }
-  clearTimeout(timeout);
-  if (!response.ok)
-    throw fail("http", {
-      endpoint,
-      status: response.status,
-      retryable: isRetryableStatus(response.status),
-    });
-  let bodyValue: unknown;
-  try {
-    bodyValue = await response.json();
-  } catch {
-    throw fail("api", {
-      endpoint,
-      nextAction: "XYOps returned an invalid JSON response.",
-    });
-  }
-  if (!isXYOpsResponse(bodyValue))
-    throw fail("api", {
-      endpoint,
-      nextAction: "XYOps returned an invalid response.",
-    });
-  if (!isSuccessfulCode(bodyValue.code))
-    throw fail("api", {
-      endpoint,
-      nextAction: "XYOps rejected the migration event.",
-    });
-  return bodyValue;
+  const response = requireHTTPResponse(await fetchRequest(fetcher, url, apiKey, body, timeoutMs, endpoint), endpoint);
+  return validateAPIResponse(await parseJSONResponse(response, endpoint), endpoint);
 };
 
 type ReadLaunchID = (response: XYOpsResponse, endpoint: string) => string;
+const readTopLaunchID = (response: XYOpsResponse): string | undefined => isXYOpsLaunchResponse(response) ? response.id : undefined;
+const readDataLaunchID = (response: XYOpsResponse): string | undefined => {
+  if (!hasResponseData(response)) return undefined;
+  return readJobLaunchID(response.data);
+};
+const readJobLaunchID = (value: unknown): string | undefined => isJobLaunch(value) ? value.id : undefined;
+const hasResponseData = (response: XYOpsResponse): response is XYOpsResponse & { data: unknown } => "data" in response;
 const readLaunchID: ReadLaunchID = (response, endpoint) => {
-  if (isXYOpsLaunchResponse(response)) return response.id;
-  if ("data" in response && isJobLaunch(response.data)) return response.data.id;
+  const ids = [readTopLaunchID(response), readDataLaunchID(response)];
+  const id = ids.find((candidate) => candidate !== undefined);
+  if (id !== undefined) return id;
   throw fail("execute-outcome-unknown", {
     endpoint,
     nextAction:
@@ -95,19 +85,18 @@ const readLaunchID: ReadLaunchID = (response, endpoint) => {
 };
 
 type ReadJobResponse = (response: XYOpsResponse, endpoint: string) => XYOpsJob;
-const readJobResponse: ReadJobResponse = (response, endpoint) => {
-  if (isXYOpsJobResponse(response)) return response.job;
-  if ("job" in response)
-    throw fail("job", {
-      endpoint,
-      nextAction: "XYOps returned an invalid job response.",
-    });
-  if ("data" in response && isXYOpsJob(response.data)) return response.data;
-  throw fail("job", {
-    endpoint,
-    nextAction: "XYOps returned an invalid job response.",
-  });
+const readNestedJob = (response: XYOpsResponse): XYOpsJob | undefined => {
+  if (!hasResponseData(response)) return undefined;
+  return readJobValue(response.data);
 };
+const readJobValue = (value: unknown): XYOpsJob | undefined => isXYOpsJob(value) ? value : undefined;
+const invalidJobResponse = (endpoint: string): never => { throw fail("job", { endpoint, nextAction: "XYOps returned an invalid job response." }); };
+const readJobResponse: ReadJobResponse = (response, endpoint) => {
+  const job = findResponseJob(response);
+  if (job !== undefined) return job;
+  return invalidJobResponse(endpoint);
+};
+const findResponseJob = (response: XYOpsResponse): XYOpsJob | undefined => isXYOpsJobResponse(response) ? response.job : readNestedJob(response);
 
 type ReadWaitResponseData = (
   response: XYOpsResponse,
@@ -147,25 +136,19 @@ const selectJobFailureDetail: SelectJobFailureDetail = (job) =>
 
 type HasSensitiveJobFailureDetail = (value: string) => boolean;
 const hasSensitiveJobFailureDetail: HasSensitiveJobFailureDetail = (value) =>
-  /\b(?:api[\s_-]*key|access[\s_-]*token|password|secret|authorization|bearer|credential)\b/i.test(
-    value,
-  ) ||
-  /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/.test(value) ||
-  /\b[A-Za-z0-9_-]{40,}\b/.test(value);
+  [
+    /\b(?:api[\s_-]*key|access[\s_-]*token|password|secret|authorization|bearer|credential)\b/i,
+    /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/,
+    /\b[A-Za-z0-9_-]{40,}\b/,
+  ].some((pattern) => pattern.test(value));
 
 type BoundJobFailureDescription = (value: string) => string;
 const boundJobFailureDescription: BoundJobFailureDescription = (value) => {
-  const normalized = value.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
-  if (
-    normalized.length === 0 ||
-    normalized.startsWith("{") ||
-    normalized.startsWith("[") ||
-    hasSensitiveJobFailureDetail(normalized)
-  )
-    return "XYOps reported a job failure.";
-  if (normalized.length <= MAX_JOB_FAILURE_DESCRIPTION_LENGTH) return normalized;
-  return `${normalized.slice(0, MAX_JOB_FAILURE_DESCRIPTION_LENGTH - 1).trimEnd()}…`;
+  const normalized = value.replace(/[^\x20-\x7e]+/g, " ").replace(/\s+/g, " ").trim();
+  return isUnsafeFailureDescription(normalized) ? "XYOps reported a job failure." : truncateFailureDescription(normalized);
 };
+const isUnsafeFailureDescription = (value: string): boolean => [value.length === 0, value.startsWith("{"), value.startsWith("["), hasSensitiveJobFailureDetail(value)].some(Boolean);
+const truncateFailureDescription = (value: string): string => value.length <= MAX_JOB_FAILURE_DESCRIPTION_LENGTH ? value : `${value.slice(0, MAX_JOB_FAILURE_DESCRIPTION_LENGTH - 1).trimEnd()}…`;
 
 type DescribeJobFailure = (job: XYOpsJobResult, fallback: string) => string;
 const describeJobFailure: DescribeJobFailure = (job, fallback) => {
@@ -188,22 +171,19 @@ const requireSuccessfulJob: RequireSuccessfulJob = (job, endpoint, fallback) => 
 };
 
 type ReadJobOutput = (job: XYOpsJobResult, endpoint: string) => unknown;
+const hasReadableJobOutput = (job: XYOpsJobResult): job is XYOpsJobResult & { output: string } => typeof job.output === "string" && job.output.trim().length > 0;
 const readJobOutput: ReadJobOutput = (job, endpoint) => {
-  if (typeof job.output === "string" && job.output.trim().length > 0) {
-    try {
-      return JSON.parse(job.output) as unknown;
-    } catch {
-      throw fail("job", {
-        endpoint,
-        nextAction: "XYOps returned malformed job output.",
-      });
-    }
+  if (hasReadableJobOutput(job)) {
+    return parseJobOutput(job.output, endpoint);
   }
+  return readJobData(job, endpoint);
+};
+const readJobData = (job: XYOpsJobResult, endpoint: string): unknown => {
   if ("data" in job) return job.data;
-  throw fail("job", {
-    endpoint,
-    nextAction: "XYOps returned empty job output.",
-  });
+  throw fail("job", { endpoint, nextAction: "XYOps returned empty job output." });
+};
+const parseJobOutput = (output: string, endpoint: string): unknown => {
+  try { return JSON.parse(output) as unknown; } catch { throw fail("job", { endpoint, nextAction: "XYOps returned malformed job output." }); }
 };
 
 type EventBody = (
@@ -228,21 +208,56 @@ type CreateClientDependencies = Readonly<{
   sleeper?: Sleep;
 }>;
 
+type Request = (path: string, body: Readonly<Record<string, unknown>>, endpoint: string) => Promise<XYOpsResponse>;
+type ReadEventAttempt = <T>(request: Request, eventReference: XYOpsEventReference, params: EventParameters, guard: ResponseGuard<VoiceflowEnvelope<T>>) => Promise<VoiceflowEnvelope<T>>;
+const requireReadEnvelope = <T>(data: unknown, guard: ResponseGuard<VoiceflowEnvelope<T>>): VoiceflowEnvelope<T> => {
+  if (!guard(data)) throw fail("envelope", { endpoint: WAIT_PATH, nextAction: "The migration runner returned an invalid envelope." });
+  return data;
+};
+const readEventAttempt: ReadEventAttempt = async <T>(request: Request, eventReference: XYOpsEventReference, params: EventParameters, guard: ResponseGuard<VoiceflowEnvelope<T>>): Promise<VoiceflowEnvelope<T>> => {
+  const data = normalizeVoiceflowResponse(readWaitResponseData(await request(WAIT_PATH, eventBody(eventReference, params), WAIT_PATH), WAIT_PATH));
+  return requireReadEnvelope(data, guard);
+};
+type RetryRead = <T>(request: Request, sleeper: Sleep, intervalMs: number, eventReference: XYOpsEventReference, params: EventParameters, guard: ResponseGuard<VoiceflowEnvelope<T>>, attempt: number, error: unknown) => Promise<VoiceflowEnvelope<T>>;
+const retryRead: RetryRead = <T>(request: Request, sleeper: Sleep, intervalMs: number, eventReference: XYOpsEventReference, params: EventParameters, guard: ResponseGuard<VoiceflowEnvelope<T>>, attempt: number, error: unknown): Promise<VoiceflowEnvelope<T>> => {
+  const cliError = asCliError(error);
+  if (shouldStopRetry(cliError, attempt)) return Promise.reject(cliError);
+  return sleeper(Math.min(intervalMs, 250 * 2 ** attempt)).then(() => readEventWithRetry(request, sleeper, intervalMs, eventReference, params, guard, attempt + 1));
+};
+const shouldStopRetry = (error: CliError, attempt: number): boolean => !isRetryableReadError(error) || attempt === MAX_READ_ATTEMPTS - 1;
+type ReadEventWithRetry = <T>(request: Request, sleeper: Sleep, intervalMs: number, eventReference: XYOpsEventReference, params: EventParameters, guard: ResponseGuard<VoiceflowEnvelope<T>>, attempt?: number) => Promise<VoiceflowEnvelope<T>>;
+const readEventWithRetry: ReadEventWithRetry = (request, sleeper, intervalMs, eventReference, params, guard, attempt = 0) => readEventAttempt(request, eventReference, params, guard).catch((error) => retryRead(request, sleeper, intervalMs, eventReference, params, guard, attempt, error));
+const translateExecuteDispatchError = (error: unknown): CliError => {
+  const diagnostic = readDiagnostic(error);
+  return fail(dispatchErrorCode(diagnostic.code), { endpoint: RUN_PATH, status: diagnostic.status, nextAction: "The execute dispatch outcome is unknown; reconcile before retrying." });
+};
+const readDiagnostic = (error: unknown): CliError["diagnostic"] => error instanceof CliError ? error.diagnostic : fail("execute-outcome-unknown").diagnostic;
+const dispatchErrorCode = (code: CliError["diagnostic"]["code"]): CliError["diagnostic"]["code"] => ["timeout", "network"].includes(code) ? "execute-outcome-unknown" : code;
+const translateExecuteJobError = (error: unknown): CliError => {
+  const diagnostic = readOptionalDiagnostic(error);
+  return unknownJobError(diagnostic) ?? requireCliError(error);
+};
+const unknownJobError = (diagnostic: CliError["diagnostic"] | undefined): CliError | undefined => {
+  if (!isUnknownJobOutcome(diagnostic)) return undefined;
+  return fail("execute-outcome-unknown", { endpoint: JOB_PATH, status: diagnosticStatus(diagnostic), nextAction: "The execute job outcome is unknown; reconcile before retrying." });
+};
+const diagnosticStatus = (diagnostic: CliError["diagnostic"] | undefined): number | undefined => diagnostic === undefined ? undefined : diagnostic.status;
+const readOptionalDiagnostic = (error: unknown): CliError["diagnostic"] | undefined => error instanceof CliError ? error.diagnostic : undefined;
+const isUnknownJobOutcome = (diagnostic: CliError["diagnostic"] | undefined): boolean => diagnostic !== undefined && ["timeout", "network"].includes(diagnostic.code);
+const requireCliError = (error: unknown): CliError => error instanceof CliError ? error : fail("execute-outcome-unknown");
+
 type CreateXYOpsClient = (
   config: ClientConfig,
   dependencies?: CreateClientDependencies,
 ) => XYOpsClient;
+const resolveFetcher = (fetcher: typeof fetch | undefined): typeof fetch => fetcher === undefined ? fetch : fetcher;
+const resolveSleeper = (sleeper: Sleep | undefined): Sleep => sleeper === undefined ? sleep : sleeper;
 export const createXYOpsClient: CreateXYOpsClient = (
   config,
   dependencies = {},
 ) => {
-  const fetcher = dependencies.fetcher ?? fetch;
-  const sleeper = dependencies.sleeper ?? sleep;
-  type Request = (
-    path: string,
-    body: Readonly<Record<string, unknown>>,
-    endpoint: string,
-  ) => Promise<XYOpsResponse>;
+  const fetcher = resolveFetcher(dependencies.fetcher);
+  const sleeper = resolveSleeper(dependencies.sleeper);
   const request: Request = (path, body, endpoint) =>
     fetchJSON(
       fetcher,
@@ -253,96 +268,27 @@ export const createXYOpsClient: CreateXYOpsClient = (
       endpoint,
     );
 
-  const readEvent: ReadEvent = async <T>(
+  const readEvent: ReadEvent = <T>(
     eventReference: XYOpsEventReference,
     params: EventParameters,
     envelopeGuard: ResponseGuard<VoiceflowEnvelope<T>>,
-  ) => {
-    let lastError: CliError | undefined;
-    for (let attempt = 0; attempt < MAX_READ_ATTEMPTS; attempt += 1) {
-      try {
-        const response = await request(
-          WAIT_PATH,
-          eventBody(eventReference, params),
-          WAIT_PATH,
-        );
-        const data = normalizeVoiceflowResponse(
-          readWaitResponseData(response, WAIT_PATH),
-        );
-        if (!envelopeGuard(data))
-          throw fail("envelope", {
-            endpoint: WAIT_PATH,
-            nextAction: "The migration runner returned an invalid envelope.",
-          });
-        return data;
-      } catch (error) {
-        lastError = asCliError(error);
-        if (
-          !isRetryableReadError(lastError) ||
-          attempt === MAX_READ_ATTEMPTS - 1
-        )
-          throw lastError;
-        await sleeper(Math.min(config.pollIntervalMs, 250 * 2 ** attempt));
-      }
-    }
-    throw lastError ?? fail("network", { endpoint: WAIT_PATH });
-  };
+  ) => readEventWithRetry(request, sleeper, config.pollIntervalMs, eventReference, params, envelopeGuard);
 
-  const executeEvent: ReadEvent = async <T>(
+  const executeEvent: ReadEvent = <T>(
     eventReference: XYOpsEventReference,
     params: EventParameters,
     envelopeGuard: ResponseGuard<VoiceflowEnvelope<T>>,
-  ) => {
-    let launch: XYOpsResponse;
-    try {
-      launch = await request(
-        RUN_PATH,
-        eventBody(eventReference, params),
-        RUN_PATH,
-      );
-    } catch (error) {
-      const diagnostic =
-        error instanceof CliError
-          ? error.diagnostic
-          : fail("execute-outcome-unknown").diagnostic;
-      throw fail(
-        diagnostic.code === "timeout" || diagnostic.code === "network"
-          ? "execute-outcome-unknown"
-          : diagnostic.code,
-        {
-          endpoint: RUN_PATH,
-          status: diagnostic.status,
-          nextAction:
-            "The execute dispatch outcome is unknown; reconcile before retrying.",
-        },
-      );
-    }
-    const launchID = readLaunchID(launch, RUN_PATH);
-    try {
-      return await pollJob(launchID, request, sleeper, config, envelopeGuard);
-    } catch (error) {
-      const diagnostic =
-        error instanceof CliError ? error.diagnostic : undefined;
-      if (diagnostic?.code === "timeout" || diagnostic?.code === "network")
-        throw fail("execute-outcome-unknown", {
-          endpoint: JOB_PATH,
-          status: diagnostic.status,
-          nextAction:
-            "The execute job outcome is unknown; reconcile before retrying.",
-        });
-      throw error;
-    }
-  };
+  ) => request(RUN_PATH, eventBody(eventReference, params), RUN_PATH)
+    .catch((error) => Promise.reject(translateExecuteDispatchError(error)))
+    .then((launch) => pollJob(readLaunchID(launch, RUN_PATH), request, sleeper, config, envelopeGuard))
+    .catch((error) => Promise.reject(translateExecuteJobError(error)));
 
   return { readEvent, executeEvent };
 };
 
 type IsRetryableReadError = (error: CliError) => boolean;
 const isRetryableReadError: IsRetryableReadError = (error) =>
-  error.diagnostic.retryable &&
-  (error.diagnostic.code === "timeout" ||
-    error.diagnostic.code === "network" ||
-    error.diagnostic.code === "http");
+  [error.diagnostic.retryable, error.diagnostic.code === "timeout", error.diagnostic.code === "network", error.diagnostic.code === "http"].every(Boolean);
 
 type RequestJob = <T>(
   id: string,
@@ -355,6 +301,22 @@ type RequestJob = <T>(
   config: ClientConfig,
   envelopeGuard: ResponseGuard<VoiceflowEnvelope<T>>,
 ) => Promise<VoiceflowEnvelope<T>>;
+type PollUntilComplete = <T>(id: string, request: Request, sleeper: Sleep, intervalMs: number, deadline: number, guard: ResponseGuard<VoiceflowEnvelope<T>>) => Promise<VoiceflowEnvelope<T>>;
+const pollUntilComplete: PollUntilComplete = async <T>(id: string, request: Request, sleeper: Sleep, intervalMs: number, deadline: number, guard: ResponseGuard<VoiceflowEnvelope<T>>): Promise<VoiceflowEnvelope<T>> => {
+  const job = readJobResponse(await request(JOB_PATH, { id }, JOB_PATH), JOB_PATH);
+  if (isCompletedJob(job.completed)) return completeJob(job, guard);
+  await sleeper(Math.min(intervalMs, Math.max(0, deadline - Date.now())));
+  return pollNext(id, request, sleeper, intervalMs, deadline, guard);
+};
+const pollNext = <T>(id: string, request: Request, sleeper: Sleep, intervalMs: number, deadline: number, guard: ResponseGuard<VoiceflowEnvelope<T>>): Promise<VoiceflowEnvelope<T>> => {
+  if (Date.now() > deadline) return Promise.reject(fail("execute-outcome-unknown", { endpoint: JOB_PATH, nextAction: "The execute job timed out; reconcile before retrying." }));
+  return pollUntilComplete(id, request, sleeper, intervalMs, deadline, guard);
+};
+const completeJob = <T>(job: XYOpsJobResult, guard: ResponseGuard<VoiceflowEnvelope<T>>): VoiceflowEnvelope<T> => {
+  const result = normalizeVoiceflowResponse(readJobOutput(requireSuccessfulJob(job, JOB_PATH, "The migration execute job failed."), JOB_PATH));
+  if (!guard(result)) throw fail("envelope", { endpoint: JOB_PATH, nextAction: "The execute job returned an invalid envelope." });
+  return result;
+};
 const pollJob: RequestJob = async <T>(
   id: string,
   request: (
@@ -365,34 +327,7 @@ const pollJob: RequestJob = async <T>(
   sleeper: Sleep,
   config: ClientConfig,
   envelopeGuard: ResponseGuard<VoiceflowEnvelope<T>>,
-) => {
+): Promise<VoiceflowEnvelope<T>> => {
   const deadline = Date.now() + config.pollTimeoutMs;
-  while (Date.now() <= deadline) {
-    const response = await request(JOB_PATH, { id }, JOB_PATH);
-    const job = readJobResponse(response, JOB_PATH);
-    if (!isCompletedJob(job.completed)) {
-      await sleeper(
-        Math.min(config.pollIntervalMs, Math.max(0, deadline - Date.now())),
-      );
-      continue;
-    }
-    const successfulJob = requireSuccessfulJob(
-      job,
-      JOB_PATH,
-      "The migration execute job failed.",
-    );
-    const result = normalizeVoiceflowResponse(
-      readJobOutput(successfulJob, JOB_PATH),
-    );
-    if (!envelopeGuard(result))
-      throw fail("envelope", {
-        endpoint: JOB_PATH,
-        nextAction: "The execute job returned an invalid envelope.",
-      });
-    return result;
-  }
-  throw fail("execute-outcome-unknown", {
-    endpoint: JOB_PATH,
-    nextAction: "The execute job timed out; reconcile before retrying.",
-  });
+  return pollNext(id, request, sleeper, config.pollIntervalMs, deadline, envelopeGuard);
 };

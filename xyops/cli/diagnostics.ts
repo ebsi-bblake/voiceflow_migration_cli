@@ -32,16 +32,10 @@ type Fail = (
   code: CliDiagnosticCode,
   options?: DiagnosticOptions,
 ) => CliError;
-export const fail: Fail = (code, options = {}) =>
-  createCliError({
-    code,
-    endpoint: options.endpoint,
-    retryable: options.retryable ?? false,
-    status: options.status,
-    nextAction:
-      options.nextAction ??
-      (options.retryable ? "Retry the operation." : "Check configuration and migration inputs."),
-  });
+const defaultNextAction = (retryable: boolean | undefined): string => retryable ? "Retry the operation." : "Check configuration and migration inputs.";
+const resolveNextAction = (options: DiagnosticOptions): string => options.nextAction ?? defaultNextAction(options.retryable);
+const resolveRetryable = (options: DiagnosticOptions): boolean => options.retryable ?? false;
+export const fail: Fail = (code, options = {}) => createCliError({ code, endpoint: options.endpoint, retryable: resolveRetryable(options), status: options.status, nextAction: resolveNextAction(options) });
 
 type AsCliError = (error: unknown) => CliError;
 export const asCliError: AsCliError = (error) =>

@@ -50,36 +50,29 @@ const nativePluginOutput = (envelope: unknown): string =>
     data: { voiceflow: envelope },
   });
 
+const requestBody = (init: RequestInit | undefined): string => String(init?.body);
+const requestHeaders = (init: RequestInit | undefined): Headers => new Headers(init?.headers);
+const requestURL = (input: RequestInfo | URL): string => String(input);
+const firstRequest = <T>(requests: readonly T[]): T | undefined => requests[0];
+const requiredRequest = <T>(requests: readonly T[]): T => { const request = firstRequest(requests); if (request === undefined) throw new Error("Expected request"); return request; };
+const readOnlyResponse = (): Response => new Response(JSON.stringify({ code: 0, job: { id: "job-1", code: 0, completed: 1787683968.928, output: `${JSON.stringify({ ok: true, operation: "list-projects", operationID: "operation-1", result: { options: [{ value: "project-1", label: "Project 1" }] }, warnings: [] })}\n`, data: null } }), { status: 200, headers: { "content-type": "application/json" } });
+const recordingReadFetcher = (requests: Array<{ url: string; body: string; headers: Headers }>) => (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => { requests.push({ url: requestURL(input), body: requestBody(init), headers: requestHeaders(init) }); return Promise.resolve(readOnlyResponse()); };
+const optionEnvelopeResponse = (): Response => new Response(JSON.stringify({ code: 0, job: { id: "job-1", code: 0, completed: true, data: { ok: true, operation: "check-session", operationID: "operation-1", result: { options: [{ value: "workspace-1", label: "Workspace 1" }] }, warnings: [] } } }), { status: 200 });
+const firstBodyJSON = (requests: readonly string[]): Record<string, unknown> => JSON.parse(firstRequest(requests) ?? "{}");
+const restoreEnvironmentValue = (name: string, value: string | undefined): void => { if (value === undefined) delete process.env[name]; else process.env[name] = value; };
+const restoreEnvironment = (names: readonly string[], previous: Readonly<Record<string, string | undefined>>): void => names.forEach((name) => restoreEnvironmentValue(name, previous[name]));
+const inactiveSessionResponse = (): Response => new Response(JSON.stringify({ code: 0, job: { id: "job-1", code: 0, data: { ok: true, operation: "check-session", operationID: "operation-1", result: { active: false }, warnings: [] } } }), { status: 200 });
+const topLevelLaunchResponse = (): Response => new Response(JSON.stringify({ code: 0, id: "official-job-id" }), { status: 200 });
+const topLevelPollResponse = (pollCount: number): Response => new Response(JSON.stringify({ code: 0, job: pollCount === 1 ? { id: "official-job-id", code: 0, completed: null, output: "", data: null } : { id: "official-job-id", completed: 1787683968.928, code: 0, output: `${JSON.stringify({ ok: true, operation: "execute-migration", operationID: "operation-3", result: {}, warnings: [] })}\n`, data: null } }), { status: 200 });
+const topLevelResponse = (path: string, pollCount: number): Response => path === "/api/app/run_event/v1" ? topLevelLaunchResponse() : topLevelPollResponse(pollCount);
+const nextPollCount = (path: string, pollCount: number): number => path === "/api/app/run_event/v1" ? pollCount : pollCount + 1;
+const isFirstPoll = (pollCount: number): boolean => pollCount === 1;
+
 describe("XYOps CLI adapter", () => {
   test("sends a title-based event request without a JWT and unwraps a read-only envelope", async () => {
     const requests: Array<{ url: string; body: string; headers: Headers }> = [];
     const client = createXYOpsClient(config, {
-      fetcher: async (input, init) => {
-        requests.push({
-          url: String(input),
-          body: String(init?.body),
-          headers: new Headers(init?.headers),
-        });
-        return new Response(
-          JSON.stringify({
-            code: 0,
-            job: {
-              id: "job-1",
-              code: 0,
-              completed: 1787683968.928,
-              output: `${JSON.stringify({
-                ok: true,
-                operation: "list-projects",
-                operationID: "operation-1",
-                result: { options: [{ value: "project-1", label: "Project 1" }] },
-                warnings: [],
-              })}\n`,
-              data: null,
-            },
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      },
+      fetcher: recordingReadFetcher(requests),
     });
 
     const result = await client.readEvent(
@@ -88,15 +81,16 @@ describe("XYOps CLI adapter", () => {
       isVoiceflowEnvelope(isOptionResult),
     );
 
+    const request = requiredRequest(requests);
     expect(result.ok).toBe(true);
-    expect(requests[0]?.url).toBe("https://xyops.example.test/api/app/run_event/v1/wait");
-    expect(requests[0]?.headers.get("X-API-Key")).toBe("api-key-must-not-leak");
-    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({
+    expect(request.url).toBe("https://xyops.example.test/api/app/run_event/v1/wait");
+    expect(request.headers.get("X-API-Key")).toBe("api-key-must-not-leak");
+    expect(JSON.parse(request.body)).toEqual({
       title: "event-projects",
       params: { operation: "list-projects", SOURCE_WORKSPACE_ID: "workspace-1" },
     });
-    expect(requests[0]?.body).not.toContain("VOICEFLOW_JWT");
-    expect(requests[0]?.body).not.toContain("api-key-must-not-leak");
+    expect(request.body).not.toContain("VOICEFLOW_JWT");
+    expect(request.body).not.toContain("api-key-must-not-leak");
   });
 
   test("unwraps a native plugin response from a synchronous wait job", async () => {
@@ -201,27 +195,7 @@ describe("XYOps CLI adapter", () => {
   test("uses an explicit ID reference in the XYOps request body", async () => {
     const requests: string[] = [];
     const client = createXYOpsClient(config, {
-      fetcher: async (_input, init) => {
-        requests.push(String(init?.body));
-        return new Response(
-          JSON.stringify({
-            code: 0,
-            job: {
-              id: "job-1",
-              code: 0,
-              completed: true,
-              data: {
-                ok: true,
-                operation: "check-session",
-                operationID: "operation-1",
-                result: { options: [{ value: "workspace-1", label: "Workspace 1" }] },
-                warnings: [],
-              },
-            },
-          }),
-          { status: 200 },
-        );
-      },
+      fetcher: async (_input, init) => { requests.push(requestBody(init)); return optionEnvelopeResponse(); },
     });
 
     await client.readEvent(
@@ -230,8 +204,8 @@ describe("XYOps CLI adapter", () => {
       isVoiceflowEnvelope(isOptionResult),
     );
 
-    expect(JSON.parse(requests[0] ?? "{}")).toMatchObject({ id: "event-check" });
-    expect(JSON.parse(requests[0] ?? "{}")).not.toHaveProperty("title");
+    expect(firstBodyJSON(requests)).toMatchObject({ id: "event-check" });
+    expect(firstBodyJSON(requests)).not.toHaveProperty("title");
   });
 
   test("falls back to job data when output is empty", async () => {
@@ -341,24 +315,8 @@ describe("XYOps CLI adapter", () => {
     delete process.env.XYOPS_EVENT_CHECK_SESSION;
     delete process.env.XYOPS_EVENT_LIST_WORKSPACES;
     globalThis.fetch = async (_input, init) => {
-      requests.push(String(init?.body));
-      return new Response(
-        JSON.stringify({
-          code: 0,
-          job: {
-            id: "job-1",
-            code: 0,
-            data: {
-              ok: true,
-              operation: "check-session",
-              operationID: "operation-1",
-              result: { active: false },
-              warnings: [],
-            },
-          },
-        }),
-        { status: 200 },
-      );
+      requests.push(requestBody(init));
+      return inactiveSessionResponse();
     };
     console.log = (...values: unknown[]) => output.push(values.join(" "));
 
@@ -370,11 +328,7 @@ describe("XYOps CLI adapter", () => {
     } finally {
       globalThis.fetch = previousFetch;
       console.log = previousLog;
-      for (const name of environmentNames) {
-        const value = previousEnvironment[name];
-        if (value === undefined) delete process.env[name];
-        else process.env[name] = value;
-      }
+      restoreEnvironment(environmentNames, previousEnvironment);
     }
   });
 
@@ -383,22 +337,10 @@ describe("XYOps CLI adapter", () => {
     let pollCount = 0;
     const client = createXYOpsClient(config, {
       fetcher: async (input, init) => {
-        const path = new URL(String(input)).pathname;
-        requests.push({ path, body: String(init?.body) });
-        if (path === "/api/app/run_event/v1") {
-          return new Response(JSON.stringify({ code: 0, id: "official-job-id" }), { status: 200 });
-        }
-        pollCount += 1;
-        const job = pollCount === 1
-          ? { id: "official-job-id", code: 0, completed: null, output: "", data: null }
-          : {
-              id: "official-job-id",
-              completed: 1787683968.928,
-              code: 0,
-              output: `${JSON.stringify({ ok: true, operation: "execute-migration", operationID: "operation-3", result: {}, warnings: [] })}\n`,
-              data: null,
-            };
-        return new Response(JSON.stringify({ code: 0, job }), { status: 200 });
+        const path = new URL(requestURL(input)).pathname;
+        requests.push({ path, body: requestBody(init) });
+        pollCount = nextPollCount(path, pollCount);
+        return topLevelResponse(path, pollCount);
       },
       sleeper: async () => undefined,
     });
@@ -432,7 +374,7 @@ describe("XYOps CLI adapter", () => {
     let dispatchCount = 0;
     const client = createXYOpsClient(config, {
       fetcher: async (input) => {
-        if (new URL(String(input)).pathname === "/api/app/run_event/v1") dispatchCount += 1;
+        if (new URL(requestURL(input)).pathname === "/api/app/run_event/v1") dispatchCount += 1;
         return new Response(JSON.stringify({ code: 0 }), { status: 200 });
       },
     });
@@ -452,9 +394,9 @@ describe("XYOps CLI adapter", () => {
     let pollCount = 0;
     const client = createXYOpsClient(config, {
       fetcher: async (input, init) => {
-        const url = String(input);
+        const url = requestURL(input);
         const path = new URL(url).pathname;
-        requests.push({ path, body: String(init?.body) });
+        requests.push({ path, body: requestBody(init) });
         if (url.endsWith("/run_event/v1")) {
           return new Response(JSON.stringify({ code: 200, description: "OK", data: { id: "job-1" } }), { status: 200 });
         }
@@ -463,9 +405,7 @@ describe("XYOps CLI adapter", () => {
           JSON.stringify({
             code: 200,
             description: "OK",
-            data: pollCount === 1
-              ? { id: "job-1", completed: false, code: 0, data: null }
-              : {
+            data: [{ id: "job-1", completed: false, code: 0, data: null }, {
                   id: "job-1",
                   completed: 1787683968.928,
                   code: 0,
@@ -493,7 +433,7 @@ describe("XYOps CLI adapter", () => {
                     warnings: [],
                   })}\n`,
                   data: null,
-                },
+                }][Number(!isFirstPoll(pollCount))],
           }),
           { status: 200 },
         );
@@ -509,7 +449,7 @@ describe("XYOps CLI adapter", () => {
 
     expect(result.ok).toBe(true);
     expect(requests.map(({ path }) => path)).toEqual(["/api/app/run_event/v1", "/api/app/get_job/v1", "/api/app/get_job/v1"]);
-    expect(JSON.parse(requests[0]?.body ?? "{}").params.CONFIRMED).toBe(true);
+    expect(JSON.parse(requiredRequest(requests).body).params.CONFIRMED).toBe(true);
     expect(requests.filter(({ path }) => path === "/api/app/run_event/v1")).toHaveLength(1);
   });
 
@@ -517,7 +457,7 @@ describe("XYOps CLI adapter", () => {
     const failureDescription = "The Voiceflow plugin could not complete the request.";
     const client = createXYOpsClient(config, {
       fetcher: async (input) => {
-        const path = new URL(String(input)).pathname;
+        const path = new URL(requestURL(input)).pathname;
         if (path === "/api/app/run_event/v1")
           return new Response(
             JSON.stringify({ code: 200, data: { id: "job-plugin-failure" } }),
