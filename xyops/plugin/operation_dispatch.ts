@@ -10,50 +10,11 @@ import {
   OperationFault,
   type Envelope,
 } from "../voiceflow/vf_contracts";
-import type { NativePluginJob } from "./contracts";
+import type { NativePluginJob, OperationHandlers } from "./types";
 import { createUUID } from "../voiceflow/vf_uuid";
+export type { OperationHandlers } from "./types";
 
 type PluginEnvelope = Envelope<unknown>;
-type CheckSessionHandler = (token: string) => Promise<PluginEnvelope>;
-type ListWorkspacesHandler = (token: string) => Promise<PluginEnvelope>;
-type ListProjectsHandler = (token: string, sourceWorkspaceID: string) => Promise<PluginEnvelope>;
-type ListVersionsHandler = (
-  token: string,
-  sourceWorkspaceID: string,
-  sourceProjectID: string,
-) => Promise<PluginEnvelope>;
-type ListFoldersHandler = (token: string, destinationWorkspaceID: string) => Promise<PluginEnvelope>;
-type PlanMigrationHandler = (
-  token: string,
-  sourceWorkspaceID: string,
-  sourceProjectID: string,
-  sourceVersionID: string,
-  destinationWorkspaceID: string,
-  destinationFolderID: string,
-  targetSchemaVersion?: string,
-) => Promise<PluginEnvelope>;
-type ExecuteMigrationHandler = (
-  token: string,
-  planID: string,
-  sourceWorkspaceID: string,
-  sourceProjectID: string,
-  sourceVersionID: string,
-  destinationWorkspaceID: string,
-  destinationFolderID: string,
-  targetSchemaVersion?: string,
-  confirmed?: boolean,
-) => Promise<PluginEnvelope>;
-
-export type OperationHandlers = Readonly<{
-  readonly "check-session": CheckSessionHandler;
-  readonly "list-workspaces": ListWorkspacesHandler;
-  readonly "list-projects": ListProjectsHandler;
-  readonly "list-versions": ListVersionsHandler;
-  readonly "list-folders": ListFoldersHandler;
-  readonly "plan-migration": PlanMigrationHandler;
-  readonly "execute-migration": ExecuteMigrationHandler;
-}>;
-
 type DefaultOperationHandlers = OperationHandlers;
 const defaultOperationHandlers: DefaultOperationHandlers = {
   "check-session": checkSession,

@@ -1,15 +1,11 @@
 import type { Writable } from "node:stream";
-import { dispatchOperation, type OperationHandlers } from "./operation_dispatch";
-import {
-  type NativePluginJob,
-  type XYOpsPluginResponse,
-} from "./contracts";
+import { dispatchOperation } from "./operation_dispatch";
+import type { NativePluginJob, OperationHandlers, PluginInput, PluginStage, XYOpsPluginResponse } from "./types";
 import { readVoiceflowJWT } from "./job_validation";
-import { readPluginJob, type PluginInput } from "./stdin_job";
+import { readPluginJob } from "./stdin_job";
 import { mapVoiceflowEnvelope, mapPluginError } from "./wire_protocol";
 import {
   formatPluginDiagnostic,
-  type PluginStage,
 } from "./diagnostics";
 
 type PluginEnvironment = Readonly<Record<string, string | undefined>>;

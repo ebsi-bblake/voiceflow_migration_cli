@@ -3,12 +3,9 @@ import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { failure, OperationFault, success, type Envelope } from "../xyops/voiceflow/vf_contracts";
-import type { NativePluginJob } from "../xyops/plugin/contracts";
+import type { NativePluginJob, OperationHandlers } from "../xyops/plugin/types";
 import { validatePluginJob, parsePluginJob, readVoiceflowJWT } from "../xyops/plugin/job_validation";
-import {
-  dispatchOperation,
-  type OperationHandlers,
-} from "../xyops/plugin/operation_dispatch";
+import { dispatchOperation } from "../xyops/plugin/operation_dispatch";
 import { formatPluginDiagnostic } from "../xyops/plugin/diagnostics";
 import { runNativePlugin } from "../xyops/plugin/process_entrypoint";
 import { mapVoiceflowEnvelope } from "../xyops/plugin/wire_protocol";

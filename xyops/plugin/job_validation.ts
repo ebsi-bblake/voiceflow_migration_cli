@@ -1,27 +1,9 @@
 import {
   PluginValidationFault,
-  supportedPluginOperations,
-  type NativePluginJob,
-  type PluginOperation,
-  type PluginParameters,
-} from "./contracts";
-
-type RecordValue = Readonly<Record<string, unknown>>;
-
-type IsRecord = (value: unknown) => value is RecordValue;
-const isRecord: IsRecord = (value): value is RecordValue =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-type IsNonEmptyString = (value: unknown) => value is string;
-const isNonEmptyString: IsNonEmptyString = (value): value is string =>
-  typeof value === "string" && value.trim().length > 0;
-
-type IsPluginOperation = (value: unknown) => value is PluginOperation;
-export const isPluginOperation: IsPluginOperation = (
-  value,
-): value is PluginOperation =>
-  typeof value === "string" &&
-  supportedPluginOperations.some((operation) => operation === value);
+} from "./validation_fault";
+import { isNonEmptyString, isPluginOperation, isRecord } from "./guards";
+import type { NativePluginJob, PluginOperation, PluginParameters } from "./types";
+export { isPluginOperation } from "./guards";
 
 type SelectOperation = (params: PluginParameters) => PluginOperation;
 const selectOperation: SelectOperation = (params) => {

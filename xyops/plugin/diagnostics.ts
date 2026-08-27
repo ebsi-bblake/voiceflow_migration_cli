@@ -1,5 +1,7 @@
+import type { PluginStage } from "./types";
+export type { PluginStage } from "./types";
+
 export const pluginStages = ["input", "secret", "dispatch", "response"] as const;
-export type PluginStage = (typeof pluginStages)[number];
 
 const maxDiagnosticLength = 320;
 const maxErrorClassLength = 80;

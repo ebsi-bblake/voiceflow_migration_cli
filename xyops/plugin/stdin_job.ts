@@ -1,8 +1,6 @@
 import { parsePluginJob } from "./job_validation";
-import type { NativePluginJob } from "./contracts";
-
-export type PluginInputChunk = Uint8Array | string;
-export type PluginInput = AsyncIterable<PluginInputChunk>;
+import type { NativePluginJob, PluginInput } from "./types";
+export type { PluginInput, PluginInputChunk } from "./types";
 
 type ReadPluginInput = (input: PluginInput) => Promise<string>;
 export const readPluginInput: ReadPluginInput = async (input) => {

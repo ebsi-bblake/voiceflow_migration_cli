@@ -1,8 +1,5 @@
-import {
-  PluginValidationFault,
-  type XYOpsPluginResponse,
-  type VoiceflowEnvelope,
-} from "./contracts";
+import { PluginValidationFault } from "./validation_fault";
+import type { XYOpsPluginResponse, VoiceflowEnvelope } from "./types";
 
 type MapVoiceflowEnvelope = (envelope: VoiceflowEnvelope) => XYOpsPluginResponse;
 export const mapVoiceflowEnvelope: MapVoiceflowEnvelope = (envelope) => {
