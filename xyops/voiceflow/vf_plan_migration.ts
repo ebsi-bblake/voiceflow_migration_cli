@@ -1,7 +1,7 @@
 import { buildMigrationPlan } from "./vf_planning";
 import { resolveVoiceflowAuth } from "./vf_auth";
-import { success, failure, type MigrationSelection } from "./vf_contracts";
-import type { Envelope, MigrationPlan } from "./vf_contracts";
+import { success, failure } from "./vf_contracts";
+import type { Envelope, MigrationPlan, MigrationSelection } from "./types";
 import { createUUID } from "./vf_uuid";
 
 type BuildPlanForSelection = (

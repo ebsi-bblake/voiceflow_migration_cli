@@ -1,28 +1,18 @@
 import { resolveVoiceflowAuth } from "./vf_auth";
 import { exportVersion } from "./vf_export";
 import { importVersion } from "./vf_import";
-import { retrieveApiKeyStatus, type ApiKeyStatus } from "./vf_api_key";
+import { retrieveApiKeyStatus } from "./vf_api_key";
 import { buildMigrationPlan } from "./vf_planning";
 import {
   failure,
   OperationFault,
   success,
-  type Envelope,
-  type MigrationSelection,
-  type Warning,
 } from "./vf_contracts";
+import { isConfirmationGranted } from "./guards";
+import type { Envelope, ExecuteResult, MigrationSelection, Warning } from "./types";
 import { createUUID } from "./vf_uuid";
 
-type ExecuteResultBase = {
-  planID: string;
-  exportStatus: number;
-  exportBytes: number;
-  importStatus: number;
-  importBytes: number;
-  selected: MigrationSelection;
-  imported: Awaited<ReturnType<typeof importVersion>>;
-};
-export type ExecuteResult = ExecuteResultBase & ApiKeyStatus;
+export type { ExecuteResult } from "./types";
 
 type MigrationSelectionForArguments = (
   sourceWorkspaceID: string,
@@ -65,11 +55,6 @@ const executeWarnings: ExecuteWarnings = (apiKeyRetrieved) => {
     });
   }
   return warnings;
-};
-
-type IsConfirmationGranted = (confirmed: unknown) => confirmed is true;
-const isConfirmationGranted: IsConfirmationGranted = (confirmed) => {
-  return confirmed === true;
 };
 
 type Main = (

@@ -1,15 +1,11 @@
-import type { AuthContext } from "./vf_auth";
-import type { ExportArtifact } from "./vf_export";
-import type { ImportedReceipt } from "./vf_contracts";
+import type { AuthContext } from "./types";
+import type { ExportArtifact, HttpBytes, ImportedReceipt } from "./types";
 import { OperationFault } from "./vf_contracts";
-import { isRetryableHttpStatus, requestBytes, type HttpBytes } from "./vf_http";
+import { requestBytes } from "./vf_http";
 import { requireVoiceflowString } from "./vf_validation";
+import { isImportOutcomeUnknownStatus, isRecord } from "./guards";
 
 type RecordValue = Readonly<Record<string, unknown>>;
-
-type IsRecord = (value: unknown) => value is RecordValue;
-const isRecord: IsRecord = (value): value is RecordValue =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 type RequiredFolderID = (value: unknown) => string;
 const requiredFolderID: RequiredFolderID = (value) => {
@@ -41,9 +37,7 @@ const nestedProjectID: NestedProjectID = (row) => {
   return primitiveID(row.project._id);
 };
 
-type IsImportOutcomeUnknownStatus = (status: number) => boolean;
-export const isImportOutcomeUnknownStatus: IsImportOutcomeUnknownStatus = (status) =>
-  isRetryableHttpStatus(status) || status >= 600;
+export { isImportOutcomeUnknownStatus } from "./guards";
 
 type Receipt = (
   value: unknown,

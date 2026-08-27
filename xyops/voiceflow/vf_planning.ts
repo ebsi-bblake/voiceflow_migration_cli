@@ -15,9 +15,8 @@ import {
 import type { AuthContext } from "./vf_auth";
 import {
   OperationFault,
-  type MigrationPlan,
-  type MigrationSelection,
 } from "./vf_contracts";
+import type { MigrationPlan, MigrationSelection } from "./types";
 import { requireVoiceflowString } from "./vf_validation";
 
 type NormalizeMigrationSelection = (
@@ -112,15 +111,15 @@ const createPlanFromCatalog: CreatePlanFromCatalog =
     };
   };
 
-type BuildPlanFromSelection = (
-  auth: AuthContext,
-) => (selection: MigrationSelection) => Promise<MigrationPlan>;
 type PlanCatalogSelection = (
   selection: MigrationSelection,
 ) => (catalog: CatalogSnapshot) => Promise<MigrationPlan>;
 const planCatalogSelection: PlanCatalogSelection = (selection) => (catalog) =>
   planID(selection).then(createPlanFromCatalog(selection, catalog));
 
+type BuildPlanFromSelection = (
+  auth: AuthContext,
+) => (selection: MigrationSelection) => Promise<MigrationPlan>;
 const buildPlanFromSelection: BuildPlanFromSelection = (auth) =>
   (selection) =>
     loadCatalogForSelection(auth)(selection).then(

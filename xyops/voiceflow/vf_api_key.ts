@@ -1,22 +1,9 @@
-import type { AuthContext } from "./vf_auth";
+import type { AuthContext } from "./types";
 import { requestBytes } from "./vf_http";
+import { isRecord } from "./guards";
+import type { ApiKeyDiagnostic, ApiKeyStatus } from "./types";
 
-export type ApiKeyDiagnostic = {
-  readonly code: string;
-  readonly message: string;
-};
-export type ApiKeyStatus =
-  | {
-      readonly apiKeyRetrieved: true;
-      readonly postImport?: never;
-    }
-  | {
-      readonly apiKeyRetrieved: false;
-      readonly postImport: {
-        readonly apiKeyRetrieved: false;
-        readonly diagnostic: ApiKeyDiagnostic;
-      };
-    };
+export type { ApiKeyDiagnostic, ApiKeyStatus } from "./types";
 
 const API_KEY_RETRIEVAL_FAILED: ApiKeyDiagnostic = {
   code: "API_KEY_RETRIEVAL_FAILED",
@@ -52,12 +39,6 @@ type FailedApiKeyRetrievalOutcome = () => ApiKeyStatus;
 const failedApiKeyRetrievalOutcome: FailedApiKeyRetrievalOutcome = () => {
   return failedApiKeyOutcome(API_KEY_RETRIEVAL_FAILED);
 };
-
-type IsRecord = (value: unknown) => value is Readonly<Record<string, unknown>>;
-const isRecord: IsRecord = (
-  value,
-): value is Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 type KeyCandidates = (value: unknown) => string[];
 const keyCandidates: KeyCandidates = (value) => {

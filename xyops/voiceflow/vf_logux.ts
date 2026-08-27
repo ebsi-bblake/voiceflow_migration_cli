@@ -1,5 +1,6 @@
-import type { AuthContext } from "./vf_auth";
+import type { AuthContext } from "./types";
 import { OperationFault } from "./vf_contracts";
+import { isObject, isRowArray } from "./guards";
 
 type Row = Readonly<Record<string, unknown>>;
 const URL = "wss://realtime.empyrean.voiceflow.com/";
@@ -15,16 +16,6 @@ const MAX_INCOMING_ROWS = 100_000;
 type Random8 = () => string;
 const random8: Random8 = () =>
   crypto.randomUUID().replaceAll("-", "").slice(0, 8);
-
-type IsObject = (value: unknown) => value is Readonly<Record<string, unknown>>;
-const isObject: IsObject = (
-  value,
-): value is Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-type IsRowArray = (value: unknown) => value is readonly Row[];
-const isRowArray: IsRowArray = (value) =>
-  Array.isArray(value) && value.every((row) => isObject(row));
 
 type SendFrame = (ws: WebSocket, frame: readonly unknown[]) => void;
 const sendFrame: SendFrame = (ws, frame) => {

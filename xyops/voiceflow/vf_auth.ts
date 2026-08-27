@@ -1,11 +1,9 @@
 import { OperationFault } from "./vf_contracts";
+import { isClaims, isValidCreatorID } from "./guards";
+import type { AuthContext } from "./types";
 
-export type AuthContext = Readonly<{ token: string; creatorID: string }>;
 type Claims = Readonly<Record<string, unknown>>;
-
-type IsClaims = (value: unknown) => value is Claims;
-const isClaims: IsClaims = (value): value is Claims =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+export type { AuthContext } from "./types";
 
 type NormalizeVoiceflowToken = (input: unknown) => string;
 const normalizeVoiceflowToken: NormalizeVoiceflowToken = (input) => {
@@ -31,17 +29,6 @@ const decodeClaims: DecodeClaims = (token) => {
   } catch {
     throw new OperationFault("AUTHENTICATION_FAILED");
   }
-};
-
-type IsValidCreatorID = (value: string) => boolean;
-const isValidCreatorID: IsValidCreatorID = (value) => {
-  const creatorID = value.trim();
-  return (
-    creatorID.length > 0 &&
-    Array.from(creatorID).length <= 128 &&
-    !/[\u0000-\u001f\u007f-\u009f]/.test(value) &&
-    !/[\\/]/.test(value)
-  );
 };
 
 type ExtractCreatorID = (claims: Claims) => string;

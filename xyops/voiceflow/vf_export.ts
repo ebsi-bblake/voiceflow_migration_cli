@@ -1,13 +1,10 @@
-import type { AuthContext } from "./vf_auth";
-import { isRetryableHttpStatus, requestBytes } from "./vf_http";
+import type { AuthContext } from "./types";
+import { isRetryableHttpStatus } from "./guards";
+import { requestBytes } from "./vf_http";
 import { OperationFault } from "./vf_contracts";
 import { requireVoiceflowString } from "./vf_validation";
-export type ExportArtifact = {
-  status: number;
-  bytes: ArrayBuffer;
-  filename: string;
-  contentType: string;
-};
+import type { ExportArtifact } from "./types";
+export type { ExportArtifact } from "./types";
 const EXPORT_URL =
   "https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/export-json";
 

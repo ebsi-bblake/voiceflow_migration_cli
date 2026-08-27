@@ -1,63 +1,14 @@
-export type ErrorCode =
-  | "INVALID_ARGUMENT"
-  | "AUTHENTICATION_FAILED"
-  | "VOICEFLOW_LOGIN_REQUIRED"
-  | "NOT_FOUND"
-  | "DEPENDENCY_TIMEOUT"
-  | "DEPENDENCY_FAILURE"
-  | "PLAN_MISMATCH"
-  | "CONFIRMATION_REQUIRED"
-  | "IMPORT_OUTCOME_UNKNOWN"
-  | "INTERNAL_ERROR";
-
-export type WarningCode = "NOT_IDEMPOTENT" | "API_KEY_RETRIEVAL_FAILED";
-export type Warning = Readonly<{ code: WarningCode; message: string }>;
-export type OperationError = Readonly<{
-  code: ErrorCode;
-  message: string;
-  retryable: boolean;
-}>;
-export type Success<T> = {
-  readonly ok: true;
-  readonly operation: string;
-  readonly operationID: string;
-  readonly result: T;
-  readonly warnings: readonly Warning[];
-};
-export type Failure = {
-  readonly ok: false;
-  readonly operation: string;
-  readonly operationID: string;
-  readonly error: OperationError;
-};
-export type Envelope<T> = Success<T> | Failure;
-export type MigrationSelection = {
-  readonly sourceWorkspaceID: string;
-  readonly sourceProjectID: string;
-  readonly sourceVersionID: string;
-  readonly destinationWorkspaceID: string;
-  readonly destinationFolderID: string;
-  readonly targetSchemaVersion: string;
-};
-export type MigrationPlan = {
-  readonly planID: string;
-  readonly selection: MigrationSelection;
-  readonly labels: Readonly<{
-    sourceWorkspace: string;
-    sourceProject: string;
-    sourceVersion: string;
-    destinationWorkspace: string;
-    destinationFolder: string;
-  }>;
-};
-export type ImportedReceipt = {
-  readonly importStatus: number;
-  readonly importBytes: number;
-  readonly projectID: string;
-  readonly assistantID?: string;
-  readonly workspaceID?: string;
-  readonly folderID?: string;
-};
+export type {
+  Envelope, ErrorCode, Failure, ImportedReceipt, MigrationPlan,
+  MigrationSelection, OperationError, Success, Warning, WarningCode,
+} from "./types";
+import type {
+  ErrorCode,
+  Failure,
+  OperationError,
+  Success,
+  Warning,
+} from "./types";
 
 const messages: Readonly<Record<ErrorCode, string>> = {
   INVALID_ARGUMENT: "The supplied arguments are invalid.",

@@ -1,20 +1,7 @@
 import { OperationFault } from "./vf_contracts";
-
-export type RequestBytesInput = Readonly<{
-  url: string;
-  init?: RequestInit;
-  maxBytes: number;
-  timeoutMs: number;
-}>;
-export type HttpBytes = Readonly<{
-  status: number;
-  headers: Headers;
-  bytes: ArrayBuffer;
-}>;
-
-type IsRetryableHttpStatus = (status: number) => boolean;
-export const isRetryableHttpStatus: IsRetryableHttpStatus = (status) =>
-  status === 408 || status === 429 || (status >= 500 && status < 600);
+import type { HttpBytes, RequestBytesInput } from "./types";
+export { isRetryableHttpStatus } from "./guards";
+export type { HttpBytes, RequestBytesInput } from "./types";
 
 type ReadResponseBody = (
   body: ReadableStream<Uint8Array>,

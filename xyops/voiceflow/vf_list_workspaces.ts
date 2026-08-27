@@ -1,7 +1,7 @@
 import { listWorkspaces } from "./vf_catalog";
 import { resolveVoiceflowAuth } from "./vf_auth";
 import { success, failure } from "./vf_contracts";
-import type { Envelope } from "./vf_contracts";
+import type { Envelope } from "./types";
 import { createUUID } from "./vf_uuid";
 
 type ListWorkspacesResult = {

@@ -1,26 +1,12 @@
-import type { AuthContext } from "./vf_auth";
+import type { AuthContext } from "./types";
 import { syncCatalog } from "./vf_logux";
 import { OperationFault } from "./vf_contracts";
 import { requireVoiceflowString } from "./vf_validation";
-
-export type Option = Readonly<{ value: string; label: string }>;
-export type WorkspaceRecord = Readonly<{ id: string; label: string }>;
-export type EnvironmentRecord = Readonly<{
-  label: string;
-  draftVersionID?: string;
-  publishedVersionID?: string;
-}>;
-export type ProjectRecord = Readonly<{
-  id: string;
-  label: string;
-  workspaceID: string;
-  environments: readonly EnvironmentRecord[];
-}>;
-export type FolderRecord = Readonly<{
-  id: string;
-  label: string;
-  workspaceID: string;
-}>;
+import { isNumericFolderID, isRawRow } from "./guards";
+import type {
+  EnvironmentRecord, FolderRecord, Option, ProjectRecord, WorkspaceRecord,
+} from "./types";
+export type { EnvironmentRecord, FolderRecord, Option, ProjectRecord, WorkspaceRecord } from "./types";
 type RawRow = Readonly<Record<string, unknown>>;
 type VersionField = "draftVersionID" | "publishedVersionID";
 type VersionKind = readonly [VersionField, string];
@@ -29,10 +15,6 @@ const VERSION_KINDS: readonly VersionKind[] = [
   ["draftVersionID", "[Draft]"],
   ["publishedVersionID", "[Published]"],
 ];
-
-type IsRawRow = (value: unknown) => value is RawRow;
-const isRawRow: IsRawRow = (value): value is RawRow =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 type ToID = (row: RawRow) => string | undefined;
 const toID: ToID = (row) => {
@@ -85,9 +67,6 @@ const normalizeOptionalID: NormalizeOptionalID = (value) => {
   const normalized = String(value).trim();
   return normalized || undefined;
 };
-
-type IsNumericFolderID = (id: string) => boolean;
-const isNumericFolderID: IsNumericFolderID = (id) => /^\d+$/.test(id);
 
 type ProjectEnvironments = (value: unknown) => readonly EnvironmentRecord[];
 const projectEnvironments: ProjectEnvironments = (value) =>

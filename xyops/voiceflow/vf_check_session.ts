@@ -2,14 +2,11 @@ import { resolveVoiceflowAuth } from "./vf_auth";
 import {
   failure,
   success,
-  type Envelope,
   OperationFault,
 } from "./vf_contracts";
-import {
-  isRetryableHttpStatus,
-  requestBytes,
-  type HttpBytes,
-} from "./vf_http";
+import { requestBytes } from "./vf_http";
+import { isRetryableHttpStatus } from "./guards";
+import type { Envelope, HttpBytes } from "./types";
 import { createUUID } from "./vf_uuid";
 
 type CheckSessionResult = {
