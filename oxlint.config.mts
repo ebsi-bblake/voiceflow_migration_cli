@@ -14,6 +14,6 @@ export default defineConfig({
     "**/*.map",
   ],
   rules: {
-    complexity: ["error", { max: 20, variant: "classic" }],
+    complexity: ["error", { max: 2, variant: "classic" }],
   },
 });
