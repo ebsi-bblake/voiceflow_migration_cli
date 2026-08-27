@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { createXYOpsClient } from "../xyops/cli/client";
 import { DEFAULT_XYOPS_BASE_URL, readXYOpsConfig } from "../xyops/cli/config";
-import { isOptionResult, isVoiceflowEnvelope } from "../xyops/cli/contracts";
+import {
+  isCheckSessionResult,
+  isOptionResult,
+  isVoiceflowEnvelope,
+} from "../xyops/cli/contracts";
 import { run } from "../xyops/migration-cli";
 import {
   executeParameters,
@@ -38,6 +42,14 @@ const selection = {
   targetSchemaVersion: "13.1",
 } as const;
 
+const nativePluginOutput = (envelope: unknown): string =>
+  JSON.stringify({
+    xy: 1,
+    complete: true,
+    code: 0,
+    data: { voiceflow: envelope },
+  });
+
 describe("XYOps CLI adapter", () => {
   test("sends a title-based event request without a JWT and unwraps a read-only envelope", async () => {
     const requests: Array<{ url: string; body: string; headers: Headers }> = [];
@@ -72,7 +84,7 @@ describe("XYOps CLI adapter", () => {
 
     const result = await client.readEvent(
       "event-projects",
-      { RUNNER_NAME: "list-projects", SOURCE_WORKSPACE_ID: "workspace-1" },
+      { operation: "list-projects", SOURCE_WORKSPACE_ID: "workspace-1" },
       isVoiceflowEnvelope(isOptionResult),
     );
 
@@ -81,10 +93,77 @@ describe("XYOps CLI adapter", () => {
     expect(requests[0]?.headers.get("X-API-Key")).toBe("api-key-must-not-leak");
     expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({
       title: "event-projects",
-      params: { RUNNER_NAME: "list-projects", SOURCE_WORKSPACE_ID: "workspace-1" },
+      params: { operation: "list-projects", SOURCE_WORKSPACE_ID: "workspace-1" },
     });
     expect(requests[0]?.body).not.toContain("VOICEFLOW_JWT");
     expect(requests[0]?.body).not.toContain("api-key-must-not-leak");
+  });
+
+  test("unwraps a native plugin response from a synchronous wait job", async () => {
+    const envelope = {
+      ok: true,
+      operation: "list-projects",
+      operationID: "operation-native-read",
+      result: { options: [{ value: "project-1", label: "Project 1" }] },
+      warnings: [],
+    };
+    const client = createXYOpsClient(config, {
+      fetcher: async () =>
+        new Response(
+          JSON.stringify({
+            code: 0,
+            job: {
+              id: "job-native-read",
+              code: 0,
+              completed: true,
+              output: `${nativePluginOutput(envelope)}\n`,
+            },
+          }),
+          { status: 200 },
+        ),
+    });
+
+    await expect(
+      client.readEvent(
+        "event-projects",
+        { operation: "list-projects" },
+        isVoiceflowEnvelope(isOptionResult),
+      ),
+    ).resolves.toEqual(envelope);
+  });
+
+  test("unwraps a native plugin envelope stored in job data", async () => {
+    const envelope = {
+      ok: true,
+      operation: "check-session",
+      operationID: "operation-native-data",
+      result: { active: true },
+      warnings: [],
+    };
+    const client = createXYOpsClient(config, {
+      fetcher: async () =>
+        new Response(
+          JSON.stringify({
+            code: 0,
+            job: {
+              id: "job-native-data",
+              code: 0,
+              completed: true,
+              output: null,
+              data: { voiceflow: envelope },
+            },
+          }),
+          { status: 200 },
+        ),
+    });
+
+    await expect(
+      client.readEvent(
+        "event-check-session",
+        { operation: "check-session" },
+        isVoiceflowEnvelope(isCheckSessionResult),
+      ),
+    ).resolves.toEqual(envelope);
   });
 
   test("requires only the API key and supplies local event-title defaults", () => {
@@ -147,7 +226,7 @@ describe("XYOps CLI adapter", () => {
 
     await client.readEvent(
       { id: "event-check" },
-      { RUNNER_NAME: "check-session" },
+      { operation: "check-session" },
       isVoiceflowEnvelope(isOptionResult),
     );
 
@@ -180,7 +259,7 @@ describe("XYOps CLI adapter", () => {
 
     const result = await client.readEvent(
       "event-projects",
-      { RUNNER_NAME: "list-projects" },
+      { operation: "list-projects" },
       isVoiceflowEnvelope(isOptionResult),
     );
 
@@ -201,7 +280,7 @@ describe("XYOps CLI adapter", () => {
 
     const error = await client.readEvent(
       "event-projects",
-      { RUNNER_NAME: "list-projects" },
+      { operation: "list-projects" },
       isVoiceflowEnvelope(isOptionResult),
     ).catch((value: unknown) => value);
 
@@ -212,6 +291,35 @@ describe("XYOps CLI adapter", () => {
       },
     });
     expect(String(error)).not.toContain(rawOutput);
+  });
+
+  test("reports a plain-text wait job failure before parsing its output", async () => {
+    const failureDescription = "The Voiceflow plugin could not complete the request.";
+    const client = createXYOpsClient(config, {
+      fetcher: async () => new Response(
+        JSON.stringify({
+          code: 0,
+          job: {
+            id: "job-plugin-failure",
+            code: "plugin_failure",
+            completed: true,
+            output: `${failureDescription}\n`,
+            data: null,
+          },
+        }),
+        { status: 200 },
+      ),
+    });
+
+    await expect(
+      client.readEvent(
+        "event-projects",
+        { operation: "list-projects" },
+        isVoiceflowEnvelope(isOptionResult),
+      ),
+    ).rejects.toMatchObject({
+      diagnostic: { code: "job", nextAction: failureDescription },
+    });
   });
 
   test("checks for an active session before requesting workspace choices", async () => {
@@ -339,13 +447,14 @@ describe("XYOps CLI adapter", () => {
     expect(dispatchCount).toBe(1);
   });
 
-  test("dispatches execute once and polls get_job until completion", async () => {
-    const paths: string[] = [];
+  test("dispatches execute once and polls native plugin output until completion", async () => {
+    const requests: Array<{ path: string; body: string }> = [];
     let pollCount = 0;
     const client = createXYOpsClient(config, {
-      fetcher: async (input) => {
+      fetcher: async (input, init) => {
         const url = String(input);
-        paths.push(new URL(url).pathname);
+        const path = new URL(url).pathname;
+        requests.push({ path, body: String(init?.body) });
         if (url.endsWith("/run_event/v1")) {
           return new Response(JSON.stringify({ code: 200, description: "OK", data: { id: "job-1" } }), { status: 200 });
         }
@@ -360,7 +469,7 @@ describe("XYOps CLI adapter", () => {
                   id: "job-1",
                   completed: 1787683968.928,
                   code: 0,
-                  output: `${JSON.stringify({
+                  output: `${nativePluginOutput({
                     ok: true,
                     operation: "execute-migration",
                     operationID: "operation-2",
@@ -399,27 +508,65 @@ describe("XYOps CLI adapter", () => {
     );
 
     expect(result.ok).toBe(true);
-    expect(paths).toEqual(["/api/app/run_event/v1", "/api/app/get_job/v1", "/api/app/get_job/v1"]);
-    expect(paths.filter((path) => path === "/api/app/run_event/v1")).toHaveLength(1);
+    expect(requests.map(({ path }) => path)).toEqual(["/api/app/run_event/v1", "/api/app/get_job/v1", "/api/app/get_job/v1"]);
+    expect(JSON.parse(requests[0]?.body ?? "{}").params.CONFIRMED).toBe(true);
+    expect(requests.filter(({ path }) => path === "/api/app/run_event/v1")).toHaveLength(1);
   });
 
-  test("uses the shared runner names and exact migration parameter keys", () => {
-    expect(listWorkspacesParameters()).toEqual({ RUNNER_NAME: "list-workspaces" });
+  test("reports a plain-text execute job failure before parsing its output", async () => {
+    const failureDescription = "The Voiceflow plugin could not complete the request.";
+    const client = createXYOpsClient(config, {
+      fetcher: async (input) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/app/run_event/v1")
+          return new Response(
+            JSON.stringify({ code: 200, data: { id: "job-plugin-failure" } }),
+            { status: 200 },
+          );
+        return new Response(
+          JSON.stringify({
+            code: 200,
+            data: {
+              id: "job-plugin-failure",
+              completed: true,
+              code: "plugin_failure",
+              output: `${failureDescription}\n`,
+              data: null,
+            },
+          }),
+          { status: 200 },
+        );
+      },
+    });
+
+    await expect(
+      client.executeEvent(
+        "event-execute",
+        executeParameters(selection, "plan-1"),
+        isVoiceflowEnvelope((value): value is Readonly<Record<string, unknown>> => typeof value === "object" && value !== null),
+      ),
+    ).rejects.toMatchObject({
+      diagnostic: { code: "job", nextAction: failureDescription },
+    });
+  });
+
+  test("uses operation values and exact migration parameter keys", () => {
+    expect(listWorkspacesParameters()).toEqual({ operation: "list-workspaces" });
     expect(listProjectsParameters("source-workspace")).toEqual({
-      RUNNER_NAME: "list-projects",
+      operation: "list-projects",
       SOURCE_WORKSPACE_ID: "source-workspace",
     });
     expect(listVersionsParameters("source-workspace", "source-project")).toEqual({
-      RUNNER_NAME: "list-versions",
+      operation: "list-versions",
       SOURCE_WORKSPACE_ID: "source-workspace",
       SOURCE_PROJECT_ID: "source-project",
     });
     expect(listFoldersParameters("destination-workspace")).toEqual({
-      RUNNER_NAME: "list-folders",
+      operation: "list-folders",
       DESTINATION_WORKSPACE_ID: "destination-workspace",
     });
     expect(planParameters(selection)).toEqual({
-      RUNNER_NAME: "plan-migration",
+      operation: "plan-migration",
       SOURCE_WORKSPACE_ID: "source-workspace",
       SOURCE_PROJECT_ID: "source-project",
       SOURCE_VERSION_ID: "source-version",
@@ -428,9 +575,9 @@ describe("XYOps CLI adapter", () => {
       TARGET_SCHEMA_VERSION: "13.1",
     });
     expect(executeParameters(selection, "plan-1")).toMatchObject({
-      RUNNER_NAME: "execute-migration",
+      operation: "execute-migration",
       PLAN_ID: "plan-1",
-      CONFIRMED: "true",
+      CONFIRMED: true,
     });
   });
 });

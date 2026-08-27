@@ -1,6 +1,7 @@
 import { asCliError, fail, CliError } from "./diagnostics";
 import {
   isJobLaunch,
+  normalizeVoiceflowResponse,
   isXYOpsLaunchResponse,
   isXYOpsJob,
   isXYOpsJobResponse,
@@ -136,13 +137,73 @@ const readWaitResponseData: ReadWaitResponseData = (response, endpoint) => {
       endpoint,
       nextAction: "XYOps returned an invalid wait response.",
     });
-  return readJobOutput(response.job, endpoint);
+  return readJobOutput(
+    requireSuccessfulJob(
+      response.job,
+      endpoint,
+      "The migration event job failed.",
+    ),
+    endpoint,
+  );
 };
 
 type XYOpsJobResult = Readonly<{
-  output?: string;
+  code: number | string;
+  description?: string;
+  output?: string | null;
   data?: unknown;
 }>;
+
+const MAX_JOB_FAILURE_DESCRIPTION_LENGTH = 240;
+
+type SelectJobFailureDetail = (job: XYOpsJobResult) => string | undefined;
+const selectJobFailureDetail: SelectJobFailureDetail = (job) =>
+  [job.description, job.output].find(
+    (detail): detail is string =>
+      typeof detail === "string" && detail.trim().length > 0,
+  );
+
+type HasSensitiveJobFailureDetail = (value: string) => boolean;
+const hasSensitiveJobFailureDetail: HasSensitiveJobFailureDetail = (value) =>
+  /\b(?:api[\s_-]*key|access[\s_-]*token|password|secret|authorization|bearer|credential)\b/i.test(
+    value,
+  ) ||
+  /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/.test(value) ||
+  /\b[A-Za-z0-9_-]{40,}\b/.test(value);
+
+type BoundJobFailureDescription = (value: string) => string;
+const boundJobFailureDescription: BoundJobFailureDescription = (value) => {
+  const normalized = value.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+  if (
+    normalized.length === 0 ||
+    normalized.startsWith("{") ||
+    normalized.startsWith("[") ||
+    hasSensitiveJobFailureDetail(normalized)
+  )
+    return "XYOps reported a job failure.";
+  if (normalized.length <= MAX_JOB_FAILURE_DESCRIPTION_LENGTH) return normalized;
+  return `${normalized.slice(0, MAX_JOB_FAILURE_DESCRIPTION_LENGTH - 1).trimEnd()}…`;
+};
+
+type DescribeJobFailure = (job: XYOpsJobResult, fallback: string) => string;
+const describeJobFailure: DescribeJobFailure = (job, fallback) => {
+  const detail = selectJobFailureDetail(job);
+  return detail === undefined ? fallback : boundJobFailureDescription(detail);
+};
+
+type RequireSuccessfulJob = (
+  job: XYOpsJobResult,
+  endpoint: string,
+  fallback: string,
+) => XYOpsJobResult;
+const requireSuccessfulJob: RequireSuccessfulJob = (job, endpoint, fallback) => {
+  if (!isSuccessfulCode(job.code))
+    throw fail("job", {
+      endpoint,
+      nextAction: describeJobFailure(job, fallback),
+    });
+  return job;
+};
 
 type ReadJobOutput = (job: XYOpsJobResult, endpoint: string) => unknown;
 const readJobOutput: ReadJobOutput = (job, endpoint) => {
@@ -228,7 +289,9 @@ export const createXYOpsClient: CreateXYOpsClient = (
           eventBody(eventReference, params),
           WAIT_PATH,
         );
-        const data = readWaitResponseData(response, WAIT_PATH);
+        const data = normalizeVoiceflowResponse(
+          readWaitResponseData(response, WAIT_PATH),
+        );
         if (!envelopeGuard(data))
           throw fail("envelope", {
             endpoint: WAIT_PATH,
@@ -340,12 +403,14 @@ const pollJob: RequestJob = async <T>(
       );
       continue;
     }
-    if (!isSuccessfulCode(job.code))
-      throw fail("job", {
-        endpoint: JOB_PATH,
-        nextAction: "The migration execute job failed.",
-      });
-    const result = readJobOutput(job, JOB_PATH);
+    const successfulJob = requireSuccessfulJob(
+      job,
+      JOB_PATH,
+      "The migration execute job failed.",
+    );
+    const result = normalizeVoiceflowResponse(
+      readJobOutput(successfulJob, JOB_PATH),
+    );
     if (!envelopeGuard(result))
       throw fail("envelope", {
         endpoint: JOB_PATH,

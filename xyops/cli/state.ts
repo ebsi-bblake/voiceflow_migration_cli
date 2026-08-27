@@ -1,4 +1,9 @@
-import type { EventParameters, MigrationSelection, Option } from "./contracts";
+import type {
+  EventParameterValue,
+  EventParameters,
+  MigrationSelection,
+  Option,
+} from "./contracts";
 
 export type MigrationState = Readonly<{
   sourceWorkspaceID?: string;
@@ -41,14 +46,26 @@ type ChooseOptionValue = (options: readonly Option[], index: number) => string |
 export const chooseOptionValue: ChooseOptionValue = (options, index) => options[index]?.value;
 
 type EventParametersFor = (
-  runnerName: string,
-  values?: Readonly<Record<string, string | undefined>>,
+  operation: string,
+  values?: Readonly<Record<string, EventParameterValue | undefined>>,
 ) => EventParameters;
-export const eventParametersFor: EventParametersFor = (runnerName, values = {}) =>
+type EventParameterEntry = readonly [string, EventParameterValue | undefined];
+type IsEventParameterEntry = (
+  entry: EventParameterEntry,
+) => entry is [string, EventParameterValue];
+const isEventParameterEntry: IsEventParameterEntry = (
+  entry,
+): entry is [string, EventParameterValue] => {
+  const value = entry[1];
+  return typeof value === "string" || typeof value === "boolean";
+};
+
+export const eventParametersFor: EventParametersFor = (operation, values = {}) =>
   Object.fromEntries(
-    Object.entries({ RUNNER_NAME: runnerName, ...values }).filter(
-      (entry): entry is [string, string] => typeof entry[1] === "string",
-    ),
+    Object.entries({ operation, ...values } as Record<
+      string,
+      EventParameterValue | undefined
+    >).filter(isEventParameterEntry),
   );
 
 type ListWorkspacesParameters = () => EventParameters;
@@ -99,5 +116,5 @@ export const executeParameters: ExecuteParameters = (selection, planID) =>
     DESTINATION_WORKSPACE_ID: selection.destinationWorkspaceID,
     DESTINATION_FOLDER_ID: selection.destinationFolderID,
     TARGET_SCHEMA_VERSION: selection.targetSchemaVersion,
-    CONFIRMED: "true",
+    CONFIRMED: true,
   });

@@ -70,6 +70,39 @@ export const isXYOpsResponse: IsXYOpsResponse = (value): value is XYOpsResponse 
   (!("description" in value) || typeof value.description === "string") &&
   (!("id" in value) || typeof value.id === "string");
 
+export type NativePluginResponse = Readonly<{
+  xy: 1;
+  complete: true;
+  code: number | string;
+  data: Readonly<{ voiceflow: unknown }>;
+}>;
+type IsNativePluginResponse = (value: unknown) => value is NativePluginResponse;
+export const isNativePluginResponse: IsNativePluginResponse = (
+  value,
+): value is NativePluginResponse =>
+  isRecord(value) &&
+  value.xy === 1 &&
+  value.complete === true &&
+  (typeof value.code === "number" || typeof value.code === "string") &&
+  isRecord(value.data) &&
+  "voiceflow" in value.data;
+
+type IsNativePluginData = (value: unknown) => value is Readonly<{
+  voiceflow: unknown;
+}>;
+const isNativePluginData: IsNativePluginData = (
+  value,
+): value is Readonly<{ voiceflow: unknown }> =>
+  isRecord(value) && "voiceflow" in value;
+
+type NormalizeVoiceflowResponse = (value: unknown) => unknown;
+export const normalizeVoiceflowResponse: NormalizeVoiceflowResponse = (value) =>
+  isNativePluginResponse(value)
+    ? value.data.voiceflow
+    : isNativePluginData(value)
+      ? value.voiceflow
+      : value;
+
 export type XYOpsLaunchResponse = XYOpsResponse & Readonly<{ id: string }>;
 type IsXYOpsLaunchResponse = (value: unknown) => value is XYOpsLaunchResponse;
 export const isXYOpsLaunchResponse: IsXYOpsLaunchResponse = (value): value is XYOpsLaunchResponse =>
@@ -82,7 +115,8 @@ export const isJobLaunch: IsJobLaunch = (value): value is Readonly<{ id: string 
 export type XYOpsJob = Readonly<{
   completed?: boolean | number | null;
   code: number | string;
-  output?: string;
+  description?: string;
+  output?: string | null;
   data?: unknown;
 }>;
 type IsXYOpsJob = (value: unknown) => value is XYOpsJob;
@@ -90,7 +124,8 @@ export const isXYOpsJob: IsXYOpsJob = (value): value is XYOpsJob =>
   isRecord(value) &&
   (!("completed" in value) || value.completed === null || typeof value.completed === "boolean" || typeof value.completed === "number") &&
   (typeof value.code === "number" || typeof value.code === "string") &&
-  (!(("output" in value)) || typeof value.output === "string");
+  (!("description" in value) || typeof value.description === "string") &&
+  (!(("output" in value)) || value.output === null || typeof value.output === "string");
 
 export type XYOpsJobResponse = XYOpsResponse & Readonly<{ job: XYOpsJob & Readonly<{ id: string }> }>;
 type IsXYOpsJobResponse = (value: unknown) => value is XYOpsJobResponse;
@@ -103,7 +138,8 @@ export const isXYOpsJobResponse: IsXYOpsJobResponse = (value): value is XYOpsJob
 export type XYOpsWaitJob = Readonly<{
   id: string;
   code: number | string;
-  output?: string;
+  description?: string;
+  output?: string | null;
   data?: unknown;
   completed?: boolean | number | null;
 }>;
@@ -112,7 +148,8 @@ export const isXYOpsWaitJob: IsXYOpsWaitJob = (value): value is XYOpsWaitJob =>
   isRecord(value) &&
   isNonEmptyString(value.id) &&
   (typeof value.code === "number" || typeof value.code === "string") &&
-  (!("output" in value) || typeof value.output === "string") &&
+  (!("description" in value) || typeof value.description === "string") &&
+  (!("output" in value) || value.output === null || typeof value.output === "string") &&
   (!("completed" in value) || value.completed === null || typeof value.completed === "boolean" || typeof value.completed === "number");
 
 export type XYOpsWaitResponse = Readonly<{
@@ -201,4 +238,5 @@ export const isExecuteResult: IsExecuteResult = (value): value is ExecuteResult 
   return isNonEmptyString(value.imported.projectID);
 };
 
-export type EventParameters = Readonly<Record<string, string>>;
+export type EventParameterValue = string | boolean;
+export type EventParameters = Readonly<Record<string, EventParameterValue>>;
