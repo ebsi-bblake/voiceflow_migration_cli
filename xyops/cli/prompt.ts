@@ -1,4 +1,4 @@
-import type { Option } from "./contracts";
+import type { Option } from "./types";
 
 /** A line reader that does not depend on the Node readline pause/resume shim. */
 export class PromptReader {

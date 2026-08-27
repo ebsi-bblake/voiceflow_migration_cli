@@ -5,7 +5,7 @@ import {
   isCheckSessionResult,
   isOptionResult,
   isVoiceflowEnvelope,
-} from "../xyops/cli/contracts";
+} from "../xyops/cli/guards";
 import { run } from "../xyops/migration-cli";
 import {
   executeParameters,

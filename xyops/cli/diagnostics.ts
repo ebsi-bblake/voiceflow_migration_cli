@@ -1,21 +1,5 @@
-export type CliDiagnosticCode =
-  | "configuration"
-  | "network"
-  | "timeout"
-  | "http"
-  | "api"
-  | "envelope"
-  | "job"
-  | "execute-outcome-unknown"
-  | "invalid-input";
-
-export type CliDiagnostic = Readonly<{
-  code: CliDiagnosticCode;
-  endpoint: string;
-  retryable: boolean;
-  status?: number;
-  nextAction: string;
-}>;
+import type { CliDiagnostic, CliDiagnosticCode } from "./types";
+export type { CliDiagnostic, CliDiagnosticCode } from "./types";
 
 type SafeEndpoint = (endpoint: string) => string;
 const safeEndpoint: SafeEndpoint = (endpoint) =>

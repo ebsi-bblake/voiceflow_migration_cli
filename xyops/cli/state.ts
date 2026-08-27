@@ -1,19 +1,7 @@
-import type {
-  EventParameterValue,
-  EventParameters,
-  MigrationSelection,
-  Option,
-} from "./contracts";
-
-export type MigrationState = Readonly<{
-  sourceWorkspaceID?: string;
-  sourceProjectID?: string;
-  sourceVersionID?: string;
-  destinationWorkspaceID?: string;
-  destinationFolderID?: string;
-  targetSchemaVersion: string;
-  planID?: string;
-}>;
+import type { EventParameterValue, EventParameters, MigrationSelection, Option } from "./types";
+import { isEventParameterEntry } from "./guards";
+import type { MigrationState } from "./types";
+export type { MigrationState } from "./types";
 
 type InitialMigrationState = () => MigrationState;
 export const initialMigrationState: InitialMigrationState = () => ({ targetSchemaVersion: "13.1" });
@@ -49,17 +37,6 @@ type EventParametersFor = (
   operation: string,
   values?: Readonly<Record<string, EventParameterValue | undefined>>,
 ) => EventParameters;
-type EventParameterEntry = readonly [string, EventParameterValue | undefined];
-type IsEventParameterEntry = (
-  entry: EventParameterEntry,
-) => entry is [string, EventParameterValue];
-const isEventParameterEntry: IsEventParameterEntry = (
-  entry,
-): entry is [string, EventParameterValue] => {
-  const value = entry[1];
-  return typeof value === "string" || typeof value === "boolean";
-};
-
 export const eventParametersFor: EventParametersFor = (operation, values = {}) =>
   Object.fromEntries(
     Object.entries({ operation, ...values } as Record<

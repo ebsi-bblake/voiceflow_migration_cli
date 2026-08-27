@@ -1,28 +1,7 @@
 import { fail } from "./diagnostics";
-
-export type XYOpsEventConfig = Readonly<{
-  checkSession: XYOpsEventReference;
-  listWorkspaces: XYOpsEventReference;
-  listProjects: XYOpsEventReference;
-  listVersions: XYOpsEventReference;
-  listFolders: XYOpsEventReference;
-  planMigration: XYOpsEventReference;
-  executeMigration: XYOpsEventReference;
-}>;
-
-export type XYOpsEventReference =
-  | string
-  | Readonly<{ id: string }>
-  | Readonly<{ title: string }>;
-
-export type XYOpsConfig = Readonly<{
-  baseURL: string;
-  apiKey: string;
-  events: XYOpsEventConfig;
-  httpTimeoutMs: number;
-  pollIntervalMs: number;
-  pollTimeoutMs: number;
-}>;
+import { isHTTPURL, isInvalidDuration } from "./guards";
+import type { XYOpsConfig, XYOpsEventConfig, XYOpsEventReference } from "./types";
+export type { XYOpsConfig, XYOpsEventConfig, XYOpsEventReference } from "./types";
 
 export const DEFAULT_HTTP_TIMEOUT_MS = 15_000;
 export const DEFAULT_POLL_INTERVAL_MS = 1_000;
@@ -110,10 +89,6 @@ const positiveMilliseconds: PositiveMilliseconds = (
   return raw ? parseDuration(raw, name) : fallback;
 };
 
-type IsInvalidDuration = (value: number) => boolean;
-const isInvalidDuration: IsInvalidDuration = (value) =>
-  [!Number.isFinite(value), value <= 0, value > 3_600_000].some(Boolean);
-
 type ValidateDuration = (value: number, name: string) => void;
 const validateDuration: ValidateDuration = (value, name) => {
   if (isInvalidDuration(value))
@@ -139,13 +114,6 @@ const parseBaseURL: ParseBaseURL = (value) => {
     });
   }
 };
-
-const HTTP_PROTOCOLS: Readonly<Record<string, true>> = {
-  "http:": true,
-  "https:": true,
-};
-type IsHTTPURL = (url: URL) => boolean;
-const isHTTPURL: IsHTTPURL = (url) => HTTP_PROTOCOLS[url.protocol] === true;
 
 type NormalizeBaseURL = (value: string) => string;
 const normalizeBaseURL: NormalizeBaseURL = (value) => {

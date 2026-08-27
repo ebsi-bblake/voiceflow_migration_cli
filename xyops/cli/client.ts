@@ -7,16 +7,11 @@ import {
   isXYOpsJobResponse,
   isXYOpsResponse,
   isXYOpsWaitResponse,
-  type EventParameters,
-  type ResponseGuard,
-  type XYOpsJob,
-  type XYOpsResponse,
-  type VoiceflowEnvelope,
-} from "./contracts";
-import type {
-  XYOpsConfig as ClientConfig,
-  XYOpsEventReference,
-} from "./config";
+  isRetryableStatus,
+  isSuccessfulCode,
+  isCompletedJob,
+} from "./guards";
+import type { EventParameters, ResponseGuard, XYOpsJob, XYOpsResponse, VoiceflowEnvelope, XYOpsConfig as ClientConfig, XYOpsEventReference, XYOpsClient } from "./types";
 
 const WAIT_PATH = "/api/app/run_event/v1/wait";
 const RUN_PATH = "/api/app/run_event/v1";
@@ -87,19 +82,6 @@ const fetchJSON: FetchJSON = async (
     });
   return bodyValue;
 };
-
-type IsRetryableStatus = (status: number) => boolean;
-const isRetryableStatus: IsRetryableStatus = (status) =>
-  status === 408 || status === 429 || status >= 500;
-
-type IsSuccessfulCode = (code: number | string) => boolean;
-const isSuccessfulCode: IsSuccessfulCode = (code) =>
-  code === 0 ||
-  code === 200 ||
-  code === "0" ||
-  code === "200" ||
-  code === "OK" ||
-  code === "ok";
 
 type ReadLaunchID = (response: XYOpsResponse, endpoint: string) => string;
 const readLaunchID: ReadLaunchID = (response, endpoint) => {
@@ -246,11 +228,6 @@ type CreateClientDependencies = Readonly<{
   sleeper?: Sleep;
 }>;
 
-export type XYOpsClient = Readonly<{
-  readEvent: ReadEvent;
-  executeEvent: ReadEvent;
-}>;
-
 type CreateXYOpsClient = (
   config: ClientConfig,
   dependencies?: CreateClientDependencies,
@@ -366,10 +343,6 @@ const isRetryableReadError: IsRetryableReadError = (error) =>
   (error.diagnostic.code === "timeout" ||
     error.diagnostic.code === "network" ||
     error.diagnostic.code === "http");
-
-type IsCompletedJob = (completed: boolean | number | null | undefined) => boolean;
-const isCompletedJob: IsCompletedJob = (completed) =>
-  completed === true || (typeof completed === "number" && completed > 0);
 
 type RequestJob = <T>(
   id: string,
