@@ -1,7 +1,11 @@
 {
   "name": "voiceflow-automation",
   "private": true,
+  "scripts": {
+    "lint": "oxlint xyops tests"
+  },
   "devDependencies": {
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "oxlint": "^1.80.0"
   }
 }
