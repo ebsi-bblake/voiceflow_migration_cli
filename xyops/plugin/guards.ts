@@ -4,8 +4,12 @@ import type { PluginOperation } from "./types";
 type RecordValue = Readonly<Record<string, unknown>>;
 
 type IsRecord = (value: unknown) => value is RecordValue;
-export const isRecord: IsRecord = (value): value is RecordValue =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const isObject = (value: unknown): value is object => typeof value === "object" && value !== null;
+const isArray = (value: unknown): value is readonly unknown[] => Array.isArray(value);
+export const isRecord: IsRecord = (value): value is RecordValue => {
+  if (!isObject(value)) return false;
+  return !isArray(value);
+};
 
 type IsNonEmptyString = (value: unknown) => value is string;
 export const isNonEmptyString: IsNonEmptyString = (value): value is string =>
@@ -14,6 +18,7 @@ export const isNonEmptyString: IsNonEmptyString = (value): value is string =>
 type IsPluginOperation = (value: unknown) => value is PluginOperation;
 export const isPluginOperation: IsPluginOperation = (
   value,
-): value is PluginOperation =>
-  typeof value === "string" &&
-  supportedPluginOperations.some((operation) => operation === value);
+): value is PluginOperation => {
+  if (typeof value !== "string") return false;
+  return supportedPluginOperations.some((operation) => operation === value);
+};

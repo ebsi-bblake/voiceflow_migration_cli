@@ -13,6 +13,11 @@ import { resolveVoiceflowAuth } from "../xyops/voiceflow/vf_auth";
 import { createUUID } from "../xyops/voiceflow/vf_uuid";
 
 type Output = { write: (value: string) => void };
+type RestoreGlobalDescriptor = (name: "atob" | "TextDecoder", descriptor: PropertyDescriptor | undefined) => void;
+const restoreGlobalDescriptor: RestoreGlobalDescriptor = (name, descriptor) => {
+  if (descriptor === undefined) Reflect.deleteProperty(globalThis, name);
+  else Object.defineProperty(globalThis, name, descriptor);
+};
 
 const fakeEnvelope = (operation: string): Promise<Envelope<unknown>> =>
   Promise.resolve(success(operation, `operation-${operation}`, { operation }));
@@ -271,20 +276,8 @@ describe("native XYOps event plugin boundary", () => {
 
       expect(status).toBe(0);
     } finally {
-      if (originalAtobDescriptor === undefined) {
-        Reflect.deleteProperty(globalThis, "atob");
-      } else {
-        Object.defineProperty(globalThis, "atob", originalAtobDescriptor);
-      }
-      if (originalTextDecoderDescriptor === undefined) {
-        Reflect.deleteProperty(globalThis, "TextDecoder");
-      } else {
-        Object.defineProperty(
-          globalThis,
-          "TextDecoder",
-          originalTextDecoderDescriptor,
-        );
-      }
+      restoreGlobalDescriptor("atob", originalAtobDescriptor);
+      restoreGlobalDescriptor("TextDecoder", originalTextDecoderDescriptor);
     }
 
     expect(JSON.parse(rendered)).toMatchObject({

@@ -7,16 +7,14 @@ const maxDiagnosticLength = 320;
 const maxErrorClassLength = 80;
 
 type ReadErrorClass = (error: unknown) => string;
-const readErrorClass: ReadErrorClass = (error) =>
-  error instanceof Error && error.name.trim() !== ""
-    ? error.name
-    : "UnknownError";
+const readErrorName = (error: unknown): string => error instanceof Error ? error.name : "UnknownError";
+const normalizeErrorName = (name: string): string => name.trim() === "" ? "UnknownError" : name;
+const readErrorClass: ReadErrorClass = (error) => normalizeErrorName(readErrorName(error));
 
 type ReadErrorMessage = (error: unknown) => string;
-const readErrorMessage: ReadErrorMessage = (error) =>
-  error instanceof Error && error.message.trim() !== ""
-    ? error.message
-    : "Unknown error";
+const readErrorText = (error: unknown): string => error instanceof Error ? error.message : "Unknown error";
+const normalizeErrorText = (message: string): string => message.trim() === "" ? "Unknown error" : message;
+const readErrorMessage: ReadErrorMessage = (error) => normalizeErrorText(readErrorText(error));
 
 type RemoveStackLines = (message: string) => string;
 const removeStackLines: RemoveStackLines = (message) =>
@@ -46,20 +44,29 @@ const redactSensitiveValues: RedactSensitiveValues = (message) =>
     .replace(/\b[A-Za-z0-9_-]{24,}\b/gu, "[REDACTED]");
 
 type SanitizeDiagnosticText = (value: string, limit: number) => string;
+const isControlCharacter = (character: string): boolean => {
+  const code = character.charCodeAt(0);
+  if (code <= 31) return true;
+  return code === 127;
+};
 const sanitizeDiagnosticText: SanitizeDiagnosticText = (value, limit) =>
   redactSensitiveValues(removeStackLines(value))
-    .replace(/[\u0000-\u001f\u007f]/gu, " ")
+    .split("").map((character) => isControlCharacter(character) ? " " : character).join("")
     .replace(/\s+/gu, " ")
     .trim()
     .slice(0, limit);
 
 type FormatPluginDiagnostic = (stage: PluginStage, error: unknown) => string;
+const fallbackDiagnosticValue = (value: string, fallback: string): string => {
+  if (value === "") return fallback;
+  return value;
+};
 export const formatPluginDiagnostic: FormatPluginDiagnostic = (stage, error) => {
   const errorClass = sanitizeDiagnosticText(
     readErrorClass(error),
     maxErrorClassLength,
   );
   const message = sanitizeDiagnosticText(readErrorMessage(error), maxDiagnosticLength);
-  return `stage=${stage} error=${errorClass || "UnknownError"} message=${message || "Unknown error"}`
+  return `stage=${stage} error=${fallbackDiagnosticValue(errorClass, "UnknownError")} message=${fallbackDiagnosticValue(message, "Unknown error")}`
     .slice(0, maxDiagnosticLength);
 };

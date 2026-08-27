@@ -6,36 +6,31 @@ import type { NativePluginJob, PluginOperation, PluginParameters } from "./types
 export { isPluginOperation } from "./guards";
 
 type SelectOperation = (params: PluginParameters) => PluginOperation;
-const selectOperation: SelectOperation = (params) => {
-  const selected = params.operation;
-  if (!isNonEmptyString(selected)) {
-    throw new PluginValidationFault(
-      "INVALID_INPUT",
-      "An operation parameter is required.",
-    );
-  }
-  if (!isPluginOperation(selected)) {
-    throw new PluginValidationFault(
-      "UNKNOWN_OPERATION",
-      "The requested operation is not supported.",
-    );
-  }
-  return selected;
+const requireOperationName = (value: unknown): string => {
+  if (!isNonEmptyString(value)) throw new PluginValidationFault("INVALID_INPUT", "An operation parameter is required.");
+  return value;
 };
+const requireSupportedOperation = (value: string): PluginOperation => {
+  if (!isPluginOperation(value)) throw new PluginValidationFault("UNKNOWN_OPERATION", "The requested operation is not supported.");
+  return value;
+};
+const selectOperation: SelectOperation = (params) => requireSupportedOperation(requireOperationName(params.operation));
 
 type ValidatePluginJob = (value: unknown) => NativePluginJob;
+const isPluginEventJob = (value: unknown): value is { readonly params: PluginParameters } => {
+  if (!isRecord(value)) return false;
+  return isEventRecord(value);
+};
+const isEventRecord = (value: Record<string, unknown>): value is { readonly params: PluginParameters } => {
+  if (value.xy !== 1) return false;
+  return isEventTypeRecord(value);
+};
+const isEventTypeRecord = (value: Record<string, unknown>): value is { readonly params: PluginParameters } => {
+  if (value.type !== "event") return false;
+  return isRecord(value.params);
+};
 export const validatePluginJob: ValidatePluginJob = (value) => {
-  if (
-    !isRecord(value) ||
-    value.xy !== 1 ||
-    value.type !== "event" ||
-    !isRecord(value.params)
-  ) {
-    throw new PluginValidationFault(
-      "INVALID_INPUT",
-      "The plugin input must be an XYOps event job with object-valued params.",
-    );
-  }
+  if (!isPluginEventJob(value)) throw new PluginValidationFault("INVALID_INPUT", "The plugin input must be an XYOps event job with object-valued params.");
   const params = value.params;
   const operation = selectOperation(params);
   return { params, operation };

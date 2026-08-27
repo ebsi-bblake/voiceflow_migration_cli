@@ -10,6 +10,11 @@ import {
 
 type PluginEnvironment = Readonly<Record<string, string | undefined>>;
 type PluginOutput = Pick<Writable, "write">;
+type WriteDiagnostic = (diagnostics: PluginOutput | undefined, diagnostic: string) => void;
+const writeDiagnostic: WriteDiagnostic = (diagnostics, diagnostic) => {
+  if (diagnostics === undefined) return;
+  diagnostics.write(`${diagnostic}\n`);
+};
 
 type BuildPluginResponse = (
   input: PluginInput,
@@ -34,7 +39,7 @@ export const buildPluginResponse: BuildPluginResponse = async (
     return mapVoiceflowEnvelope(envelope);
   } catch (error: unknown) {
     const diagnostic = formatPluginDiagnostic(stage, error);
-    diagnostics?.write(`${diagnostic}\n`);
+    writeDiagnostic(diagnostics, diagnostic);
     return mapPluginError(error, diagnostic);
   }
 };
