@@ -1,5 +1,10 @@
 # Voiceflow MCP agent scripts
 
+> **Historical / non-canonical:** This directory contains archived Windmill
+> agent scripts. It is not part of the active XYOps deployment. Do not deploy
+> these scripts for the current system; use the native plugin under
+> [`xyops/plugin/`](../xyops/plugin/) instead.
+
 Every script is deployed flat at the exact path
 `f/voiceflow/<filename-without-.ts>`. Relative extensionless imports are the
 intended supported structure when scripts are flat in the same Windmill folder.

@@ -1,14 +1,26 @@
-# XYOps Voiceflow runner image
+# Native XYOps Event Plugin for Voiceflow
 
-The active container entrypoint is `xyops/entry.ts`. The Bun builder bundles it
-and the runner modules into the Node-compatible ESM artifact
-`/opt/voiceflow/entry.mjs`. The final image contains that artifact and minimal
-image metadata only; it does not contain the TypeScript source, dependencies,
-archives, tests, or credentials.
+The active deployment is a custom XYOps Event Plugin implemented in
+`xyops/plugin/`. xySat launches its command-line process on the target server.
+The plugin is not a Docker image or container runner.
 
-## Supported runners
+## Plugin contract
 
-`RUNNER_NAME` selects the operation supplied by the XYOps Event:
+The plugin reads one JSON event job from stdin and writes one JSON response to
+stdout. stdout is reserved for the XYOps wire protocol; diagnostics must go to
+stderr. The process accepts an XYOps event job with object-valued `params` and
+an optional `secrets` object:
+
+```json
+{
+  "xy": 1,
+  "type": "event",
+  "params": { "operation": "check-session" },
+  "secrets": { "VOICEFLOW_JWT": "<provided-by-Secret-Vault>" }
+}
+```
+
+The canonical operation selector is `params.operation`. Supported operations are:
 
 ```text
 check-session
@@ -20,83 +32,118 @@ plan-migration
 execute-migration
 ```
 
-The image entrypoint is fixed to:
+The process returns one response envelope. A successful operation uses numeric
+code `0`; a Voiceflow operation failure uses its stable error code and includes
+the Voiceflow envelope under `data.voiceflow`:
+
+```json
+{
+  "xy": 1,
+  "complete": true,
+  "code": 0,
+  "data": {
+    "voiceflow": {
+      "ok": true,
+      "operation": "check-session",
+      "operationID": "<generated-operation-id>",
+      "result": "<operation-result>",
+      "warnings": []
+    }
+  }
+}
+```
+
+Malformed input, missing secrets, and unsupported operations return a protocol
+failure with a string `code` and safe `description`. These are repository
+contract examples; a live XYOps response still requires the target-server test.
+
+## Build the command-line artifact
+
+Build the Node-compatible CommonJS bundle from the repository root. XYOps may
+copy the result to an extensionless temporary path before invoking Node, so do
+not use an ESM output format:
+
+```sh
+bun build xyops/plugin/entrypoint.ts \
+  --target=node \
+  --format=cjs \
+  --outfile=dist/voiceflow-event-plugin.cjs
+```
+
+The output is a command-line program for a target server with a compatible Node
+runtime. Keep the generated artifact out of source control unless the
+deployment process explicitly versions build outputs.
+
+## Copy to the xySat target server
+
+Replace the host and installation path with the values approved for the target
+server. The copy and permission steps are examples of the target-server
+installation procedure:
+
+```sh
+ssh xyops-target 'install -d -m 0755 /opt/xyops'
+scp dist/voiceflow-event-plugin.cjs \
+  xyops-target:/opt/xyops/voiceflow-event-plugin
+ssh xyops-target \
+  'chmod 0755 /opt/xyops/voiceflow-event-plugin'
+```
+
+Install the artifact on the server where xySat runs. Record the artifact
+version or checksum using the target environment's release process.
+
+## Register the custom Event Plugin
+
+In XYOps, register a **custom Event Plugin** for the target xySat server. Set
+its command-line executable to:
 
 ```text
-node /opt/voiceflow/entry.mjs
+node /opt/xyops/voiceflow-event-plugin
 ```
 
-Do not replace the entrypoint or use a command argument to select an operation.
-Set `RUNNER_NAME` and the operation parameters as Event environment variables.
-`VOICEFLOW_JWT` must be supplied by the XYOps Event's runtime Secret binding;
-it is never passed as a Docker build argument and is not baked into the image.
+Configure the plugin to provide the event job on stdin, accept the single JSON
+response on stdout, and retain stderr as diagnostics. Do not add a wrapper that
+writes non-protocol text to stdout.
 
-## Pinned image inputs
+Use the XYOps Secret Vault for `VOICEFLOW_JWT`. Bind that secret to each Event
+execution under the `VOICEFLOW_JWT` name; never put it in the bundle, build
+arguments, committed files, or ordinary `params`.
 
-The Dockerfile pins the current multi-platform image indexes:
+Point each of the seven Events at this one plugin registration:
 
-```text
-oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da08ea6262ae30e
-node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
-```
+| Event title | `params.operation` |
+| --- | --- |
+| `voiceflow_check_session` | `check-session` |
+| `voiceflow_list_workspaces` | `list-workspaces` |
+| `voiceflow_list_projects` | `list-projects` |
+| `voiceflow_list_versions` | `list-versions` |
+| `voiceflow_list_folders` | `list-folders` |
+| `voiceflow_plan_migration` | `plan-migration` |
+| `voiceflow_execute_migration` | `execute-migration` |
 
-When updating either base image, update its tag and digest together. Verify
-that the digest is a multi-platform manifest containing both `linux/amd64` and
-`linux/arm64`; do not replace it with a mutable tag-only reference.
+The remaining operation parameters are the IDs and migration values documented
+by the CLI contract, including `SOURCE_WORKSPACE_ID`, `SOURCE_PROJECT_ID`,
+`SOURCE_VERSION_ID`, `DESTINATION_WORKSPACE_ID`, `DESTINATION_FOLDER_ID`,
+`TARGET_SCHEMA_VERSION`, `PLAN_ID`, and the literal boolean `CONFIRMED` for
+execution.
 
-## Build with buildx
+## Test the artifact
 
-Build and load one platform into the local Docker image store:
+Run the native plugin unit test and type check locally:
 
 ```sh
-docker buildx build \
-  --platform linux/amd64 \
-  --load \
-  -f Dockerfile.voiceflow \
-  -t voiceflow-runner:local-amd64 \
-  .
+bun test tests/xyops_event_plugin.test.ts
+bunx tsc --noEmit
 ```
 
-Use `--platform linux/arm64` and a different tag for a local arm64 image.
-`--load` accepts one platform at a time. To publish the combined manifest for
-both supported platforms, replace the placeholder owner and tag and use
-`--push`:
+For a protocol-only smoke check that does not contact Voiceflow, send an
+unsupported operation and confirm that one JSON response is produced with an
+`UNKNOWN_OPERATION` code and no echoed input:
 
 ```sh
-docker login ghcr.io
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  --push \
-  -f Dockerfile.voiceflow \
-  -t ghcr.io/OWNER/voiceflow-runner:TAG \
-  .
+printf '%s\n' '{"xy":1,"type":"event","params":{"operation":"not-supported"}}' \
+  | node dist/voiceflow-event-plugin.cjs
 ```
 
-After publishing, record the immutable digest reported by the registry and
-deploy `ghcr.io/OWNER/voiceflow-runner@sha256:<image-digest>` in XYOps when
-reproducible image selection is required. The base-image digests above pin the
-build inputs; the published image digest pins the deployable result.
-
-## XYOps Docker Plugin invocation
-
-Configure the XYOps Docker Plugin to start the published image without
-overriding its entrypoint. Each Event should provide `RUNNER_NAME`, the
-parameters for that operation, and the `VOICEFLOW_JWT` Secret binding at
-runtime. The plugin should capture the runner's single JSON envelope from
-stdout and retain stderr as diagnostic output without exposing environment
-values.
-
-A non-migration smoke invocation is:
-
-```sh
-export VOICEFLOW_JWT='injected-locally-for-this-check'
-docker run --rm \
-  --env RUNNER_NAME=check-session \
-  --env VOICEFLOW_JWT \
-  voiceflow-runner:local-amd64
-```
-
-`check-session` requires a valid runtime JWT and network access to the
-Voiceflow service. This invocation checks the container/event contract; it does
-not execute a migration. Never put a real JWT in a Dockerfile, image label,
-build argument, or committed command history.
+After registration, an operator must perform the live XYOps/xySat check with a
+Secret Vault binding and an approved safe Voiceflow session. Local tests do not
+prove live target-server registration, secret delivery, or Event job polling.

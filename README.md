@@ -1,18 +1,24 @@
 # Voiceflow migration on XYOps
 
-The active implementation is the XYOps runner tree under `xyops/voiceflow/`.
-Root-level Windmill scripts are no longer canonical or active.
+The active deployment is the native XYOps Event Plugin under `xyops/plugin/`.
+It is a command-line executable launched by xySat on the target server. The
+Voiceflow operation implementations remain under `xyops/voiceflow/`; the
+Docker image/container runner is not the active deployment.
 
 ## Active source
 
 - `xyops/voiceflow/` contains the Voiceflow contracts, transport adapters,
   catalog operations, planning, and migration runners.
-- `xyops/entry.ts` is the shared process entrypoint. It selects one registered
-  runner from `RUNNER_NAME` and emits the runner's envelope.
+- `xyops/plugin/` contains the native plugin contracts, stdin job validation,
+  operation dispatcher, wire-protocol mapping, and process entrypoints.
+- `xyops/plugin/process_entrypoint.ts` exports the testable process runner. The
+  executable `xyops/plugin/entrypoint.ts` reads one JSON job from stdin and emits
+  one XYOps JSON response on stdout. Diagnostics remain separate from the
+  protocol output.
 - `xyops/migration-cli.ts` is the local interactive CLI. It calls configured
   XYOps Events rather than importing the Voiceflow implementation directly.
 
-The shared entry registers these runners:
+The native plugin supports these operations:
 
 ```text
 check-session
@@ -24,33 +30,43 @@ plan-migration
 execute-migration
 ```
 
-## XYOps Events and runners
+## One plugin, seven XYOps Events
 
-Each XYOps Event invokes the shared `xyops/entry.ts` entrypoint with a
-`RUNNER_NAME` value and the operation's environment parameters. The entrypoint
-selects the corresponding runner from its registry. A runner exposes `run()`
-for a typed Promise result and `start()` for the process boundary; the latter
-serializes one success or failure envelope to stdout.
+All seven Events point to the same registered native plugin. Each Event supplies
+its operation through the `operation` parameter and retains the following title
+mapping:
 
-The default Event titles are:
+| Event title | `operation` |
+| --- | --- |
+| `voiceflow_check_session` | `check-session` |
+| `voiceflow_list_workspaces` | `list-workspaces` |
+| `voiceflow_list_projects` | `list-projects` |
+| `voiceflow_list_versions` | `list-versions` |
+| `voiceflow_list_folders` | `list-folders` |
+| `voiceflow_plan_migration` | `plan-migration` |
+| `voiceflow_execute_migration` | `execute-migration` |
 
-```text
-voiceflow_check_session
-voiceflow_list_workspaces
-voiceflow_list_projects
-voiceflow_list_versions
-voiceflow_list_folders
-voiceflow_plan_migration
-voiceflow_execute_migration
-```
-
-The CLI can override an Event by title or ID with `XYOPS_EVENT_*` environment
-variables. The Events provide `VOICEFLOW_JWT` through their configured Secret
-binding; the CLI does not request or send that secret.
+The CLI sends Event requests through the XYOps REST API and uses the
+`operation` parameter to select the Voiceflow operation. It can override an
+Event by title or ID with `XYOPS_EVENT_*` environment variables. The Events
+provide `VOICEFLOW_JWT` through their configured Secret Vault binding; the CLI
+does not request or send that secret.
 
 ## Build and local use
 
-Run the repository's TypeScript build/type-check command from the project root:
+Build the extensionless Node/CJS artifact from the project root:
+
+```sh
+bun build xyops/plugin/entrypoint.ts \
+  --target=node \
+  --format=cjs \
+  --outfile=dist/voiceflow-event-plugin.cjs
+```
+
+The configured XYOps command must invoke the copied artifact with Node, for
+example `node /opt/xyops/voiceflow-event-plugin`.
+
+Run the repository's TypeScript type-check command:
 
 ```sh
 bunx tsc --noEmit
@@ -66,6 +82,9 @@ bun run xyops/migration-cli.ts
 `XYOPS_BASE_URL` is optional and defaults to `http://localhost:5522`.
 `XYOPS_EVENT_*` variables accept `title:<event-title>` or `id:<event-id>`.
 After confirmation, the CLI performs a real Voiceflow export and import.
+
+See [`xyops/voiceflow/README.md`](xyops/voiceflow/README.md) for native plugin
+build, target-server installation, registration, and test procedures.
 
 ## Archived Windmill sources
 

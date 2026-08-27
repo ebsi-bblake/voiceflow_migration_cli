@@ -17,11 +17,12 @@ dependencies, priorities, risks, and audit log.
 ## Current tree status — XYOps-only
 
 This is the authoritative inventory for the current tree. The active source is
-`xyops/voiceflow/`, with `xyops/entry.ts` as the shared runner entrypoint and
-`xyops/migration-cli.ts` as the local XYOps Event client. `xyops/entry.ts`
-selects a registered runner from `RUNNER_NAME`; each runner exposes a typed
-`run()` Promise and a process-facing `start()` operation that emits an
-envelope.
+`xyops/voiceflow/` plus the native Event Plugin under `xyops/plugin/`.
+`xyops/plugin/entrypoint.ts` is the CommonJS command-line process launched by
+xySat; it reads one JSON job from stdin and emits one XYOps wire-protocol JSON
+response on stdout. `xyops/migration-cli.ts` remains the local XYOps Event
+client and uses the `operation` parameter. The Docker image/container runner is
+not the active deployment.
 
 The Windmill archive was committed separately from the active XYOps source:
 
@@ -43,6 +44,7 @@ The current tests under `tests/` are XYOps-focused:
 - `vf_execute_confirmation.test.ts`
 - `vf_folder_validation.test.ts`
 - `vf_http_retry_policy.test.ts`
+- `xyops_event_plugin.test.ts`
 
 The repository build/type-check command is `bunx tsc --noEmit`. Remaining
 deferred scope is Windmill deployment/parity maintenance for the archived
@@ -57,11 +59,11 @@ hardening. These are not reasons to reactivate the archived root files.
 | S1 | Modular contracts and infrastructure | archived root files under `archive/windmill_root/` (`archive/windmill_root/shared_contract_types.ts`, `archive/windmill_root/migration_diagnostics.ts`, `archive/windmill_root/jwt_authentication_context.ts`, `archive/windmill_root/http_api_client.ts`) | Shared migration types, diagnostics, JWT context, bounded HTTP | None | Recommend |
 | S2 | Modular catalog and Logux transport | archived root files under `archive/windmill_root/` (`archive/windmill_root/logux_websocket_transport.ts`, `archive/windmill_root/catalog_discovery_service.ts`) | Workspace/project/version/folder discovery | None | Recommend semantic FP composition |
 | S3 | Modular migration core | archived root files under `archive/windmill_root/` (`archive/windmill_root/export_project_api.ts`, `archive/windmill_root/import_project_api.ts`, `archive/windmill_root/project_api_key_retrieval.ts`, `archive/windmill_root/project_migration_orchestrator.ts`) | Export, import, API-key status, composed migration | None | Recommend |
-| S4 | Entrypoints and local CLI | historical root entrypoints (now under `archive/windmill_root/`), `xyops/migration-cli.ts` | Windmill `main`, `DynSelect_*`, interactive CLI | None | Skip simplification; hardening note |
-| S5 | MCP agent infrastructure | `xyops/voiceflow/vf_contracts.ts`, `vf_auth.ts`, `vf_http.ts`, `vf_logux.ts`, `vf_catalog.ts`, `vf_planning.ts` | Stable envelopes, authentication, catalog discovery, plan construction | Folder-only contract test | Recommend |
-| S6 | MCP agent operations | `vf_check_session.ts`, list tools, `vf_plan_migration.ts`, `vf_execute_migration.ts`, `vf_export.ts`, `vf_import.ts`, `vf_api_key.ts` | Seven MCP-facing `main` tools | Folder-only contract test | Recommend |
+| S4 | Entrypoints and local CLI | historical root entrypoints (now under `archive/windmill_root/`), `xyops/migration-cli.ts`, `xyops/plugin/entrypoint.ts`, `xyops/plugin/process_entrypoint.ts` | Historical Windmill `main`/`DynSelect_*`, interactive CLI, native Event Plugin process | `migration_cli_xyops.test.ts`, `xyops_event_plugin.test.ts` | Compatibility and protocol boundaries |
+| S5 | MCP agent infrastructure | `xyops/voiceflow/vf_contracts.ts`, `vf_auth.ts`, `vf_http.ts`, `vf_logux.ts`, `vf_catalog.ts`, `vf_planning.ts`; `xyops/plugin/contracts.ts`, `job_validation.ts`, `wire_protocol.ts` | Stable envelopes, authentication, catalog discovery, plan construction, native job and response validation | `vf_*` contract tests, `xyops_event_plugin.test.ts` | Maintained |
+| S6 | MCP agent operations | `xyops/voiceflow/vf_check_session.ts`, list tools, `vf_plan_migration.ts`, `vf_execute_migration.ts`, `vf_export.ts`, `vf_import.ts`, `vf_api_key.ts`; `xyops/plugin/operation_dispatch.ts` | Seven Voiceflow operations dispatched by the native plugin | `xyops_event_plugin.test.ts` plus operation tests | Maintained |
 | S7 | Standalone and compatibility implementations | `archive/windmill_root/migration_correct.ts`, `archive/windmill_root/migration_script_single_file.ts`, `archive/windmill_root/migrate_voiceflow_project.ts` | Historical alternative self-contained Windmill entrypoints | None | Recommend ownership clarification |
-| S8 | Tests | every `tests/*.ts` file | Production contracts, boundary effects, cleanup, and regression behavior | Self | Recommend targeted isolation/effect assertions |
+| S8 | Tests | every `tests/*.ts` file, including `tests/xyops_event_plugin.test.ts` | Production contracts, native stdin/stdout boundary, operation dispatch, cleanup, and regression behavior | Self | Maintained; extend live-gate coverage separately |
 | S9 | Documentation and project policy | `README.md`, `xyops/voiceflow/README.md`, `AGENTS.md` | Deployment inventories, contracts, operational policy | N/A | Recommend |
 
 No frontend application, generated `./wmill` module, package manifest,
