@@ -18,26 +18,25 @@ const VERSION_KINDS: readonly VersionKind[] = [
 
 type ToID = (row: RawRow) => string | undefined;
 const toID: ToID = (row) => {
-  const value = row.id ?? row._id;
-  if (typeof value !== "string" && typeof value !== "number") return undefined;
-  const id = String(value).trim();
-  return id || undefined;
+  return normalizeOptionalID(row.id ?? row._id);
 };
 
 type ToLabel = (row: RawRow, fallback: string) => string;
 const toLabel: ToLabel = (row, fallback) => {
-  for (const key of ["name", "title", "label"] as const) {
-    const value = row[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return fallback;
+  const candidate = ["name", "title", "label"].map((key) => row[key]).find(isNonEmptyString);
+  return candidate === undefined ? fallback : candidate.trim();
+};
+const isNonEmptyString = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  return value.trim() !== "";
 };
 
 type EnvironmentValues = (value: unknown) => readonly RawRow[];
 const environmentValues: EnvironmentValues = (value) => {
-  if (Array.isArray(value)) return value.filter(isRawRow);
-  return isRawRow(value) ? Object.values(value).filter(isRawRow) : [];
+  return Array.isArray(value) ? value.filter(isRawRow) : objectEnvironmentValues(value);
 };
+const objectEnvironmentValues = (value: unknown): readonly RawRow[] =>
+  isRawRow(value) ? Object.values(value).filter(isRawRow) : [];
 
 type ProjectEnvironment = (value: RawRow) => EnvironmentRecord;
 const projectEnvironment: ProjectEnvironment = (value) => {
@@ -45,27 +44,43 @@ const projectEnvironment: ProjectEnvironment = (value) => {
   const published = value.publishedVersionID;
   return {
     label: toLabel(value, "Environment"),
-    ...(typeof draft === "string" || typeof draft === "number"
-      ? { draftVersionID: String(draft) }
-      : {}),
-    ...(typeof published === "string" || typeof published === "number"
-      ? { publishedVersionID: String(published) }
-      : {}),
+    ...optionalVersion("draftVersionID", draft),
+    ...optionalVersion("publishedVersionID", published),
   };
 };
+const optionalVersion = (key: VersionField, value: unknown): Partial<EnvironmentRecord> => {
+  if (!isVersionValue(value)) return {};
+  return { [key]: String(value) };
+};
+const isVersionValue = (value: unknown): value is string | number =>
+  typeof value === "string" || typeof value === "number";
+
 
 type ProjectWorkspace = (value: unknown) => WorkspaceRecord | undefined;
 const projectWorkspace: ProjectWorkspace = (value) => {
-  if (!isRawRow(value)) return undefined;
+  return projectWorkspaceRow(isRawRow(value) ? value : undefined);
+};
+const projectWorkspaceRow = (value: RawRow | undefined): WorkspaceRecord | undefined => {
+  if (value === undefined) return undefined;
+  return projectWorkspaceIdentity(value);
+};
+const projectWorkspaceIdentity = (value: RawRow): WorkspaceRecord | undefined => {
   const id = toID(value);
-  return id === undefined ? undefined : { id, label: toLabel(value, id) };
+  if (id === undefined) return undefined;
+  return { id, label: toLabel(value, id) };
 };
 
 type NormalizeOptionalID = (value: unknown) => string | undefined;
 const normalizeOptionalID: NormalizeOptionalID = (value) => {
-  if (typeof value !== "string" && typeof value !== "number") return undefined;
+  return isStringOrNumber(value) ? normalizeID(value) : undefined;
+};
+const normalizeID = (value: string | number): string | undefined => {
   const normalized = String(value).trim();
-  return normalized || undefined;
+  return normalized === "" ? undefined : normalized;
+};
+const isStringOrNumber = (value: unknown): value is string | number => {
+  if (typeof value === "string") return true;
+  return typeof value === "number";
 };
 
 type ProjectEnvironments = (value: unknown) => readonly EnvironmentRecord[];
@@ -74,35 +89,52 @@ const projectEnvironments: ProjectEnvironments = (value) =>
 
 type ProjectProject = (value: unknown) => ProjectRecord | undefined;
 const projectProject: ProjectProject = (value) => {
-  if (!isRawRow(value)) return undefined;
-  const id = toID(value);
-  const workspaceID = normalizeOptionalID(value.workspaceID);
-  const environments = projectEnvironments(value.environments);
-  return id === undefined || workspaceID === undefined
-    ? undefined
-    : { id, label: toLabel(value, id), workspaceID, environments };
+  return projectProjectRow(isRawRow(value) ? value : undefined);
 };
+const projectProjectRow = (value: RawRow | undefined): ProjectRecord | undefined => {
+  if (value === undefined) return undefined;
+  return projectProjectRecord(value);
+};
+const projectProjectRecord = (value: RawRow): ProjectRecord | undefined => {
+  const ids = { id: toID(value), workspaceID: normalizeOptionalID(value.workspaceID) };
+  const environments = projectEnvironments(value.environments);
+  if (!hasProjectIDs(ids)) return undefined;
+  const { id, workspaceID } = ids;
+  return { id, label: toLabel(value, id), workspaceID, environments };
+};
+const hasProjectIDs = (
+  ids: { id: string | undefined; workspaceID: string | undefined },
+): ids is { id: string; workspaceID: string } =>
+  ids.id !== undefined && ids.workspaceID !== undefined;
 
 type ProjectFolder = (value: unknown) => FolderRecord | undefined;
 const projectFolder: ProjectFolder = (value) => {
-  if (!isRawRow(value)) return undefined;
-  const id = toID(value);
-  const workspaceID = normalizeOptionalID(value.workspaceID);
-  return id === undefined || workspaceID === undefined || !isNumericFolderID(id)
-    ? undefined
-    : { id, label: toLabel(value, id), workspaceID };
+  return projectFolderRow(isRawRow(value) ? value : undefined);
 };
+const projectFolderRow = (value: RawRow | undefined): FolderRecord | undefined => {
+  if (value === undefined) return undefined;
+  return projectFolderRecord(value);
+};
+const projectFolderRecord = (value: RawRow): FolderRecord | undefined => {
+  const ids = { id: toID(value), workspaceID: normalizeOptionalID(value.workspaceID) };
+  if (!isValidFolderProjection(ids)) return undefined;
+  const { id, workspaceID } = ids;
+  return { id, label: toLabel(value, id), workspaceID };
+};
+const isValidFolderProjection = (
+  ids: { id: string | undefined; workspaceID: string | undefined },
+): ids is { id: string; workspaceID: string } =>
+  [ids.id !== undefined, ids.workspaceID !== undefined, ids.id !== undefined && isNumericFolderID(ids.id)]
+    .every(Boolean);
 
 type ProjectRows = <T>(
   projector: (value: unknown) => T | undefined,
 ) => (rows: readonly unknown[]) => readonly T[];
 const projectRows: ProjectRows = (projector) => (rows) => {
-  const projectedRows = [];
-  for (const row of rows) {
+  return rows.flatMap((row) => {
     const projected = projector(row);
-    if (projected !== undefined) projectedRows.push(projected);
-  }
-  return projectedRows;
+    return projected === undefined ? [] : [projected];
+  });
 };
 
 type NormalizeIDAsync = (value: string) => Promise<string>;

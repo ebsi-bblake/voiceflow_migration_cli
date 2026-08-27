@@ -39,6 +39,9 @@ type ApiKeyCall = {
 
 function requestURL(input: RequestInfo | URL): string {
   if (typeof input === "string") return input;
+  return requestObjectURL(input);
+}
+function requestObjectURL(input: Request | URL): string {
   if (input instanceof URL) return input.href;
   return input.url;
 }
@@ -49,15 +52,7 @@ async function retrieveWithControlledFetch(
 ): Promise<ApiKeyCall> {
   const previousFetch = globalThis.fetch;
   const requests: FetchObservation[] = [];
-  globalThis.fetch = (async (input, init) => {
-    if (requests.length > 0) throw new Error("Unexpected repeated API-key request");
-    requests.push({
-      url: requestURL(input),
-      method: init?.method ?? "GET",
-      authorization: new Headers(init?.headers).get("Authorization"),
-    });
-    return new Response(body, { status: 200 });
-  }) as typeof fetch;
+  globalThis.fetch = controlledFetch(body, requests) as typeof fetch;
 
   try {
     const status = await retrieveApiKeyStatus(auth, projectID);
@@ -65,6 +60,29 @@ async function retrieveWithControlledFetch(
   } finally {
     globalThis.fetch = previousFetch;
   }
+}
+function controlledFetch(body: string, requests: FetchObservation[]) {
+  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    rejectRepeatedRequest(requests);
+    requests.push(fetchObservation(input, init));
+    return new Response(body, { status: 200 });
+  };
+}
+function rejectRepeatedRequest(requests: readonly FetchObservation[]): void {
+  if (requests.length > 0) throw new Error("Unexpected repeated API-key request");
+}
+function fetchObservation(input: RequestInfo | URL, init?: RequestInit): FetchObservation {
+  return { url: requestURL(input), method: requestMethod(init), authorization: requestAuthorization(init) };
+}
+function requestMethod(init?: RequestInit): string {
+  if (init === undefined) return "GET";
+  return requestMethodValue(init.method);
+}
+function requestMethodValue(method: string | undefined): string {
+  return method === undefined ? "GET" : method;
+}
+function requestAuthorization(init?: RequestInit): string | null {
+  return new Headers(init?.headers).get("Authorization");
 }
 
 function expectSanitizedStatus(

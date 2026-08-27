@@ -67,14 +67,14 @@ async function expectAuthenticationFailure(input: unknown): Promise<void> {
 }
 
 function catalogRows(type: string | undefined): readonly unknown[] {
-  if (type === "workspace.CRUD:REPLACE") {
-    return [
+  return requireCatalogRows(type);
+}
+const catalogRowsByType: Readonly<Record<string, readonly unknown[]>> = {
+  "workspace.CRUD:REPLACE": [
       { id: "source-workspace", name: "Source Workspace" },
       { id: "destination-workspace", name: "Destination Workspace" },
-    ];
-  }
-  if (type === "project.CRUD:REPLACE") {
-    return [
+  ],
+  "project.CRUD:REPLACE": [
       {
         id: "source-project",
         workspaceID: "source-workspace",
@@ -83,18 +83,22 @@ function catalogRows(type: string | undefined): readonly unknown[] {
           { name: "Development", draftVersionID: "source-version" },
         ],
       },
-    ];
-  }
-  if (type === "workspace-folder.REPLACE") {
-    return [
+  ],
+  "workspace-folder.REPLACE": [
       {
         id: 42,
         workspaceID: "destination-workspace",
         name: "Destination Folder",
       },
-    ];
-  }
-  throw new Error(`Unexpected catalog type: ${String(type)}`);
+  ],
+};
+function requireCatalogRows(type: string | undefined): readonly unknown[] {
+  return catalogRowsByKey(type === undefined ? "" : type, type);
+}
+function catalogRowsByKey(key: string, originalType: string | undefined): readonly unknown[] {
+  const rows = catalogRowsByType[key];
+  if (rows === undefined) throw new Error(`Unexpected catalog type: ${String(originalType)}`);
+  return rows;
 }
 
 function installIsolatedCatalogMock(): void {
@@ -142,13 +146,18 @@ function scenarioResultFromIsolatedProcess<Result>(
   const stderr = decode(child.stderr).trim();
   const stdout = decode(child.stdout).trim();
 
-  if (child.exitCode !== 0) {
-    throw new Error(
-      `Isolated ${scenario} scenario failed with exit ${child.exitCode}: ${stderr}`,
-    );
-  }
-  if (!stdout) throw new Error(`Isolated ${scenario} scenario returned no result`);
+  validateScenarioOutput(child.exitCode, stdout, scenario, stderr);
   return JSON.parse(stdout) as Result;
+}
+function validateScenarioOutput(exitCode: number, stdout: string, scenario: PlanningScenario, stderr: string): void {
+  validateScenarioExit(exitCode, scenario, stderr);
+  validateScenarioStdout(stdout, scenario);
+}
+function validateScenarioExit(exitCode: number, scenario: PlanningScenario, stderr: string): void {
+  if (exitCode !== 0) throw new Error(`Isolated ${scenario} scenario failed with exit ${exitCode}: ${stderr}`);
+}
+function validateScenarioStdout(stdout: string, scenario: PlanningScenario): void {
+  if (!stdout) throw new Error(`Isolated ${scenario} scenario returned no result`);
 }
 
 function planningScenarioFromIsolatedProcess(): PlanningScenarioResult {
@@ -157,6 +166,54 @@ function planningScenarioFromIsolatedProcess(): PlanningScenarioResult {
   cachedPlanningScenario =
     scenarioResultFromIsolatedProcess<PlanningScenarioResult>("catalog");
   return cachedPlanningScenario;
+}
+
+function registerMalformedTokenTests(): void {
+  for (const [name, input] of [
+    ["malformed token shape", "not-a-jwt"],
+    ["malformed token payload", "header.***.signature"],
+    ["non-string input", { token: encodeClaims({ sub: "creator" }) }],
+    ["Promise-valued input", Promise.resolve(encodeClaims({ sub: "creator" }))],
+  ] as const) {
+    test(`rejects ${name} through its Promise contract`, () => expectAuthenticationFailure(input));
+  }
+}
+
+function registerCreatorAliasTests(): void {
+  for (const alias of ["creatorID", "userID", "user_id", "sub"] as const) {
+    test(`accepts the ${alias} creator claim alias`, async () => {
+      const token = encodeClaims({ [alias]: `${alias}-value` });
+      await expect(resolveVoiceflowAuth(token)).resolves.toEqual({ token, creatorID: `${alias}-value` });
+    });
+  }
+}
+
+function registerValidCreatorIDTests(): void {
+  for (const creatorID of ["auth0|123456", "creator=id", "creator-id", "creator.id"]) {
+    test(`accepts creator ID ${creatorID}`, async () => {
+      const token = encodeClaims({ sub: creatorID });
+      await expect(resolveVoiceflowAuth(token)).resolves.toEqual({ token, creatorID });
+    });
+  }
+}
+
+function registerCreatorPrecedenceTests(): void {
+  for (const { claims, expected } of [
+    { claims: { creatorID: "creator-id", userID: "user-id", user_id: "user-id-alias", sub: "subject" }, expected: "creator-id" },
+    { claims: { userID: "user-id", user_id: "user-id-alias", sub: "subject" }, expected: "user-id" },
+    { claims: { user_id: "user-id-alias", sub: "subject" }, expected: "user-id-alias" },
+  ] as const) {
+    test(`uses ${expected} according to creator claim precedence`, async () => {
+      const token = encodeClaims(claims);
+      await expect(resolveVoiceflowAuth(token)).resolves.toMatchObject({ creatorID: expected });
+    });
+  }
+}
+
+function registerUnsafeCreatorIDTests(): void {
+  for (const creatorID of ["", "creator\nID", "creator/ID", "creator\\ID", "x".repeat(129)]) {
+    test(`rejects unsafe creator ID ${JSON.stringify(creatorID)}`, () => expectAuthenticationFailure(encodeClaims({ sub: creatorID })));
+  }
 }
 
 const requestedPlanningScenario =
@@ -189,74 +246,10 @@ if (requestedPlanningScenario !== undefined) {
       });
     });
 
-    for (const [name, input] of [
-      ["malformed token shape", "not-a-jwt"],
-      ["malformed token payload", "header.***.signature"],
-      ["non-string input", { token: encodeClaims({ sub: "creator" }) }],
-      ["Promise-valued input", Promise.resolve(encodeClaims({ sub: "creator" }))],
-    ] as const) {
-      test(`rejects ${name} through its Promise contract`, () =>
-        expectAuthenticationFailure(input));
-    }
-
-    for (const alias of ["creatorID", "userID", "user_id", "sub"] as const) {
-      test(`accepts the ${alias} creator claim alias`, async () => {
-        const token = encodeClaims({ [alias]: `${alias}-value` });
-
-        await expect(resolveVoiceflowAuth(token)).resolves.toEqual({
-          token,
-          creatorID: `${alias}-value`,
-        });
-      });
-    }
-
-    for (const creatorID of [
-      "auth0|123456",
-      "creator=id",
-      "creator-id",
-      "creator.id",
-    ]) {
-      test(`accepts creator ID ${creatorID}`, async () => {
-        const token = encodeClaims({ sub: creatorID });
-
-        await expect(resolveVoiceflowAuth(token)).resolves.toEqual({
-          token,
-          creatorID,
-        });
-      });
-    }
-
-    for (const { claims, expected } of [
-      {
-        claims: {
-          creatorID: "creator-id",
-          userID: "user-id",
-          user_id: "user-id-alias",
-          sub: "subject",
-        },
-        expected: "creator-id",
-      },
-      {
-        claims: {
-          userID: "user-id",
-          user_id: "user-id-alias",
-          sub: "subject",
-        },
-        expected: "user-id",
-      },
-      {
-        claims: { user_id: "user-id-alias", sub: "subject" },
-        expected: "user-id-alias",
-      },
-    ] as const) {
-      test(`uses ${expected} according to creator claim precedence`, async () => {
-        const token = encodeClaims(claims);
-
-        await expect(resolveVoiceflowAuth(token)).resolves.toMatchObject({
-          creatorID: expected,
-        });
-      });
-    }
+    registerMalformedTokenTests();
+    registerCreatorAliasTests();
+    registerValidCreatorIDTests();
+    registerCreatorPrecedenceTests();
 
     test("normalizes a numeric creator ID to a string", async () => {
       const token = encodeClaims({ creatorID: 42 });
@@ -273,16 +266,7 @@ if (requestedPlanningScenario !== undefined) {
       return expectAuthenticationFailure(token);
     });
 
-    for (const creatorID of [
-      "",
-      "creator\nID",
-      "creator/ID",
-      "creator\\ID",
-      "x".repeat(129),
-    ]) {
-      test(`rejects unsafe creator ID ${JSON.stringify(creatorID)}`, () =>
-        expectAuthenticationFailure(encodeClaims({ sub: creatorID })));
-    }
+    registerUnsafeCreatorIDTests();
   });
 
   describe("buildMigrationPlan functional contract", () => {

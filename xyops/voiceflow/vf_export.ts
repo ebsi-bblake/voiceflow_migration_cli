@@ -20,11 +20,7 @@ export const exportVersion: ExportVersion = async (auth, sourceVersionID) => {
     maxBytes: 50_000_000,
     timeoutMs: 30_000,
   });
-  if (response.status < 200 || response.status >= 300)
-    throw new OperationFault(
-      "DEPENDENCY_FAILURE",
-      isRetryableHttpStatus(response.status),
-    );
+  validateExportStatus(response.status);
   return {
     status: response.status,
     bytes: response.bytes,
@@ -32,3 +28,8 @@ export const exportVersion: ExportVersion = async (auth, sourceVersionID) => {
     contentType: "application/octet-stream",
   };
 };
+const validateExportStatus = (status: number): void => {
+  if (!isSuccessfulExportStatus(status))
+    throw new OperationFault("DEPENDENCY_FAILURE", isRetryableHttpStatus(status));
+};
+const isSuccessfulExportStatus = (status: number): boolean => status >= 200 && status < 300;

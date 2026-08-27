@@ -23,8 +23,10 @@ function installStatusResponse(status: number): void {
 }
 
 function expectedRetryability(status: number): boolean {
-  return status === 408 || status === 429 || (status >= 500 && status < 600);
+  return retryableStatuses.has(status) || isServerError(status);
 }
+const retryableStatuses = new Set([408, 429]);
+const isServerError = (status: number): boolean => status >= 500 && status < 600;
 
 function runCheckSessionScenario(status: number): unknown {
   installStatusResponse(status);

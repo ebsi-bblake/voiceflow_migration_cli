@@ -25,12 +25,12 @@ type NormalizeMigrationSelection = (
 export const normalizeMigrationSelection: NormalizeMigrationSelection = (
   input,
 ) => ({
-  sourceWorkspaceID: requireVoiceflowString(input?.sourceWorkspaceID),
-  sourceProjectID: requireVoiceflowString(input?.sourceProjectID),
-  sourceVersionID: requireVoiceflowString(input?.sourceVersionID),
-  destinationWorkspaceID: requireVoiceflowString(input?.destinationWorkspaceID),
-  destinationFolderID: requireVoiceflowString(input?.destinationFolderID),
-  targetSchemaVersion: requireVoiceflowString(input?.targetSchemaVersion),
+  sourceWorkspaceID: requireVoiceflowString(input.sourceWorkspaceID),
+  sourceProjectID: requireVoiceflowString(input.sourceProjectID),
+  sourceVersionID: requireVoiceflowString(input.sourceVersionID),
+  destinationWorkspaceID: requireVoiceflowString(input.destinationWorkspaceID),
+  destinationFolderID: requireVoiceflowString(input.destinationFolderID),
+  targetSchemaVersion: requireVoiceflowString(input.targetSchemaVersion),
 });
 
 type FindLabel = (options: readonly Option[], value: string) => string;

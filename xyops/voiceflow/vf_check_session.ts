@@ -17,20 +17,23 @@ type CheckSessionResult = {
 
 type SessionResult = (response: HttpBytes) => CheckSessionResult;
 const sessionResult: SessionResult = (response) => {
-  if (response.status === 401 || response.status === 403) {
+  if (loginRequiredStatus.has(response.status)) {
     return {
       active: false,
       loginRequired: true,
       loginUrl: "https://creator.empyrean.voiceflow.com/",
     };
   }
-  if (response.status < 200 || response.status >= 300)
-    throw new OperationFault(
-      "DEPENDENCY_FAILURE",
-      isRetryableHttpStatus(response.status),
-    );
+  return successfulSessionResult(response.status);
+};
+const successfulSessionResult = (status: number): CheckSessionResult => {
+  if (!isSuccessfulStatus(status)) throw dependencyFault(status);
   return { active: true };
 };
+const loginRequiredStatus = new Set([401, 403]);
+const isSuccessfulStatus = (status: number): boolean => status >= 200 && status < 300;
+const dependencyFault = (status: number): OperationFault =>
+  new OperationFault("DEPENDENCY_FAILURE", isRetryableHttpStatus(status));
 
 type Main = (token: string) => Promise<Envelope<CheckSessionResult>>;
 export const main: Main = async (token) => {

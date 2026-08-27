@@ -6,44 +6,58 @@ type Claims = Readonly<Record<string, unknown>>;
 export type { AuthContext } from "./types";
 
 type NormalizeVoiceflowToken = (input: unknown) => string;
+const isJWT = (token: string): boolean => token.split(".").length === 3;
 const normalizeVoiceflowToken: NormalizeVoiceflowToken = (input) => {
-  if (typeof input !== "string")
-    throw new OperationFault("AUTHENTICATION_FAILED");
+  if (typeof input !== "string") throw new OperationFault("AUTHENTICATION_FAILED");
   const token = input
     .trim()
     .replace(/^Bearer\s+/i, "")
     .trim();
-  if (!token || token.split(".").length !== 3)
-    throw new OperationFault("AUTHENTICATION_FAILED");
+  validateTokenShape(token);
   return token;
+};
+const validateTokenShape = (token: string): void => {
+  if (!token) throw new OperationFault("AUTHENTICATION_FAILED");
+  validateJWT(token);
+};
+const validateJWT = (token: string): void => {
+  if (!isJWT(token)) throw new OperationFault("AUTHENTICATION_FAILED");
 };
 
 type DecodeClaims = (token: string) => Claims;
 const decodeClaims: DecodeClaims = (token) => {
   try {
-    const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = part.padEnd(Math.ceil(part.length / 4) * 4, "=");
+    const part = token.split(".")[1];
+    const normalizedPart = part.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalizedPart.padEnd(Math.ceil(normalizedPart.length / 4) * 4, "=");
     const value: unknown = JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
-    if (!isClaims(value)) throw new Error();
-    return value;
+    return requireClaims(value);
   } catch {
     throw new OperationFault("AUTHENTICATION_FAILED");
   }
 };
+const requireClaims = (value: unknown): Claims => {
+  if (!isClaims(value)) throw new Error();
+  return value;
+};
 
 type ExtractCreatorID = (claims: Claims) => string;
 const extractCreatorID: ExtractCreatorID = (claims) => {
-  const value =
-    claims.creatorID ?? claims.userID ?? claims.user_id ?? claims.sub;
-  if (typeof value !== "string" && typeof value !== "number") {
-    throw new OperationFault("AUTHENTICATION_FAILED");
-  }
+  const value = [claims.creatorID, claims.userID, claims.user_id, claims.sub].find(
+    (candidate) => candidate !== undefined,
+  );
+  return validatedCreatorID(value);
+};
+const validatedCreatorID = (value: unknown): string => {
+  if (!isCreatorIDValue(value)) throw new OperationFault("AUTHENTICATION_FAILED");
   const rawCreatorID = String(value);
-  const creatorID = rawCreatorID.trim();
-  if (!isValidCreatorID(rawCreatorID)) {
-    throw new OperationFault("AUTHENTICATION_FAILED");
-  }
-  return creatorID;
+  validateCreatorID(rawCreatorID);
+  return rawCreatorID.trim();
+};
+const isCreatorIDValue = (value: unknown): value is string | number =>
+  typeof value === "string" || typeof value === "number";
+const validateCreatorID = (value: string): void => {
+  if (!isValidCreatorID(value)) throw new OperationFault("AUTHENTICATION_FAILED");
 };
 
 type AuthContextFromToken = (token: string) => AuthContext;

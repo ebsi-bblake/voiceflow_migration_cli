@@ -10,7 +10,7 @@ type RecordValue = Readonly<Record<string, unknown>>;
 type RequiredFolderID = (value: unknown) => string;
 const requiredFolderID: RequiredFolderID = (value) => {
   const folderID = requireVoiceflowString(value);
-  if (!/^\d+$/.test(folderID)) {
+  if (!isNumericFolder(folderID)) {
     throw new OperationFault("INVALID_ARGUMENT");
   }
   return folderID;
@@ -19,16 +19,26 @@ const requiredFolderID: RequiredFolderID = (value) => {
 type ValidFilename = (value: string) => string;
 const validFilename: ValidFilename = (value) => {
   const name = value.trim();
-  if (!/^[^/\\]+\.vf$/i.test(name) || name.includes(".."))
+  if (!isSafeFilename(name))
     throw new OperationFault("INVALID_ARGUMENT");
   return name;
+};
+const isNumericFolder = (value: string): boolean => /^\d+$/.test(value);
+const isSafeFilename = (value: string): boolean => {
+  if (!/^[^/\\]+\.vf$/i.test(value)) return false;
+  return !value.includes("..");
 };
 
 type PrimitiveID = (value: unknown) => string | undefined;
 const primitiveID: PrimitiveID = (value) => {
-  if (typeof value !== "string" && typeof value !== "number") return undefined;
+  if (!isPrimitiveID(value)) return undefined;
   const id = String(value).trim();
-  return id || undefined;
+  return nonEmptyID(id);
+};
+const nonEmptyID = (id: string): string | undefined => id === "" ? undefined : id;
+const isPrimitiveID = (value: unknown): value is string | number => {
+  if (typeof value === "string") return true;
+  return typeof value === "number";
 };
 
 type NestedProjectID = (row: RecordValue) => string | undefined;
@@ -46,10 +56,11 @@ type Receipt = (
 ) => ImportedReceipt;
 const receipt: Receipt = (value, status, bytes) => {
   if (!isRecord(value)) throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
-  const projectID =
-    primitiveID(value.projectID ?? value.projectId ?? value.id) ??
-    nestedProjectID(value);
-  if (!projectID) throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
+  return receiptFromRecord(value, status, bytes);
+};
+const receiptFromRecord = (value: RecordValue, status: number, bytes: number): ImportedReceipt => {
+  const projectID = projectIDFromRecord(value);
+  if (projectID === undefined) throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
   return {
     importStatus: status,
     importBytes: bytes,
@@ -59,6 +70,10 @@ const receipt: Receipt = (value, status, bytes) => {
     folderID: primitiveID(value.folderID),
   };
 };
+const projectIDFromRecord = (value: RecordValue): string | undefined =>
+  firstProjectID(value) ?? nestedProjectID(value);
+const firstProjectID = (value: RecordValue): string | undefined =>
+  [value.projectID, value.projectId, value.id].map(primitiveID).find((id) => id !== undefined);
 
 type ImportVersion = (
   auth: AuthContext,
@@ -74,22 +89,33 @@ export const importVersion: ImportVersion = async (
   destinationFolderID,
   targetSchemaVersion,
 ) => {
-  const workspace = requireVoiceflowString(destinationWorkspaceID);
-  const folder = requiredFolderID(destinationFolderID);
-  const schema = requireVoiceflowString(targetSchemaVersion);
-  if (artifact.bytes.byteLength > 50_000_000)
-    throw new OperationFault("INVALID_ARGUMENT");
+  const input = importInput(destinationWorkspaceID, destinationFolderID, targetSchemaVersion, artifact);
   const form = new FormData();
   form.append(
     "file",
     new Blob([artifact.bytes], { type: "application/octet-stream" }),
     validFilename(artifact.filename),
   );
-  form.append("targetSchemaVersion", schema);
-  form.append("folderID", folder);
-  let response: HttpBytes;
+  form.append("targetSchemaVersion", input.schema);
+  form.append("folderID", input.folder);
+  const response = await requestImportResponse(auth, input.workspace, form);
+  return parseImportResponse(response, artifact.bytes.byteLength);
+};
+
+type ImportInput = { readonly workspace: string; readonly folder: string; readonly schema: string };
+type ImportInputFactory = (workspace: string, folder: string, schema: string, artifact: ExportArtifact) => ImportInput;
+const importInput: ImportInputFactory = (workspace, folder, schema, artifact) => {
+  const normalizedWorkspace = requireVoiceflowString(workspace);
+  validateArtifactSize(artifact);
+  return { workspace: normalizedWorkspace, folder: requiredFolderID(folder), schema: requireVoiceflowString(schema) };
+};
+const validateArtifactSize = (artifact: ExportArtifact): void => {
+  if (artifact.bytes.byteLength > 50_000_000) throw new OperationFault("INVALID_ARGUMENT");
+};
+type RequestImportResponse = (auth: AuthContext, workspace: string, form: FormData) => Promise<HttpBytes>;
+const requestImportResponse: RequestImportResponse = async (auth, workspace, form) => {
   try {
-    response = await requestBytes({
+    return await requestBytes({
       url: `https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/import-file/${encodeURIComponent(workspace)}`,
       init: {
         method: "POST",
@@ -100,25 +126,31 @@ export const importVersion: ImportVersion = async (
       timeoutMs: 60_000,
     });
   } catch (error) {
-    if (
-      error instanceof OperationFault &&
-      (error.code === "DEPENDENCY_TIMEOUT" ||
-        error.code === "DEPENDENCY_FAILURE")
-    ) {
-      throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
-    }
-    throw error;
+    throw importRequestFault(error);
   }
-  if (isImportOutcomeUnknownStatus(response.status)) {
-    throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
-  }
-  if (response.status < 200 || response.status >= 300) {
-    throw new OperationFault("DEPENDENCY_FAILURE");
-  }
-  try {
-    const body: unknown = JSON.parse(new TextDecoder().decode(response.bytes));
-    return receipt(body, response.status, artifact.bytes.byteLength);
-  } catch {
-    throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
-  }
+};
+type ImportRequestFault = (error: unknown) => OperationFault | unknown;
+const importRequestFault: ImportRequestFault = (error) =>
+  isUnknownImportDependency(error) ? new OperationFault("IMPORT_OUTCOME_UNKNOWN") : error;
+const isUnknownImportDependency = (error: unknown): error is OperationFault => {
+  if (!(error instanceof OperationFault)) return false;
+  return ["DEPENDENCY_TIMEOUT", "DEPENDENCY_FAILURE"].includes(error.code);
+};
+
+type ParseImportResponse = (response: HttpBytes, bytes: number) => ImportedReceipt;
+const parseImportResponse: ParseImportResponse = (response, bytes) => {
+  validateImportStatus(response.status);
+  return receipt(parseImportBody(response.bytes), response.status, bytes);
+};
+const validateImportStatus = (status: number): void => {
+  if (isImportOutcomeUnknownStatus(status)) throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
+  ensureSuccessfulStatus(status);
+};
+const ensureSuccessfulStatus = (status: number): void => {
+  if (!isSuccessfulStatus(status)) throw new OperationFault("DEPENDENCY_FAILURE");
+};
+const isSuccessfulStatus = (status: number): boolean => status >= 200 && status < 300;
+const parseImportBody = (bytes: ArrayBuffer): unknown => {
+  try { return JSON.parse(new TextDecoder().decode(bytes)); }
+  catch { throw new OperationFault("IMPORT_OUTCOME_UNKNOWN"); }
 };

@@ -76,17 +76,25 @@ export const main: Main = async (
   sourceVersionID,
   destinationWorkspaceID,
   destinationFolderID,
-  targetSchemaVersion = "13.1",
-  confirmed = false,
+  targetSchemaVersion,
+  confirmed,
 ) => {
   const operationID = createUUID();
-  if (!isConfirmationGranted(confirmed)) {
-    return failure(
-      "execute-migration",
-      operationID,
-      new OperationFault("CONFIRMATION_REQUIRED"),
-    );
-  }
+  return isConfirmationGranted(normalizeConfirmation(confirmed))
+    ? executeConfirmedMigration(
+    token, planID, sourceWorkspaceID, sourceProjectID, sourceVersionID,
+    destinationWorkspaceID, destinationFolderID, normalizeSchemaVersion(targetSchemaVersion), operationID,
+      )
+    : failure("execute-migration", operationID, new OperationFault("CONFIRMATION_REQUIRED"));
+};
+const normalizeConfirmation = (confirmed: boolean | undefined): boolean => confirmed ?? false;
+const normalizeSchemaVersion = (version: string | undefined): string => version ?? "13.1";
+
+const executeConfirmedMigration = async (
+  token: string, planID: string, sourceWorkspaceID: string, sourceProjectID: string,
+  sourceVersionID: string, destinationWorkspaceID: string, destinationFolderID: string,
+  targetSchemaVersion: string, operationID: string,
+): Promise<Envelope<ExecuteResult>> => {
   try {
     const auth = await resolveVoiceflowAuth(token);
     const selection = migrationSelection(
@@ -98,13 +106,7 @@ export const main: Main = async (
       targetSchemaVersion,
     );
     const plan = await buildMigrationPlan(auth, selection);
-    if (plan.planID !== planID) {
-      return failure(
-        "execute-migration",
-        operationID,
-        new OperationFault("PLAN_MISMATCH"),
-      );
-    }
+    ensureMatchingPlan(plan.planID, planID);
     const artifact = await exportVersion(auth, sourceVersionID);
     const imported = await importVersion(
       auth,
@@ -133,4 +135,7 @@ export const main: Main = async (
   } catch (error) {
     return failure("execute-migration", operationID, error);
   }
-}
+};
+const ensureMatchingPlan = (actualPlanID: string, expectedPlanID: string): void => {
+  if (actualPlanID !== expectedPlanID) throw new OperationFault("PLAN_MISMATCH");
+};
