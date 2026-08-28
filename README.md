@@ -54,13 +54,31 @@ does not request or send that secret.
 
 ## Build and local use
 
+### Nix development shell
+
+The flake supports `x86_64-linux`, `aarch64-linux`, and `aarch64-darwin`.
+Enter the shell and install the committed Bun lockfile dependencies:
+
+```sh
+nix develop
+bun --version
+node --version
+bun install --frozen-lockfile
+```
+
+The exact Bun patch version follows the pinned nixpkgs revision in
+`flake.lock`. From the shell, run the repository checks with:
+
+```sh
+bun run typecheck
+bun run test
+bun run check
+```
+
 Build the extensionless Node/CJS artifact from the project root:
 
 ```sh
-bun build xyops/plugin/entrypoint.ts \
-  --target=node \
-  --format=cjs \
-  --outfile=dist/voiceflow-event-plugin.cjs
+bun run build:plugin
 ```
 
 The configured XYOps command must invoke the copied artifact with Node, for
@@ -69,7 +87,7 @@ example `node /opt/xyops/voiceflow-event-plugin`.
 Run the repository's TypeScript type-check command:
 
 ```sh
-bunx tsc --noEmit
+bun run typecheck
 ```
 
 Run the local CLI with an XYOps API key:

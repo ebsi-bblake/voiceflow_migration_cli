@@ -64,10 +64,7 @@ copy the result to an extensionless temporary path before invoking Node, so do
 not use an ESM output format:
 
 ```sh
-bun build xyops/plugin/entrypoint.ts \
-  --target=node \
-  --format=cjs \
-  --outfile=dist/voiceflow-event-plugin.cjs
+bun run build:plugin
 ```
 
 The output is a command-line program for a target server with a compatible Node
@@ -131,8 +128,9 @@ execution.
 Run the native plugin unit test and type check locally:
 
 ```sh
-bun test tests/xyops_event_plugin.test.ts
-bunx tsc --noEmit
+bun run typecheck
+bun run test -- tests/xyops_event_plugin.test.ts
+bun run check
 ```
 
 For a protocol-only smoke check that does not contact Voiceflow, send an
