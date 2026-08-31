@@ -67,6 +67,8 @@ const responseShape = (response: XYOpsResponse): Readonly<Record<string, unknown
   topLevelKeys: recordShape(response),
   dataType: dataType(response.data),
   dataKeys: recordShape(response.data),
+  jobType: Array.isArray(response.job) ? "array" : typeof response.job,
+  jobKeys: recordShape(response.job),
   nestedJobKeys: nestedJobShape(response.data),
 });
 
