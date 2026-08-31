@@ -83,7 +83,8 @@ export const readJobResponse = (response: XYOpsResponse, endpoint: string): XYOp
 };
 
 type XYOpsJobResult = Readonly<{
-  code: number | string;
+  code?: number | string;
+  state?: string;
   description?: string;
   output?: string | null;
   data?: unknown;
@@ -132,10 +133,13 @@ export const requireSuccessfulJob = (
   endpoint: string,
   fallback: string,
 ): XYOpsJobResult => {
-  if (!isSuccessfulCode(job.code))
+  if (!hasSuccessfulJobCode(job))
     throw fail("job", { endpoint, nextAction: describeFailure(job, fallback) });
   return job;
 };
+
+const hasSuccessfulJobCode = (job: XYOpsJobResult): boolean =>
+  job.code !== undefined && isSuccessfulCode(job.code);
 
 const parseJobOutput = (output: string, endpoint: string): unknown => {
   try {

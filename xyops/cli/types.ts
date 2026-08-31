@@ -49,8 +49,11 @@ export type NativePluginResponse = Readonly<{
 }>;
 export type XYOpsLaunchResponse = XYOpsResponse & Readonly<{ id: string }>;
 export type XYOpsJob = Readonly<{
+  id?: string;
+  state?: string;
+  progress?: number;
   completed?: boolean | number | null;
-  code: number | string;
+  code?: number | string;
   description?: string;
   output?: string | null;
   data?: unknown;

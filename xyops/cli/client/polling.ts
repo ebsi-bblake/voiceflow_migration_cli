@@ -1,6 +1,6 @@
 import { asCliError, fail, type CliError } from "../diagnostics";
 import { isCompletedJob, normalizeVoiceflowResponse } from "../guards";
-import type { EventParameters, ResponseGuard, VoiceflowEnvelope, XYOpsConfig, XYOpsEventReference } from "../types";
+import type { EventParameters, ResponseGuard, VoiceflowEnvelope, XYOpsConfig, XYOpsEventReference, XYOpsJob } from "../types";
 import { type Request, type Sleep } from "./http";
 import { readJobOutput, readJobResponse, readWaitResponseData, requireEnvelope, requireSuccessfulJob } from "./job-response";
 
@@ -61,7 +61,7 @@ const retryRead = <T>(
 };
 
 const completeJob = <T>(
-  job: Readonly<{ code: number | string; output?: string | null; data?: unknown; description?: string }>,
+  job: XYOpsJob,
   guard: ResponseGuard<VoiceflowEnvelope<T>>,
 ): VoiceflowEnvelope<T> => {
   const result = normalizeVoiceflowResponse(

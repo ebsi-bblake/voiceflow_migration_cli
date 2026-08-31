@@ -6,7 +6,7 @@ import {
   isOptionResult,
   isVoiceflowEnvelope,
 } from "../xyops/cli/guards";
-import { run } from "../xyops/migration-cli";
+import { run } from "../xyops/cli/index";
 import {
   executeParameters,
   listFoldersParameters,
@@ -56,6 +56,7 @@ const requestURL = (input: RequestInfo | URL): string => String(input);
 const firstRequest = <T>(requests: readonly T[]): T | undefined => requests[0];
 const requiredRequest = <T>(requests: readonly T[]): T => { const request = firstRequest(requests); if (request === undefined) throw new Error("Expected request"); return request; };
 const readOnlyResponse = (): Response => new Response(JSON.stringify({ code: 0, job: { id: "job-1", code: 0, completed: 1787683968.928, output: `${JSON.stringify({ ok: true, operation: "list-projects", operationID: "operation-1", result: { options: [{ value: "project-1", label: "Project 1" }] }, warnings: [] })}\n`, data: null } }), { status: 200, headers: { "content-type": "application/json" } });
+
 const recordingReadFetcher = (requests: Array<{ url: string; body: string; headers: Headers }>) => (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => { requests.push({ url: requestURL(input), body: requestBody(init), headers: requestHeaders(init) }); return Promise.resolve(readOnlyResponse()); };
 const optionEnvelopeResponse = (): Response => new Response(JSON.stringify({ code: 0, job: { id: "job-1", code: 0, completed: true, data: { ok: true, operation: "check-session", operationID: "operation-1", result: { options: [{ value: "workspace-1", label: "Workspace 1" }] }, warnings: [] } } }), { status: 200 });
 const firstBodyJSON = (requests: readonly string[]): Record<string, unknown> => JSON.parse(firstRequest(requests) ?? "{}");
@@ -206,6 +207,42 @@ describe("XYOps CLI adapter", () => {
 
     expect(firstBodyJSON(requests)).toMatchObject({ id: "event-check" });
     expect(firstBodyJSON(requests)).not.toHaveProperty("title");
+  });
+
+  test("reads a job nested under the get_job data envelope", async () => {
+    const client = createXYOpsClient(config, {
+      fetcher: async () =>
+        new Response(
+          JSON.stringify({
+            code: 0,
+            data: {
+              job: {
+                id: "job-nested",
+                code: 0,
+                completed: true,
+                data: {
+                  ok: true,
+                  operation: "execute-migration",
+                  operationID: "operation-nested",
+                  result: {},
+                  warnings: [],
+                },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+    });
+
+    await expect(
+      client.executeEvent(
+        "event-execute",
+        { operation: "execute-migration", CONFIRMED: true },
+        isVoiceflowEnvelope((value): value is Readonly<Record<string, unknown>> =>
+          typeof value === "object" && value !== null,
+        ),
+      ),
+    ).resolves.toMatchObject({ ok: true, operation: "execute-migration" });
   });
 
   test("falls back to job data when output is empty", async () => {
@@ -387,6 +424,57 @@ describe("XYOps CLI adapter", () => {
       diagnostic: { code: "execute-outcome-unknown" },
     });
     expect(dispatchCount).toBe(1);
+  });
+
+  // The fixture intentionally models dispatch, active, and completed protocol states.
+  // oxlint-disable-next-line complexity
+  const nativeJobResponse = (path: string, requestCount: number): Response => {
+    if (path === "/api/app/run_event/v1")
+      return new Response(JSON.stringify({ code: 0, id: "native-job" }));
+    if (requestCount === 2)
+      return new Response(JSON.stringify({
+        code: 0,
+        job: { id: "native-job", state: "active", progress: 0 },
+      }));
+    return new Response(JSON.stringify({
+      code: 0,
+      job: {
+        id: "native-job",
+        state: "complete",
+        completed: 1787683968.928,
+        code: 0,
+        output: JSON.stringify({
+          ok: true,
+          operation: "execute-migration",
+          operationID: "operation-native-complete",
+          result: {},
+          warnings: [],
+        }),
+      },
+    }));
+  };
+
+  test("accepts the native XYOps active job DTO before completion", async () => {
+    let requestCount = 0;
+    const client = createXYOpsClient(config, {
+      sleeper: () => Promise.resolve(),
+      fetcher: async (input) => {
+        requestCount += 1;
+        return nativeJobResponse(new URL(String(input)).pathname, requestCount);
+      },
+    });
+
+    await expect(
+      client.executeEvent(
+        "event-execute",
+        { operation: "execute-migration" },
+        isVoiceflowEnvelope(() => true),
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      operation: "execute-migration",
+    });
+    expect(requestCount).toBe(3);
   });
 
   test("dispatches execute once and polls native plugin output until completion", async () => {

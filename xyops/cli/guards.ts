@@ -59,6 +59,8 @@ const hasCode = (value: Readonly<Record<string, unknown>>): boolean =>
   [typeof value.code === "number", typeof value.code === "string"].some(
     Boolean,
   );
+const hasJobCodeOrState = (value: Readonly<Record<string, unknown>>): boolean =>
+  [hasCode(value), isNonEmptyString(value.state)].some(Boolean);
 const hasDescription = (value: Readonly<Record<string, unknown>>): boolean =>
   [!("description" in value), typeof value.description === "string"].some(
     Boolean,
@@ -130,7 +132,7 @@ export const isXYOpsJob: IsXYOpsJob = (value) =>
   satisfiesRecord<XYOpsJob>(value, (record) =>
     all([
       validCompleted(record),
-      hasCode(record),
+      hasJobCodeOrState(record),
       hasDescription(record),
       validOutput(record),
     ]),
