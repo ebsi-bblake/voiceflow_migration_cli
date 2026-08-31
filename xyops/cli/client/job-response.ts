@@ -54,9 +54,31 @@ const findResponseJob = (response: XYOpsResponse): XYOpsJob | undefined => {
   return readJobContainer(response.data);
 };
 
+const recordShape = (value: unknown): readonly string[] =>
+  isRecord(value) ? Object.keys(value).sort() : [];
+
+const dataType = (value: unknown): string =>
+  Array.isArray(value) ? "array" : typeof value;
+
+const nestedJobShape = (value: unknown): readonly string[] =>
+  isRecord(value) ? recordShape(value.job) : [];
+
+const responseShape = (response: XYOpsResponse): Readonly<Record<string, unknown>> => ({
+  topLevelKeys: recordShape(response),
+  dataType: dataType(response.data),
+  dataKeys: recordShape(response.data),
+  nestedJobKeys: nestedJobShape(response.data),
+});
+
+const logInvalidJobResponseShape = (response: XYOpsResponse): void => {
+  if (process.env.XYOPS_DEBUG_RESPONSE_SHAPE !== "1") return;
+  console.error("[xyops] invalid get_job response shape", responseShape(response));
+};
+
 export const readJobResponse = (response: XYOpsResponse, endpoint: string): XYOpsJob => {
   const job = findResponseJob(response);
   if (job !== undefined) return job;
+  logInvalidJobResponseShape(response);
   throw fail("job", { endpoint, nextAction: "XYOps returned an invalid job response." });
 };
 
