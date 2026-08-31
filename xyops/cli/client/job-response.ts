@@ -63,12 +63,34 @@ const dataType = (value: unknown): string =>
 const nestedJobShape = (value: unknown): readonly string[] =>
   isRecord(value) ? recordShape(value.job) : [];
 
+// Debug-only status logging is intentionally bounded and type-oriented.
+// oxlint-disable-next-line complexity
+const safeStatusValue = (value: unknown): unknown => {
+  if (value === null || typeof value === "number" || typeof value === "boolean")
+    return value;
+  if (typeof value === "string") return value.slice(0, 80);
+  return typeof value;
+};
+
+// oxlint-disable-next-line complexity
+const jobStatusShape = (value: unknown): Readonly<Record<string, unknown>> =>
+  isRecord(value)
+    ? {
+        state: safeStatusValue(value.state),
+        progress: safeStatusValue(value.progress),
+        started: safeStatusValue(value.started),
+        updated: safeStatusValue(value.updated),
+        activityType: Array.isArray(value.activity) ? "array" : typeof value.activity,
+      }
+    : {};
+
 const responseShape = (response: XYOpsResponse): Readonly<Record<string, unknown>> => ({
   topLevelKeys: recordShape(response),
   dataType: dataType(response.data),
   dataKeys: recordShape(response.data),
   jobType: Array.isArray(response.job) ? "array" : typeof response.job,
   jobKeys: recordShape(response.job),
+  jobStatus: jobStatusShape(response.job),
   nestedJobKeys: nestedJobShape(response.data),
 });
 
