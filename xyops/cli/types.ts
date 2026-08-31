@@ -55,7 +55,8 @@ export type XYOpsJob = Readonly<{
   output?: string | null;
   data?: unknown;
 }>;
-export type XYOpsJobResponse = XYOpsResponse & Readonly<{ job: XYOpsJob & Readonly<{ id: string }> }>;
+export type XYOpsJobResponse = XYOpsResponse &
+  Readonly<{ job: XYOpsJob & Readonly<{ id: string }> }>;
 export type XYOpsWaitJob = Readonly<{
   id: string;
   code: number | string;
@@ -64,7 +65,11 @@ export type XYOpsWaitJob = Readonly<{
   data?: unknown;
   completed?: boolean | number | null;
 }>;
-export type XYOpsWaitResponse = Readonly<{ code: number | string; description?: string; job: XYOpsWaitJob }>;
+export type XYOpsWaitResponse = Readonly<{
+  code: number | string;
+  description?: string;
+  job: XYOpsWaitJob;
+}>;
 export type ExecuteResult = Readonly<{
   planID: string;
   exportStatus: number;
@@ -86,7 +91,10 @@ export type XYOpsEventConfig = Readonly<{
   planMigration: XYOpsEventReference;
   executeMigration: XYOpsEventReference;
 }>;
-export type XYOpsEventReference = string | Readonly<{ id: string }> | Readonly<{ title: string }>;
+export type XYOpsEventReference =
+  | string
+  | Readonly<{ id: string }>
+  | Readonly<{ title: string }>;
 export type XYOpsConfig = Readonly<{
   baseURL: string;
   apiKey: string;
@@ -104,7 +112,16 @@ export type MigrationState = Readonly<{
   targetSchemaVersion: string;
   planID?: string;
 }>;
-export type CliDiagnosticCode = "configuration" | "network" | "timeout" | "http" | "api" | "envelope" | "job" | "execute-outcome-unknown" | "invalid-input";
+export type CliDiagnosticCode =
+  | "configuration"
+  | "network"
+  | "timeout"
+  | "http"
+  | "api"
+  | "envelope"
+  | "job"
+  | "execute-outcome-unknown"
+  | "invalid-input";
 export type CliDiagnostic = Readonly<{
   code: CliDiagnosticCode;
   endpoint: string;
@@ -113,6 +130,14 @@ export type CliDiagnostic = Readonly<{
   nextAction: string;
 }>;
 export type XYOpsClient = Readonly<{
-  readEvent: <T>(eventReference: XYOpsEventReference, params: EventParameters, envelopeGuard: ResponseGuard<VoiceflowEnvelope<T>>) => Promise<VoiceflowEnvelope<T>>;
-  executeEvent: <T>(eventReference: XYOpsEventReference, params: EventParameters, envelopeGuard: ResponseGuard<VoiceflowEnvelope<T>>) => Promise<VoiceflowEnvelope<T>>;
+  readEvent: <T>(
+    eventReference: XYOpsEventReference,
+    params: EventParameters,
+    envelopeGuard: ResponseGuard<VoiceflowEnvelope<T>>,
+  ) => Promise<VoiceflowEnvelope<T>>;
+  executeEvent: <T>(
+    eventReference: XYOpsEventReference,
+    params: EventParameters,
+    envelopeGuard: ResponseGuard<VoiceflowEnvelope<T>>,
+  ) => Promise<VoiceflowEnvelope<T>>;
 }>;

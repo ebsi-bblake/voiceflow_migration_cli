@@ -1,61 +1,21 @@
-import { resolveVoiceflowAuth } from "./vf_auth";
-import { exportVersion } from "./vf_export";
-import { importVersion } from "./vf_import";
-import { retrieveApiKeyStatus } from "./vf_api_key";
-import { buildMigrationPlan } from "./vf_planning";
+import { resolveVoiceflowAuth } from "../vf_auth";
+import { exportVersion } from "../vf_export";
+import { importVersion } from "../vf_import";
+import { retrieveApiKeyStatus } from "../vf_api_key";
+import { buildMigrationPlan } from "../vf_planning";
 import {
   failure,
   OperationFault,
   success,
-} from "./vf_contracts";
-import { isConfirmationGranted } from "./guards";
-import type { Envelope, ExecuteResult, MigrationSelection, Warning } from "./types";
-import { createUUID } from "./vf_uuid";
+} from "../vf_contracts";
+import { isConfirmationGranted } from "../guards";
+import type { Envelope, ExecuteResult } from "../types";
+import { createUUID } from "../vf_uuid";
 
-export type { ExecuteResult } from "./types";
+export type { ExecuteResult } from "../types";
 
-type MigrationSelectionForArguments = (
-  sourceWorkspaceID: string,
-  sourceProjectID: string,
-  sourceVersionID: string,
-  destinationWorkspaceID: string,
-  destinationFolderID: string,
-  targetSchemaVersion: string,
-) => MigrationSelection;
-const migrationSelection: MigrationSelectionForArguments = (
-  sourceWorkspaceID,
-  sourceProjectID,
-  sourceVersionID,
-  destinationWorkspaceID,
-  destinationFolderID,
-  targetSchemaVersion,
-) => {
-  return {
-    sourceWorkspaceID,
-    sourceProjectID,
-    sourceVersionID,
-    destinationWorkspaceID,
-    destinationFolderID,
-    targetSchemaVersion,
-  };
-};
-
-type ExecuteWarnings = (apiKeyRetrieved: boolean) => Warning[];
-const executeWarnings: ExecuteWarnings = (apiKeyRetrieved) => {
-  const warnings: Warning[] = [
-    {
-      code: "NOT_IDEMPOTENT",
-      message: "Import is not idempotent; do not retry blindly.",
-    },
-  ];
-  if (!apiKeyRetrieved) {
-    warnings.push({
-      code: "API_KEY_RETRIEVAL_FAILED",
-      message: "Project API key could not be retrieved.",
-    });
-  }
-  return warnings;
-};
+import { migrationSelection } from "./arguments";
+import { executeWarnings } from "./warnings";
 
 type Main = (
   token: string,

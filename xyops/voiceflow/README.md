@@ -71,23 +71,6 @@ The output is a command-line program for a target server with a compatible Node
 runtime. Keep the generated artifact out of source control unless the
 deployment process explicitly versions build outputs.
 
-## Copy to the xySat target server
-
-Replace the host and installation path with the values approved for the target
-server. The copy and permission steps are examples of the target-server
-installation procedure:
-
-```sh
-ssh xyops-target 'install -d -m 0755 /opt/xyops'
-scp dist/voiceflow-event-plugin.cjs \
-  xyops-target:/opt/xyops/voiceflow-event-plugin
-ssh xyops-target \
-  'chmod 0755 /opt/xyops/voiceflow-event-plugin'
-```
-
-Install the artifact on the server where xySat runs. Record the artifact
-version or checksum using the target environment's release process.
-
 ## Register the custom Event Plugin
 
 In XYOps, register a **custom Event Plugin** for the target xySat server. Set

@@ -1,0 +1,96 @@
+import { fail, type CliError } from "../diagnostics";
+import { isRetryableStatus, isSuccessfulCode, isXYOpsResponse } from "../guards";
+import type { XYOpsResponse } from "../types";
+
+export type Sleep = (milliseconds: number) => Promise<void>;
+export type RequestBody = Readonly<Record<string, unknown>>;
+export type Request = (
+  path: string,
+  body: RequestBody,
+  endpoint: string,
+) => Promise<XYOpsResponse>;
+
+const isAbortError = (error: unknown): boolean =>
+  error instanceof DOMException && error.name === "AbortError";
+
+const toFetchError = (error: unknown, endpoint: string): CliError =>
+  fail(isAbortError(error) ? "timeout" : "network", {
+    endpoint,
+    retryable: true,
+  });
+
+const fetchRequest = async (
+  fetcher: typeof fetch,
+  url: string,
+  apiKey: string,
+  body: RequestBody,
+  timeoutMs: number,
+  endpoint: string,
+): Promise<Response> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  return fetcher(url, {
+    method: "POST",
+    headers: { "content-type": "application/json", "X-API-Key": apiKey },
+    body: JSON.stringify(body),
+    signal: controller.signal,
+  })
+    .catch((error) => Promise.reject(toFetchError(error, endpoint)))
+    .finally(() => clearTimeout(timeout));
+};
+
+const requireHTTPResponse = (response: Response, endpoint: string): Response => {
+  if (!response.ok)
+    throw fail("http", {
+      endpoint,
+      status: response.status,
+      retryable: isRetryableStatus(response.status),
+    });
+  return response;
+};
+
+const parseJSONResponse = async (
+  response: Response,
+  endpoint: string,
+): Promise<unknown> =>
+  response.json().catch(() =>
+    Promise.reject(
+      fail("api", {
+        endpoint,
+        nextAction: "XYOps returned an invalid JSON response.",
+      }),
+    )
+  );
+
+const requireXYOpsResponse = (value: unknown, endpoint: string): XYOpsResponse => {
+  if (!isXYOpsResponse(value))
+    throw fail("api", { endpoint, nextAction: "XYOps returned an invalid response." });
+  return value;
+};
+
+const requireSuccessfulResponse = (value: XYOpsResponse, endpoint: string): XYOpsResponse => {
+  if (!isSuccessfulCode(value.code))
+    throw fail("api", { endpoint, nextAction: "XYOps rejected the migration event." });
+  return value;
+};
+
+const validateAPIResponse = (value: unknown, endpoint: string): XYOpsResponse =>
+  requireSuccessfulResponse(requireXYOpsResponse(value, endpoint), endpoint);
+
+export const fetchJSON = async (
+  fetcher: typeof fetch,
+  url: string,
+  apiKey: string,
+  body: RequestBody,
+  timeoutMs: number,
+  endpoint: string,
+): Promise<XYOpsResponse> => {
+  const response = requireHTTPResponse(
+    await fetchRequest(fetcher, url, apiKey, body, timeoutMs, endpoint),
+    endpoint,
+  );
+  return validateAPIResponse(await parseJSONResponse(response, endpoint), endpoint);
+};
+
+export const defaultSleep: Sleep = (milliseconds) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));

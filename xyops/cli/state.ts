@@ -1,23 +1,38 @@
-import type { EventParameterValue, EventParameters, MigrationSelection, Option } from "./types";
+import type {
+  EventParameterValue,
+  EventParameters,
+  MigrationSelection,
+  Option,
+} from "./types";
 import { isEventParameterEntry } from "./guards";
 import type { MigrationState } from "./types";
 export type { MigrationState } from "./types";
 
 type InitialMigrationState = () => MigrationState;
-export const initialMigrationState: InitialMigrationState = () => ({ targetSchemaVersion: "13.1" });
+export const initialMigrationState: InitialMigrationState = () => ({
+  targetSchemaVersion: "13.1",
+});
 
 type SetStateValue = <K extends keyof MigrationState>(
   state: MigrationState,
   key: K,
   value: MigrationState[K],
 ) => MigrationState;
-export const setStateValue: SetStateValue = (state, key, value) => ({ ...state, [key]: value });
+export const setStateValue: SetStateValue = (state, key, value) => ({
+  ...state,
+  [key]: value,
+});
 
-type RequireStateValue = (state: MigrationState, key: keyof MigrationState) => string;
-const isPresentStateValue = (value: unknown): value is string => typeof value === "string" && value.trim() !== "";
+type RequireStateValue = (
+  state: MigrationState,
+  key: keyof MigrationState,
+) => string;
+const isPresentStateValue = (value: unknown): value is string =>
+  typeof value === "string" && value.trim() !== "";
 export const requireStateValue: RequireStateValue = (state, key) => {
   const value = state[key];
-  if (!isPresentStateValue(value)) throw new Error(`Missing state value: ${key}`);
+  if (!isPresentStateValue(value))
+    throw new Error(`Missing state value: ${key}`);
   return value;
 };
 
@@ -31,14 +46,21 @@ export const stateSelection: StateSelection = (state) => ({
   targetSchemaVersion: requireStateValue(state, "targetSchemaVersion"),
 });
 
-type ChooseOptionValue = (options: readonly Option[], index: number) => string | undefined;
-export const chooseOptionValue: ChooseOptionValue = (options, index) => options[index]?.value;
+type ChooseOptionValue = (
+  options: readonly Option[],
+  index: number,
+) => string | undefined;
+export const chooseOptionValue: ChooseOptionValue = (options, index) =>
+  options[index]?.value;
 
 type EventParametersFor = (
   operation: string,
   values?: Readonly<Record<string, EventParameterValue | undefined>>,
 ) => EventParameters;
-export const eventParametersFor: EventParametersFor = (operation, values = {}) =>
+export const eventParametersFor: EventParametersFor = (
+  operation,
+  values = {},
+) =>
   Object.fromEntries(
     Object.entries({ operation, ...values } as Record<
       string,
@@ -51,8 +73,12 @@ export const listWorkspacesParameters: ListWorkspacesParameters = () =>
   eventParametersFor("list-workspaces");
 
 type ListProjectsParameters = (sourceWorkspaceID: string) => EventParameters;
-export const listProjectsParameters: ListProjectsParameters = (sourceWorkspaceID) =>
-  eventParametersFor("list-projects", { SOURCE_WORKSPACE_ID: sourceWorkspaceID });
+export const listProjectsParameters: ListProjectsParameters = (
+  sourceWorkspaceID,
+) =>
+  eventParametersFor("list-projects", {
+    SOURCE_WORKSPACE_ID: sourceWorkspaceID,
+  });
 
 type ListVersionsParameters = (
   sourceWorkspaceID: string,
@@ -67,8 +93,12 @@ export const listVersionsParameters: ListVersionsParameters = (
     SOURCE_PROJECT_ID: sourceProjectID,
   });
 
-type ListFoldersParameters = (destinationWorkspaceID: string) => EventParameters;
-export const listFoldersParameters: ListFoldersParameters = (destinationWorkspaceID) =>
+type ListFoldersParameters = (
+  destinationWorkspaceID: string,
+) => EventParameters;
+export const listFoldersParameters: ListFoldersParameters = (
+  destinationWorkspaceID,
+) =>
   eventParametersFor("list-folders", {
     DESTINATION_WORKSPACE_ID: destinationWorkspaceID,
   });
@@ -84,7 +114,10 @@ export const planParameters: PlanParameters = (selection) =>
     TARGET_SCHEMA_VERSION: selection.targetSchemaVersion,
   });
 
-type ExecuteParameters = (selection: MigrationSelection, planID: string) => EventParameters;
+type ExecuteParameters = (
+  selection: MigrationSelection,
+  planID: string,
+) => EventParameters;
 export const executeParameters: ExecuteParameters = (selection, planID) =>
   eventParametersFor("execute-migration", {
     PLAN_ID: planID,

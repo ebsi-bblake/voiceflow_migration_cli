@@ -1,4 +1,3 @@
-import { createHash } from "crypto";
 import {
   folderOptions,
   loadFolders,
@@ -11,13 +10,11 @@ import {
   type FolderRecord,
   type ProjectRecord,
   type WorkspaceRecord,
-} from "./vf_catalog";
-import type { AuthContext } from "./vf_auth";
-import {
-  OperationFault,
-} from "./vf_contracts";
-import type { MigrationPlan, MigrationSelection } from "./types";
-import { requireVoiceflowString } from "./vf_validation";
+} from "../vf_catalog";
+import type { AuthContext } from "../vf_auth";
+import { OperationFault } from "../vf_contracts";
+import type { MigrationPlan, MigrationSelection } from "../types";
+import { requireVoiceflowString } from "../vf_validation";
 
 type NormalizeMigrationSelection = (
   input: MigrationSelection,
@@ -40,20 +37,7 @@ const findLabel: FindLabel = (options, value) => {
   return option.label;
 };
 
-type FormatPlanID = (bytes: Uint8Array) => string;
-const formatPlanID: FormatPlanID = (bytes) =>
-  [...bytes]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("")
-    .slice(0, 24);
-
-type PlanID = (selection: MigrationSelection) => Promise<string>;
-const planID: PlanID = (selection) => {
-  const bytes = new TextEncoder().encode(JSON.stringify(selection));
-  return Promise.resolve().then(() =>
-    formatPlanID(createHash("sha256").update(bytes).digest()),
-  );
-};
+import { planID } from "./plan-id";
 
 type CatalogSnapshot = readonly [
   readonly WorkspaceRecord[],
@@ -64,8 +48,8 @@ type CatalogSnapshot = readonly [
 type LoadCatalogForSelection = (
   auth: AuthContext,
 ) => (selection: MigrationSelection) => Promise<CatalogSnapshot>;
-const loadCatalogForSelection: LoadCatalogForSelection = (auth) =>
-  (selection) =>
+const loadCatalogForSelection: LoadCatalogForSelection =
+  (auth) => (selection) =>
     Promise.all([
       loadWorkspaces(auth),
       loadProjects(auth, selection.sourceWorkspaceID),
@@ -77,7 +61,8 @@ type CreatePlanFromCatalog = (
   catalog: CatalogSnapshot,
 ) => (planID: string) => MigrationPlan;
 const createPlanFromCatalog: CreatePlanFromCatalog =
-  (selection, [workspaces, projects, folders]) => (planID) => {
+  (selection, [workspaces, projects, folders]) =>
+  (planID) => {
     const workspaceChoices = workspaceOptions(workspaces);
     const projectChoices = projectOptions(selection.sourceWorkspaceID)(
       projects,
@@ -86,9 +71,9 @@ const createPlanFromCatalog: CreatePlanFromCatalog =
       selection.sourceWorkspaceID,
       selection.sourceProjectID,
     )(projects);
-    const folderChoices = folderOptions(
-      selection.destinationWorkspaceID,
-    )(folders);
+    const folderChoices = folderOptions(selection.destinationWorkspaceID)(
+      folders,
+    );
     return {
       planID,
       selection,
@@ -120,11 +105,10 @@ const planCatalogSelection: PlanCatalogSelection = (selection) => (catalog) =>
 type BuildPlanFromSelection = (
   auth: AuthContext,
 ) => (selection: MigrationSelection) => Promise<MigrationPlan>;
-const buildPlanFromSelection: BuildPlanFromSelection = (auth) =>
-  (selection) =>
-    loadCatalogForSelection(auth)(selection).then(
-      planCatalogSelection(selection),
-    );
+const buildPlanFromSelection: BuildPlanFromSelection = (auth) => (selection) =>
+  loadCatalogForSelection(auth)(selection).then(
+    planCatalogSelection(selection),
+  );
 
 type BuildMigrationPlan = (
   auth: AuthContext,

@@ -1,0 +1,163 @@
+import { fail } from "../diagnostics";
+import {
+  isJobLaunch,
+  isRecord,
+  isSuccessfulCode,
+  isXYOpsJob,
+  isXYOpsJobResponse,
+  isXYOpsLaunchResponse,
+  isXYOpsWaitResponse,
+} from "../guards";
+import type { ResponseGuard, VoiceflowEnvelope, XYOpsJob, XYOpsResponse } from "../types";
+
+const hasResponseData = (
+  response: XYOpsResponse,
+): response is XYOpsResponse & { data: unknown } => "data" in response;
+
+const recordChildren = (value: unknown): readonly unknown[] =>
+  isRecord(value) ? [value.job, value.data] : [];
+
+const readJobValue = (value: unknown): XYOpsJob | undefined =>
+  isXYOpsJob(value) ? value : undefined;
+
+const readJobContainer = (value: unknown): XYOpsJob | undefined =>
+  [value, ...recordChildren(value)]
+    .map(readJobValue)
+    .find((job): job is XYOpsJob => job !== undefined);
+
+const readTopLaunchID = (response: XYOpsResponse): string | undefined =>
+  isXYOpsLaunchResponse(response) ? response.id : undefined;
+
+const readDataLaunchID = (response: XYOpsResponse): string | undefined => {
+  if (!hasResponseData(response)) return undefined;
+  return [response.data, ...recordChildren(response.data)]
+    .map((value) => (isJobLaunch(value) ? value.id : undefined))
+    .find((id): id is string => id !== undefined);
+};
+
+export const readLaunchID = (response: XYOpsResponse, endpoint: string): string => {
+  const id = [readTopLaunchID(response), readDataLaunchID(response)].find(
+    (candidate) => candidate !== undefined,
+  );
+  if (id !== undefined) return id;
+  throw fail("execute-outcome-unknown", {
+    endpoint,
+    nextAction: "The execute dispatch outcome is unknown; reconcile before retrying.",
+  });
+};
+
+// XYOps has two supported response envelopes for jobs.
+// oxlint-disable-next-line complexity
+const findResponseJob = (response: XYOpsResponse): XYOpsJob | undefined => {
+  if (isXYOpsJobResponse(response)) return response.job;
+  if (!hasResponseData(response)) return undefined;
+  return readJobContainer(response.data);
+};
+
+export const readJobResponse = (response: XYOpsResponse, endpoint: string): XYOpsJob => {
+  const job = findResponseJob(response);
+  if (job !== undefined) return job;
+  throw fail("job", { endpoint, nextAction: "XYOps returned an invalid job response." });
+};
+
+type XYOpsJobResult = Readonly<{
+  code: number | string;
+  description?: string;
+  output?: string | null;
+  data?: unknown;
+}>;
+
+const MAX_FAILURE_DESCRIPTION_LENGTH = 240;
+
+const hasSensitiveDetail = (value: string): boolean =>
+  [
+    /\b(?:api[\s_-]*key|access[\s_-]*token|password|secret|authorization|bearer|credential)\b/i,
+    /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/,
+    /\b[A-Za-z0-9_-]{40,}\b/,
+  ].some((pattern) => pattern.test(value));
+
+const selectFailureDetail = (job: XYOpsJobResult): string | undefined =>
+  [job.description, job.output].find(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+
+const normalizeFailureDetail = (value: string): string =>
+  value.replace(/[^\x20-\x7e]+/g, " ").replace(/\s+/g, " ").trim();
+
+// These checks intentionally guard against accidentally exposing structured or secret data.
+// oxlint-disable-next-line complexity
+const isUnsafeFailureDetail = (value: string): boolean =>
+  !value || value.startsWith("{") || value.startsWith("[") || hasSensitiveDetail(value);
+
+const boundFailureDetail = (value: string): string =>
+  value.length <= MAX_FAILURE_DESCRIPTION_LENGTH
+    ? value
+    : `${value.slice(0, MAX_FAILURE_DESCRIPTION_LENGTH - 1).trimEnd()}…`;
+
+// Failure descriptions are sanitized before crossing the CLI boundary.
+// oxlint-disable-next-line complexity
+const describeFailure = (job: XYOpsJobResult, fallback: string): string => {
+  const detail = selectFailureDetail(job);
+  if (detail === undefined) return fallback;
+  const normalized = normalizeFailureDetail(detail);
+  return isUnsafeFailureDetail(normalized)
+    ? "XYOps reported a job failure."
+    : boundFailureDetail(normalized);
+};
+
+export const requireSuccessfulJob = (
+  job: XYOpsJobResult,
+  endpoint: string,
+  fallback: string,
+): XYOpsJobResult => {
+  if (!isSuccessfulCode(job.code))
+    throw fail("job", { endpoint, nextAction: describeFailure(job, fallback) });
+  return job;
+};
+
+const parseJobOutput = (output: string, endpoint: string): unknown => {
+  try {
+    return JSON.parse(output) as unknown;
+  } catch {
+    throw fail("job", {
+      endpoint,
+      nextAction: "XYOps returned malformed job output.",
+    });
+  }
+};
+
+const hasReadableOutput = (job: XYOpsJobResult): job is XYOpsJobResult & { output: string } =>
+  typeof job.output === "string" && job.output.trim().length > 0;
+
+// Output may be encoded as JSON text or returned in the data field.
+// oxlint-disable-next-line complexity
+export const readJobOutput = (job: XYOpsJobResult, endpoint: string): unknown => {
+  if (hasReadableOutput(job)) return parseJobOutput(job.output, endpoint);
+  if ("data" in job) return job.data;
+  throw fail("job", { endpoint, nextAction: "XYOps returned empty job output." });
+};
+
+export const readWaitResponseData = (response: XYOpsResponse, endpoint: string): unknown => {
+  if (!isXYOpsWaitResponse(response))
+    throw fail("api", {
+      endpoint,
+      nextAction: "XYOps returned an invalid wait response.",
+    });
+  return readJobOutput(
+    requireSuccessfulJob(response.job, endpoint, "The migration event job failed."),
+    endpoint,
+  );
+};
+
+export const requireEnvelope = <T>(
+  data: unknown,
+  guard: ResponseGuard<VoiceflowEnvelope<T>>,
+  endpoint: string,
+): VoiceflowEnvelope<T> => {
+  if (!guard(data))
+    throw fail("envelope", {
+      endpoint,
+      nextAction: "The migration runner returned an invalid envelope.",
+    });
+  return data;
+};
