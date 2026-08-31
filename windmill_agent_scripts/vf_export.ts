@@ -10,10 +10,26 @@ export type ExportArtifact = {
 const EXPORT_URL =
   "https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/export-json";
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function parseSourceVersionID(value: unknown): string {
-  if (typeof value !== "string" || !value.trim())
+  if (!isNonEmptyString(value))
     throw new OperationFault("INVALID_ARGUMENT");
   return value.trim();
+}
+
+function isUnsuccessfulStatus(status: number): boolean {
+  return status < 200 || status >= 300;
+}
+
+function validateExportStatus(status: number): void {
+  if (isUnsuccessfulStatus(status))
+    throw new OperationFault(
+      "DEPENDENCY_FAILURE",
+      isRetryableHttpStatus(status),
+    );
 }
 
 export async function exportVersion(
@@ -27,11 +43,7 @@ export async function exportVersion(
     maxBytes: 50_000_000,
     timeoutMs: 30_000,
   });
-  if (response.status < 200 || response.status >= 300)
-    throw new OperationFault(
-      "DEPENDENCY_FAILURE",
-      isRetryableHttpStatus(response.status),
-    );
+  validateExportStatus(response.status);
   return {
     status: response.status,
     bytes: response.bytes,

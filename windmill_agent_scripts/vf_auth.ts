@@ -1,43 +1,95 @@
 import { OperationFault } from "./vf_contracts";
+
 export type AuthContext = { token: string; creatorID: string };
-async function acquireVoiceflowToken(input: unknown): Promise<string> {
+type Claims = Record<string, unknown>;
+
+function requireTokenInput(input: unknown): string {
   if (typeof input !== "string")
     throw new OperationFault("AUTHENTICATION_FAILED");
-  const token = input
-    .trim()
-    .replace(/^Bearer\s+/i, "")
-    .trim();
-  if (!token || token.split(".").length !== 3)
+  return input.trim().replace(/^Bearer\s+/i, "").trim();
+}
+
+function isJWTShape(token: string): boolean {
+  return token.length > 0 && token.split(".").length === 3;
+}
+
+async function acquireVoiceflowToken(input: unknown): Promise<string> {
+  const token = requireTokenInput(input);
+  if (!isJWTShape(token))
     throw new OperationFault("AUTHENTICATION_FAILED");
   return token;
 }
-function decodeClaims(token: string): Record<string, unknown> {
+
+function decodePayload(token: string): string {
+  const part = token.split(".")[1];
+  const normalized = part.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  return new TextDecoder().decode(
+    Uint8Array.from(atob(padded), (character) => character.charCodeAt(0)),
+  );
+}
+
+function isObject(value: unknown): value is object {
+  return typeof value === "object" && value !== null;
+}
+
+function isClaims(value: unknown): value is Claims {
+  return isObject(value) && !Array.isArray(value);
+}
+
+function requireClaims(value: unknown): Claims {
+  if (!isClaims(value)) throw new Error();
+  return value;
+}
+
+function decodeClaims(token: string): Claims {
   try {
-    const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = part.padEnd(Math.ceil(part.length / 4) * 4, "=");
-    const bytes = Uint8Array.from(atob(padded), (character) =>
-      character.charCodeAt(0),
-    );
-    const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
-    if (!value || typeof value !== "object" || Array.isArray(value))
-      throw new Error();
-    return value as Record<string, unknown>;
+    return requireClaims(JSON.parse(decodePayload(token)));
   } catch {
     throw new OperationFault("AUTHENTICATION_FAILED");
   }
 }
-function extractCreatorID(claims: Record<string, unknown>): string {
-  const value =
-    claims.creatorID ?? claims.userID ?? claims.user_id ?? claims.sub;
-  if (typeof value !== "string" && typeof value !== "number") {
+
+function isPresentClaim(value: unknown): boolean {
+  return value !== undefined && value !== null;
+}
+
+function readCreatorClaim(claims: Claims): unknown {
+  return [claims.creatorID, claims.userID, claims.user_id, claims.sub].find(
+    isPresentClaim,
+  );
+}
+
+function isCreatorID(value: unknown): value is string | number {
+  return typeof value === "string" || typeof value === "number";
+}
+
+function isValidCreatorID(value: string): boolean {
+  return /^[A-Za-z0-9_-]{1,128}$/.test(value);
+}
+
+function requireCreatorIDValue(value: unknown): string | number {
+  if (!isCreatorID(value))
     throw new OperationFault("AUTHENTICATION_FAILED");
-  }
-  const creatorID = String(value).trim();
-  if (!/^[A-Za-z0-9_-]{1,128}$/.test(creatorID)) {
+  return value;
+}
+
+function requireValidCreatorID(creatorID: string): string {
+  if (!isValidCreatorID(creatorID))
     throw new OperationFault("AUTHENTICATION_FAILED");
-  }
   return creatorID;
 }
+
+function requireCreatorID(value: unknown): string {
+  return requireValidCreatorID(
+    String(requireCreatorIDValue(value)).trim(),
+  );
+}
+
+function extractCreatorID(claims: Claims): string {
+  return requireCreatorID(readCreatorClaim(claims));
+}
+
 export async function resolveVoiceflowAuth(
   input: unknown,
 ): Promise<AuthContext> {

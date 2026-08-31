@@ -61,54 +61,44 @@ function isConfirmationGranted(confirmed: unknown): confirmed is true {
   return confirmed === true;
 }
 
-export async function main(
-  token: string,
-  planID: string,
-  sourceWorkspaceID: string,
-  sourceProjectID: string,
-  sourceVersionID: string,
-  destinationWorkspaceID: string,
-  destinationFolderID: string,
-  targetSchemaVersion = "13.1",
-  confirmed = false,
+type ExecuteMigrationInput = Readonly<{
+  token: string;
+  planID: string;
+  sourceWorkspaceID: string;
+  sourceProjectID: string;
+  sourceVersionID: string;
+  destinationWorkspaceID: string;
+  destinationFolderID: string;
+  targetSchemaVersion: string;
+}>;
+
+async function executeMigration(
+  input: ExecuteMigrationInput,
+  operationID: string,
 ): Promise<Envelope<ExecuteResult>> {
-  const operationID = crypto.randomUUID();
-  if (!isConfirmationGranted(confirmed)) {
-    return failure(
-      "execute-migration",
-      operationID,
-      new OperationFault("CONFIRMATION_REQUIRED"),
-    );
-  }
   try {
-    const auth = await resolveVoiceflowAuth(token);
+    const auth = await resolveVoiceflowAuth(input.token);
     const selection = migrationSelection(
-      sourceWorkspaceID,
-      sourceProjectID,
-      sourceVersionID,
-      destinationWorkspaceID,
-      destinationFolderID,
-      targetSchemaVersion,
+      input.sourceWorkspaceID,
+      input.sourceProjectID,
+      input.sourceVersionID,
+      input.destinationWorkspaceID,
+      input.destinationFolderID,
+      input.targetSchemaVersion,
     );
     const plan = await buildMigrationPlan(auth, selection);
-    if (plan.planID !== planID) {
-      return failure(
-        "execute-migration",
-        operationID,
-        new OperationFault("PLAN_MISMATCH"),
-      );
-    }
-    const artifact = await exportVersion(auth, sourceVersionID);
+    requireMatchingPlan(plan.planID, input.planID);
+    const artifact = await exportVersion(auth, input.sourceVersionID);
     const imported = await importVersion(
       auth,
       artifact,
-      destinationWorkspaceID,
-      destinationFolderID,
-      targetSchemaVersion,
+      input.destinationWorkspaceID,
+      input.destinationFolderID,
+      input.targetSchemaVersion,
     );
     const apiKey = await retrieveApiKeyStatus(auth, imported.projectID);
     const result: ExecuteResult = {
-      planID,
+      planID: input.planID,
       exportStatus: artifact.status,
       exportBytes: artifact.bytes.byteLength,
       importStatus: imported.importStatus,
@@ -126,4 +116,42 @@ export async function main(
   } catch (error) {
     return failure("execute-migration", operationID, error);
   }
+}
+
+function requireMatchingPlan(actualPlanID: string, expectedPlanID: string): void {
+  if (actualPlanID !== expectedPlanID)
+    throw new OperationFault("PLAN_MISMATCH");
+}
+
+// Defaulted public arguments are part of the deployed Windmill contract.
+// oxlint-disable-next-line complexity
+export async function main(
+  token: string,
+  planID: string,
+  sourceWorkspaceID: string,
+  sourceProjectID: string,
+  sourceVersionID: string,
+  destinationWorkspaceID: string,
+  destinationFolderID: string,
+  targetSchemaVersion = "13.1",
+  confirmed = false,
+): Promise<Envelope<ExecuteResult>> {
+  const operationID = crypto.randomUUID();
+  const input = {
+    token,
+    planID,
+    sourceWorkspaceID,
+    sourceProjectID,
+    sourceVersionID,
+    destinationWorkspaceID,
+    destinationFolderID,
+    targetSchemaVersion,
+  };
+  return isConfirmationGranted(confirmed)
+    ? executeMigration(input, operationID)
+    : failure(
+        "execute-migration",
+        operationID,
+        new OperationFault("CONFIRMATION_REQUIRED"),
+      );
 }

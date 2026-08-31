@@ -2,6 +2,7 @@ import { resolveVoiceflowAuth } from "./vf_auth";
 import { listFolders } from "./vf_catalog";
 import { failure, success } from "./vf_contracts";
 import type { Envelope } from "./vf_contracts";
+
 export async function main(
   token: string,
   workspaceID: string,

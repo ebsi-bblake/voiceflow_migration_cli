@@ -2,6 +2,24 @@ import { buildMigrationPlan } from "./vf_planning";
 import { resolveVoiceflowAuth } from "./vf_auth";
 import { success, failure, type MigrationSelection } from "./vf_contracts";
 import type { Envelope, MigrationPlan } from "./vf_contracts";
+
+async function runPlanning(
+  token: string,
+  id: string,
+  selection: MigrationSelection,
+): Promise<Envelope<MigrationPlan>> {
+  try {
+    const auth = await resolveVoiceflowAuth(token);
+    return success(
+      "plan-migration",
+      id,
+      await buildMigrationPlan(auth, selection),
+    );
+  } catch (error) {
+    return failure("plan-migration", id, error);
+  }
+}
+
 export async function main(
   token: string,
   sourceWorkspaceID: string,
@@ -20,14 +38,5 @@ export async function main(
     destinationFolderID,
     targetSchemaVersion,
   };
-  try {
-    const auth = await resolveVoiceflowAuth(token);
-    return success(
-      "plan-migration",
-      id,
-      await buildMigrationPlan(auth, selection),
-    );
-  } catch (error) {
-    return failure("plan-migration", id, error);
-  }
+  return runPlanning(token, id, selection);
 }

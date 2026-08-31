@@ -5,7 +5,27 @@ import {
   type Envelope,
   OperationFault,
 } from "./vf_contracts";
-import { isRetryableHttpStatus, requestBytes } from "./vf_http";
+import { isRetryableHttpStatus, requestBytes, type HttpBytes } from "./vf_http";
+
+type SessionResult = { active: boolean; loginRequired?: boolean; loginUrl?: string };
+
+// HTTP status policy intentionally covers authentication, success, and dependency classes.
+// oxlint-disable-next-line complexity
+function sessionResult(response: HttpBytes): SessionResult {
+  if (response.status === 401 || response.status === 403)
+    return {
+      active: false,
+      loginRequired: true,
+      loginUrl: "https://creator.empyrean.voiceflow.com/",
+    };
+  if (response.status < 200 || response.status >= 300)
+    throw new OperationFault(
+      "DEPENDENCY_FAILURE",
+      isRetryableHttpStatus(response.status),
+    );
+  return { active: true };
+}
+
 export async function main(
   token: string,
 ): Promise<
@@ -21,19 +41,7 @@ export async function main(
       maxBytes: 65536,
       timeoutMs: 15000,
     });
-    if (response.status === 401 || response.status === 403) {
-      return success(operation, id, {
-        active: false,
-        loginRequired: true,
-        loginUrl: "https://creator.empyrean.voiceflow.com/",
-      });
-    }
-    if (response.status < 200 || response.status >= 300)
-      throw new OperationFault(
-        "DEPENDENCY_FAILURE",
-        isRetryableHttpStatus(response.status),
-      );
-    return success(operation, id, { active: true });
+    return success(operation, id, sessionResult(response));
   } catch (error) {
     return failure(operation, id, error);
   }
