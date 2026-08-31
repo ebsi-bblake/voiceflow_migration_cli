@@ -54,49 +54,25 @@ const findResponseJob = (response: XYOpsResponse): XYOpsJob | undefined => {
   return readJobContainer(response.data);
 };
 
-const recordShape = (value: unknown): readonly string[] =>
-  isRecord(value) ? Object.keys(value).sort() : [];
+const sensitiveField = /token|api[_-]?key|password|secret|authorization|credential|params?|output|data|activity|fields|env/i;
 
-const dataType = (value: unknown): string =>
-  Array.isArray(value) ? "array" : typeof value;
-
-const nestedJobShape = (value: unknown): readonly string[] =>
-  isRecord(value) ? recordShape(value.job) : [];
-
-// Debug-only status logging is intentionally bounded and type-oriented.
+// Debug logging is deliberately isolated and redacts sensitive DTO branches.
 // oxlint-disable-next-line complexity
-const safeStatusValue = (value: unknown): unknown => {
-  if (value === null || typeof value === "number" || typeof value === "boolean")
-    return value;
-  if (typeof value === "string") return value.slice(0, 80);
-  return typeof value;
+const redactResponseDTO = (value: unknown, key = ""): unknown => {
+  if (sensitiveField.test(key)) return "[redacted]";
+  if (Array.isArray(value)) return value.map((item) => redactResponseDTO(item));
+  if (!isRecord(value)) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([entryKey, entryValue]) => [
+      entryKey,
+      redactResponseDTO(entryValue, entryKey),
+    ]),
+  );
 };
-
-// oxlint-disable-next-line complexity
-const jobStatusShape = (value: unknown): Readonly<Record<string, unknown>> =>
-  isRecord(value)
-    ? {
-        state: safeStatusValue(value.state),
-        progress: safeStatusValue(value.progress),
-        started: safeStatusValue(value.started),
-        updated: safeStatusValue(value.updated),
-        activityType: Array.isArray(value.activity) ? "array" : typeof value.activity,
-      }
-    : {};
-
-const responseShape = (response: XYOpsResponse): Readonly<Record<string, unknown>> => ({
-  topLevelKeys: recordShape(response),
-  dataType: dataType(response.data),
-  dataKeys: recordShape(response.data),
-  jobType: Array.isArray(response.job) ? "array" : typeof response.job,
-  jobKeys: recordShape(response.job),
-  jobStatus: jobStatusShape(response.job),
-  nestedJobKeys: nestedJobShape(response.data),
-});
 
 const logInvalidJobResponseShape = (response: XYOpsResponse): void => {
   if (process.env.XYOPS_DEBUG_RESPONSE_SHAPE !== "1") return;
-  console.error("[xyops] invalid get_job response shape", responseShape(response));
+  console.error("[xyops] invalid get_job response", redactResponseDTO(response));
 };
 
 export const readJobResponse = (response: XYOpsResponse, endpoint: string): XYOpsJob => {
