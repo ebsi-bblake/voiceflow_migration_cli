@@ -1,6 +1,11 @@
+import type WebSocket from "ws";
 import type { AuthContext } from "../types";
-import { OperationFault } from "../vf_contracts";
-import { handleFrame, handleIncomingMessage } from "./frames";
+const WebSocketConstructor: typeof WebSocket = require("ws");
+import { formatErrorDiagnostic, OperationFault } from "../vf_contracts";
+import { handleFrame, handleIncomingText } from "./frames";
+import { createSecret } from "./create-secret";
+import { createUUID } from "../vf_uuid";
+import type { SecretEntry } from "../types";
 
 type Row = Readonly<Record<string, unknown>>;
 const URL = "wss://realtime.empyrean.voiceflow.com/";
@@ -14,7 +19,7 @@ const MAX_INCOMING_BYTES = 8_388_608;
 
 type Random8 = () => string;
 const random8: Random8 = () =>
-  crypto.randomUUID().replaceAll("-", "").slice(0, 8);
+  createUUID().replaceAll("-", "").slice(0, 8);
 
 type SendFrame = (ws: WebSocket, frame: readonly unknown[]) => void;
 const sendFrame: SendFrame = (ws, frame) => {
@@ -31,7 +36,7 @@ export const syncCatalog: SyncCatalog = (auth, channel, wanted) => {
     return Promise.reject(new OperationFault("INVALID_ARGUMENT"));
   }
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(URL);
+    const ws = new WebSocketConstructor(URL);
     const rows: Row[] = [];
     const wantedSet = new Set(wanted);
     const seen = new Set<string>();
@@ -48,7 +53,7 @@ export const syncCatalog: SyncCatalog = (auth, channel, wanted) => {
       clearTimeout(timer);
       closeSocket(ws);
       settlePromise(error, rows, resolve, reject);
-      ws.onmessage = null;
+      ws.removeAllListeners();
     };
     type SafeSend = (frame: readonly unknown[]) => void;
     const safeSend: SafeSend = (frame) => {
@@ -62,26 +67,49 @@ export const syncCatalog: SyncCatalog = (auth, channel, wanted) => {
       () => settle(new OperationFault("DEPENDENCY_TIMEOUT", true)),
       15000,
     );
-    ws.onerror = () => settle(new OperationFault("DEPENDENCY_FAILURE", true));
-    ws.onclose = () => {
+    ws.on("error", (error) =>
+      settle(
+        new OperationFault(
+          "DEPENDENCY_FAILURE",
+          true,
+          formatErrorDiagnostic(error),
+        ),
+      ),
+    );
+    ws.on("close", () => {
       if (!done) settle(new OperationFault("DEPENDENCY_FAILURE", true));
-    };
-    ws.onopen = () =>
+    });
+    ws.on("open", () =>
       safeSend([
         "connect",
         4,
         `${auth.creatorID}:${random8()}:${random8()}`,
         0,
         { token: auth.token, subprotocol: "1.9.0" },
-      ]);
-    ws.onmessage = (event) => handleIncomingMessage(event, {
-      incomingBytes,
-      maxFrameBytes: MAX_INCOMING_FRAME_BYTES,
-      maxBytes: MAX_INCOMING_BYTES,
-      onBytes: (bytes) => { incomingBytes = bytes; },
-      settle,
-      handleFrame: (frame) => handleFrame(frame, channel, requestID, wantedSet, seen, rows, () => actionID--, () => actionTime++, safeSend, settle),
-    });
+      ]));
+    ws.on("message", (data) =>
+      handleIncomingText(String(data), {
+        incomingBytes,
+        maxFrameBytes: MAX_INCOMING_FRAME_BYTES,
+        maxBytes: MAX_INCOMING_BYTES,
+        onBytes: (bytes) => {
+          incomingBytes = bytes;
+        },
+        settle,
+        handleFrame: (frame) =>
+          handleFrame(
+            frame,
+            channel,
+            requestID,
+            wantedSet,
+            seen,
+            rows,
+            () => actionID--,
+            () => actionTime++,
+            safeSend,
+            settle,
+          ),
+      }));
   });
 };
 
@@ -89,8 +117,36 @@ const isSupportedRequest = (wanted: readonly string[]): boolean => {
   if (wanted.length === 0) return false;
   return wanted.every((type) => SUPPORTED_WANTED_TYPES.has(type));
 };
-const closeSocket = (ws: WebSocket): void => { try { ws.close(); } catch { /* settlement must not be interrupted */ } };
+const closeSocket = (ws: WebSocket): void => {
+  try {
+    ws.close();
+  } catch {
+    /* settlement must not be interrupted */
+  }
+};
 
-const settlePromise = (error: OperationFault | undefined, rows: readonly Row[], resolve: (rows: readonly Row[]) => void, reject: (error: OperationFault) => void): void => {
-  if (error) reject(error); else resolve(rows);
+type CreateProjectSecrets = (
+  auth: AuthContext,
+  assistantID: string,
+  secrets: readonly SecretEntry[],
+) => Promise<void>;
+export const createProjectSecrets: CreateProjectSecrets = (
+  auth,
+  assistantID,
+  secrets,
+) =>
+  secrets.reduce(
+    (pending, secret) =>
+      pending.then(() => createSecret(auth, assistantID, secret)),
+    Promise.resolve(),
+  );
+
+const settlePromise = (
+  error: OperationFault | undefined,
+  rows: readonly Row[],
+  resolve: (rows: readonly Row[]) => void,
+  reject: (error: OperationFault) => void,
+): void => {
+  if (error) reject(error);
+  else resolve(rows);
 };
