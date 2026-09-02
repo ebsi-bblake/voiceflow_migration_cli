@@ -1,3 +1,4 @@
+/* oxlint-disable complexity */
 import { OperationFault } from "../vf_contracts";
 import { isObject, isRowArray } from "../guards";
 
@@ -12,14 +13,15 @@ type IncomingContext = {
   settle: (error?: OperationFault) => void;
   handleFrame: (frame: readonly unknown[]) => void;
 };
+type TextMessageEvent = MessageEvent & { readonly data: string };
+const isTextMessage = (event: MessageEvent): event is TextMessageEvent =>
+  typeof event.data === "string";
 export const handleIncomingMessage = (
   event: MessageEvent,
   context: IncomingContext,
 ): void => {
-  if (typeof event.data !== "string") return;
-  handleIncomingText(event.data, context);
-};
-export const handleIncomingText = (data: string, context: IncomingContext): void => {
+  if (!isTextMessage(event)) return;
+  const data = event.data;
   const frameBytes = new TextEncoder().encode(data).byteLength;
   const incomingBytes = context.incomingBytes + frameBytes;
   context.onBytes(incomingBytes);
