@@ -8,7 +8,12 @@ import {
   isXYOpsLaunchResponse,
   isXYOpsWaitResponse,
 } from "../guards";
-import type { ResponseGuard, VoiceflowEnvelope, XYOpsJob, XYOpsResponse } from "../types";
+import type {
+  ResponseGuard,
+  VoiceflowEnvelope,
+  XYOpsJob,
+  XYOpsResponse,
+} from "../types";
 
 const hasResponseData = (
   response: XYOpsResponse,
@@ -35,14 +40,18 @@ const readDataLaunchID = (response: XYOpsResponse): string | undefined => {
     .find((id): id is string => id !== undefined);
 };
 
-export const readLaunchID = (response: XYOpsResponse, endpoint: string): string => {
+export const readLaunchID = (
+  response: XYOpsResponse,
+  endpoint: string,
+): string => {
   const id = [readTopLaunchID(response), readDataLaunchID(response)].find(
     (candidate) => candidate !== undefined,
   );
   if (id !== undefined) return id;
   throw fail("execute-outcome-unknown", {
     endpoint,
-    nextAction: "The execute dispatch outcome is unknown; reconcile before retrying.",
+    nextAction:
+      "The execute dispatch outcome is unknown; reconcile before retrying.",
   });
 };
 
@@ -54,7 +63,8 @@ const findResponseJob = (response: XYOpsResponse): XYOpsJob | undefined => {
   return readJobContainer(response.data);
 };
 
-const sensitiveField = /token|api[_-]?key|password|secret|authorization|credential|params?|output|data|activity|fields|env/i;
+const sensitiveField =
+  /token|api[_-]?key|password|secret|authorization|credential|params?|output|data|activity|fields|env/i;
 
 // Debug logging is deliberately isolated and redacts sensitive DTO branches.
 // oxlint-disable-next-line complexity
@@ -72,14 +82,23 @@ const redactResponseDTO = (value: unknown, key = ""): unknown => {
 
 const logInvalidJobResponseShape = (response: XYOpsResponse): void => {
   if (process.env.XYOPS_DEBUG_RESPONSE_SHAPE !== "1") return;
-  console.error("[xyops] invalid get_job response", redactResponseDTO(response));
+  console.error(
+    "[xyops] invalid get_job response",
+    redactResponseDTO(response),
+  );
 };
 
-export const readJobResponse = (response: XYOpsResponse, endpoint: string): XYOpsJob => {
+export const readJobResponse = (
+  response: XYOpsResponse,
+  endpoint: string,
+): XYOpsJob => {
   const job = findResponseJob(response);
   if (job !== undefined) return job;
   logInvalidJobResponseShape(response);
-  throw fail("job", { endpoint, nextAction: "XYOps returned an invalid job response." });
+  throw fail("job", {
+    endpoint,
+    nextAction: "XYOps returned an invalid job response.",
+  });
 };
 
 type XYOpsJobResult = Readonly<{
@@ -101,21 +120,33 @@ const hasSensitiveDetail = (value: string): boolean =>
 
 const selectFailureDetail = (job: XYOpsJobResult): string | undefined =>
   [job.description, job.output].find(
-    (value): value is string => typeof value === "string" && value.trim().length > 0,
+    (value): value is string =>
+      typeof value === "string" && value.trim().length > 0,
   );
 
 const normalizeFailureDetail = (value: string): string =>
-  value.replace(/[^\x20-\x7e]+/g, " ").replace(/\s+/g, " ").trim();
+  value
+    .replace(/[^\x20-\x7e]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 // These checks intentionally guard against accidentally exposing structured or secret data.
 // oxlint-disable-next-line complexity
 const isUnsafeFailureDetail = (value: string): boolean =>
-  !value || value.startsWith("{") || value.startsWith("[") || hasSensitiveDetail(value);
+  !value ||
+  value.startsWith("{") ||
+  value.startsWith("[") ||
+  hasSensitiveDetail(value);
 
 const boundFailureDetail = (value: string): string =>
   value.length <= MAX_FAILURE_DESCRIPTION_LENGTH
     ? value
     : `${value.slice(0, MAX_FAILURE_DESCRIPTION_LENGTH - 1).trimEnd()}…`;
+
+const logFailedJobResponse = (job: XYOpsJobResult): void => {
+  if (process.env.XYOPS_DEBUG_RESPONSE_SHAPE !== "1") return;
+  console.error("[xyops] failed get_job response", redactResponseDTO(job));
+};
 
 // Failure descriptions are sanitized before crossing the CLI boundary.
 // oxlint-disable-next-line complexity
@@ -133,8 +164,10 @@ export const requireSuccessfulJob = (
   endpoint: string,
   fallback: string,
 ): XYOpsJobResult => {
-  if (!hasSuccessfulJobCode(job))
+  if (!hasSuccessfulJobCode(job)) {
+    logFailedJobResponse(job);
     throw fail("job", { endpoint, nextAction: describeFailure(job, fallback) });
+  }
   return job;
 };
 
@@ -152,25 +185,40 @@ const parseJobOutput = (output: string, endpoint: string): unknown => {
   }
 };
 
-const hasReadableOutput = (job: XYOpsJobResult): job is XYOpsJobResult & { output: string } =>
+const hasReadableOutput = (
+  job: XYOpsJobResult,
+): job is XYOpsJobResult & { output: string } =>
   typeof job.output === "string" && job.output.trim().length > 0;
 
 // Output may be encoded as JSON text or returned in the data field.
 // oxlint-disable-next-line complexity
-export const readJobOutput = (job: XYOpsJobResult, endpoint: string): unknown => {
+export const readJobOutput = (
+  job: XYOpsJobResult,
+  endpoint: string,
+): unknown => {
   if (hasReadableOutput(job)) return parseJobOutput(job.output, endpoint);
   if ("data" in job) return job.data;
-  throw fail("job", { endpoint, nextAction: "XYOps returned empty job output." });
+  throw fail("job", {
+    endpoint,
+    nextAction: "XYOps returned empty job output.",
+  });
 };
 
-export const readWaitResponseData = (response: XYOpsResponse, endpoint: string): unknown => {
+export const readWaitResponseData = (
+  response: XYOpsResponse,
+  endpoint: string,
+): unknown => {
   if (!isXYOpsWaitResponse(response))
     throw fail("api", {
       endpoint,
       nextAction: "XYOps returned an invalid wait response.",
     });
   return readJobOutput(
-    requireSuccessfulJob(response.job, endpoint, "The migration event job failed."),
+    requireSuccessfulJob(
+      response.job,
+      endpoint,
+      "The migration event job failed.",
+    ),
     endpoint,
   );
 };
