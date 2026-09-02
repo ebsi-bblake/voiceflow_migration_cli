@@ -117,9 +117,7 @@ function toRequestFault(error: unknown): OperationFault {
   return dependencyFault(isAbortError(error));
 }
 
-export function requestBytes(
-  request: RequestBytesInput,
-): Promise<HttpBytes> {
+export function requestBytes(request: RequestBytesInput): Promise<HttpBytes> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), request.timeoutMs);
   return performRequest(request, controller.signal)

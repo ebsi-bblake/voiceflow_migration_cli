@@ -15,8 +15,7 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function parseSourceVersionID(value: unknown): string {
-  if (!isNonEmptyString(value))
-    throw new OperationFault("INVALID_ARGUMENT");
+  if (!isNonEmptyString(value)) throw new OperationFault("INVALID_ARGUMENT");
   return value.trim();
 }
 

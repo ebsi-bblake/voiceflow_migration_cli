@@ -3,6 +3,8 @@ import { exportVersion } from "./vf_export";
 import { importVersion } from "./vf_import";
 import { retrieveApiKeyStatus, type ApiKeyStatus } from "./vf_api_key";
 import { buildMigrationPlan } from "./vf_planning";
+import { createProjectSecrets } from "./vf_logux";
+import { parseSecretEntries } from "./vf_secrets";
 import {
   failure,
   OperationFault,
@@ -10,6 +12,7 @@ import {
   type Envelope,
   type MigrationSelection,
   type Warning,
+  type SecretEntry,
 } from "./vf_contracts";
 
 type ExecuteResultBase = {
@@ -61,6 +64,12 @@ function isConfirmationGranted(confirmed: unknown): confirmed is true {
   return confirmed === true;
 }
 
+function getSecrets(input: ExecuteMigrationInput): SecretEntry[] {
+  return input.secretFileContents === undefined
+    ? []
+    : parseSecretEntries(input.secretFileContents);
+}
+
 type ExecuteMigrationInput = Readonly<{
   token: string;
   planID: string;
@@ -70,6 +79,7 @@ type ExecuteMigrationInput = Readonly<{
   destinationWorkspaceID: string;
   destinationFolderID: string;
   targetSchemaVersion: string;
+  secretFileContents?: unknown;
 }>;
 
 async function executeMigration(
@@ -96,6 +106,8 @@ async function executeMigration(
       input.destinationFolderID,
       input.targetSchemaVersion,
     );
+    const secrets = getSecrets(input);
+    await createProjectSecrets(auth, imported.projectID, secrets);
     const apiKey = await retrieveApiKeyStatus(auth, imported.projectID);
     const result: ExecuteResult = {
       planID: input.planID,
@@ -118,13 +130,15 @@ async function executeMigration(
   }
 }
 
-function requireMatchingPlan(actualPlanID: string, expectedPlanID: string): void {
+function requireMatchingPlan(
+  actualPlanID: string,
+  expectedPlanID: string,
+): void {
   if (actualPlanID !== expectedPlanID)
     throw new OperationFault("PLAN_MISMATCH");
 }
 
 // Defaulted public arguments are part of the deployed Windmill contract.
-// oxlint-disable-next-line complexity
 export async function main(
   token: string,
   planID: string,
@@ -135,6 +149,7 @@ export async function main(
   destinationFolderID: string,
   targetSchemaVersion = "13.1",
   confirmed = false,
+  secretFileContents?: unknown,
 ): Promise<Envelope<ExecuteResult>> {
   const operationID = crypto.randomUUID();
   const input = {
@@ -146,6 +161,7 @@ export async function main(
     destinationWorkspaceID,
     destinationFolderID,
     targetSchemaVersion,
+    secretFileContents,
   };
   return isConfirmationGranted(confirmed)
     ? executeMigration(input, operationID)

@@ -6,7 +6,10 @@ type Claims = Record<string, unknown>;
 function requireTokenInput(input: unknown): string {
   if (typeof input !== "string")
     throw new OperationFault("AUTHENTICATION_FAILED");
-  return input.trim().replace(/^Bearer\s+/i, "").trim();
+  return input
+    .trim()
+    .replace(/^Bearer\s+/i, "")
+    .trim();
 }
 
 function isJWTShape(token: string): boolean {
@@ -15,8 +18,7 @@ function isJWTShape(token: string): boolean {
 
 async function acquireVoiceflowToken(input: unknown): Promise<string> {
   const token = requireTokenInput(input);
-  if (!isJWTShape(token))
-    throw new OperationFault("AUTHENTICATION_FAILED");
+  if (!isJWTShape(token)) throw new OperationFault("AUTHENTICATION_FAILED");
   return token;
 }
 
@@ -69,8 +71,7 @@ function isValidCreatorID(value: string): boolean {
 }
 
 function requireCreatorIDValue(value: unknown): string | number {
-  if (!isCreatorID(value))
-    throw new OperationFault("AUTHENTICATION_FAILED");
+  if (!isCreatorID(value)) throw new OperationFault("AUTHENTICATION_FAILED");
   return value;
 }
 
@@ -81,9 +82,7 @@ function requireValidCreatorID(creatorID: string): string {
 }
 
 function requireCreatorID(value: unknown): string {
-  return requireValidCreatorID(
-    String(requireCreatorIDValue(value)).trim(),
-  );
+  return requireValidCreatorID(String(requireCreatorIDValue(value)).trim());
 }
 
 function extractCreatorID(claims: Claims): string {

@@ -1,5 +1,6 @@
 import type { AuthContext } from "./vf_auth";
-import { OperationFault } from "./vf_contracts";
+import { OperationFault, type SecretEntry } from "./vf_contracts";
+import { isObject } from "./vf_guards";
 
 type Row = Record<string, unknown>;
 type Settle = (error?: OperationFault) => void;
@@ -32,21 +33,15 @@ function random8(): string {
   return crypto.randomUUID().replaceAll("-", "").slice(0, 8);
 }
 
-function isNonNullObject(value: unknown): value is object {
-  return typeof value === "object" && value !== null;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  if (!isNonNullObject(value)) return false;
-  return !Array.isArray(value);
-}
-
 function isRowArray(value: unknown): value is Row[] {
   return Array.isArray(value) && value.every(isObject);
 }
 
 function isSupportedRequest(wanted: readonly string[]): boolean {
-  return wanted.length > 0 && wanted.every((type) => SUPPORTED_WANTED_TYPES.has(type));
+  return (
+    wanted.length > 0 &&
+    wanted.every((type) => SUPPORTED_WANTED_TYPES.has(type))
+  );
 }
 
 function sendFrame(ws: WebSocket, frame: unknown[]): void {
@@ -143,7 +138,11 @@ function subscribeFrame(context: SocketContext): unknown[] {
   return [
     "sync",
     context.requestID,
-    { channel: context.channel, type: "logux/subscribe", since: { id: "0", time: 0 } },
+    {
+      channel: context.channel,
+      type: "logux/subscribe",
+      since: { id: "0", time: 0 },
+    },
     { id: context.actionID--, time: context.actionTime++ },
   ];
 }
@@ -164,17 +163,22 @@ function frameExceedsLimits(
   frameBytes: number,
   incomingBytes: number,
 ): boolean {
-  return frameBytes > MAX_INCOMING_FRAME_BYTES || incomingBytes > MAX_INCOMING_BYTES;
+  return (
+    frameBytes > MAX_INCOMING_FRAME_BYTES || incomingBytes > MAX_INCOMING_BYTES
+  );
 }
 
 function handleErrorFrame(frame: readonly unknown[], settle: Settle): void {
-  const code = frame[1] === "wrong-credentials"
-    ? "AUTHENTICATION_FAILED"
-    : "DEPENDENCY_FAILURE";
+  const code =
+    frame[1] === "wrong-credentials"
+      ? "AUTHENTICATION_FAILED"
+      : "DEPENDENCY_FAILURE";
   settle(new OperationFault(code));
 }
 
-function readAction(frame: readonly unknown[]): Record<string, unknown> | undefined {
+function readAction(
+  frame: readonly unknown[],
+): Record<string, unknown> | undefined {
   return isObject(frame[2]) ? frame[2] : undefined;
 }
 
@@ -197,8 +201,10 @@ function isWantedAction(
 }
 
 // Action frames combine protocol parsing and catalog filtering at one boundary.
-// oxlint-disable-next-line complexity
-function handleActionFrame(frame: readonly unknown[], context: SocketContext): void {
+function handleActionFrame(
+  frame: readonly unknown[],
+  context: SocketContext,
+): void {
   const action = readAction(frame);
   const payload = readActionPayload(action);
   const type = action?.type;
@@ -210,11 +216,7 @@ function readActionValues(payload: Record<string, unknown>): unknown {
   return payload.values ?? payload.data;
 }
 
-function appendRows(
-  type: string,
-  values: Row[],
-  context: SocketContext,
-): void {
+function appendRows(type: string, values: Row[], context: SocketContext): void {
   if (rowsExceedLimit(context.rows, values)) {
     context.settle(new OperationFault("DEPENDENCY_FAILURE"));
     return;
@@ -238,7 +240,10 @@ function appendAction(
   appendRows(type, values, context);
 }
 
-function rowsExceedLimit(rows: readonly Row[], values: readonly Row[]): boolean {
+function rowsExceedLimit(
+  rows: readonly Row[],
+  values: readonly Row[],
+): boolean {
   return rows.length + values.length > MAX_INCOMING_ROWS;
 }
 
@@ -258,7 +263,8 @@ function handleProtocolFrame(
   frame: readonly unknown[],
   context: SocketContext,
 ): void {
-  if (frame[0] === "connected") return context.safeSend(subscribeFrame(context));
+  if (frame[0] === "connected")
+    return context.safeSend(subscribeFrame(context));
   handleActionFrame(frame, context);
 }
 
@@ -285,12 +291,11 @@ function handleMessage(event: MessageEvent, context: SocketContext): void {
   handleTextMessage(event.data, context);
 }
 
-function configureSocket(
-  ws: WebSocket,
-  context: SocketContext,
-): void {
-  ws.onerror = () => context.settle(new OperationFault("DEPENDENCY_FAILURE", true));
-  ws.onclose = () => context.settle(new OperationFault("DEPENDENCY_FAILURE", true));
+function configureSocket(ws: WebSocket, context: SocketContext): void {
+  ws.onerror = () =>
+    context.settle(new OperationFault("DEPENDENCY_FAILURE", true));
+  ws.onclose = () =>
+    context.settle(new OperationFault("DEPENDENCY_FAILURE", true));
   ws.onopen = () => context.safeSend(connectFrame(context));
   ws.onmessage = (event) => handleMessage(event, context);
 }
@@ -307,4 +312,157 @@ export function syncCatalog(
     const context = createContext(auth, channel, wanted, ws, resolve, reject);
     configureSocket(ws, context);
   });
+}
+
+/** Creates secrets through the verified assistant-channel Logux lifecycle. */
+export function createProjectSecrets(
+  auth: AuthContext,
+  assistantID: string,
+  secrets: readonly SecretEntry[],
+): Promise<void> {
+  return secrets.reduce(
+    (pending, secret) =>
+      pending.then(() => createSecret(auth, assistantID, secret)),
+    Promise.resolve(),
+  );
+}
+
+// The server acknowledges the mutation only after assistant subscription.
+function createSecret(
+  auth: AuthContext,
+  assistantID: string,
+  secret: SecretEntry,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(URL);
+    const clientID = random8();
+    const origin = `${auth.creatorID}:${clientID}:${random8()}`;
+    const actionID = crypto.randomUUID();
+    const subscriptionID = Math.floor(Math.random() * 1_000_000_000) + 1;
+    let actionTime = 1;
+    let settled = false;
+    const timer = setTimeout(
+      () => settle(new OperationFault("DEPENDENCY_TIMEOUT", true)),
+      15000,
+    );
+    // This settlement boundary intentionally handles cleanup and both promise outcomes.
+    const settle = (error?: OperationFault): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      closeSocket(ws);
+      if (error !== undefined) reject(error);
+      else resolve();
+    };
+    ws.onerror = () => settle(new OperationFault("DEPENDENCY_FAILURE", true));
+    ws.onclose = () => {
+      if (!settled) settle(new OperationFault("DEPENDENCY_FAILURE", true));
+    };
+    ws.onopen = () =>
+      ws.send(
+        JSON.stringify([
+          "connect",
+          4,
+          origin,
+          0,
+          { token: auth.token, subprotocol: "1.9.0" },
+        ]),
+      );
+    ws.onmessage = (event) => {
+      if (typeof event.data !== "string") return;
+      const frame = parseFrame(event.data);
+      if (frame === undefined) return;
+      handleSecretFrame(frame, {
+        ws,
+        assistantID,
+        secret,
+        origin,
+        actionID,
+        subscriptionID,
+        nextTime: () => actionTime++,
+        settle,
+      });
+    };
+  });
+}
+
+type SecretFrameContext = Readonly<{
+  ws: WebSocket;
+  assistantID: string;
+  secret: SecretEntry;
+  origin: string;
+  actionID: string;
+  subscriptionID: number;
+  nextTime: () => number;
+  settle: Settle;
+}>;
+
+function handleSecretFrame(
+  frame: readonly unknown[],
+  context: SecretFrameContext,
+): void {
+  if (frame[0] === "error") {
+    context.settle(new OperationFault("DEPENDENCY_FAILURE"));
+    return;
+  }
+  if (frame[0] === "connected") {
+    sendSecretSubscription(context);
+    return;
+  }
+  if (frame[0] === "synced" && frame[1] === context.subscriptionID) {
+    sendSecretCreation(context);
+    return;
+  }
+  if (isSecretDone(frame, context.actionID)) context.settle();
+}
+
+function sendSecretSubscription(context: SecretFrameContext): void {
+  context.ws.send(
+    JSON.stringify([
+      "sync",
+      context.subscriptionID,
+      {
+        channel: `assistant/${context.assistantID}`,
+        type: "logux/subscribe",
+        since: { id: "0", time: 0 },
+      },
+      { id: Math.floor(Math.random() * 1_000_000_000) + 1, time: context.nextTime() },
+    ]),
+  );
+}
+
+function sendSecretCreation(context: SecretFrameContext): void {
+  context.ws.send(
+    JSON.stringify([
+      "sync",
+      0,
+      {
+        type: "secret.CREATE_ONE_STARTED",
+        payload: {
+          context: { assistantID: context.assistantID },
+          data: {
+            name: context.secret.name,
+            visibility: "masked",
+            defaultValue: context.secret.value,
+          },
+        },
+        meta: { origin: context.origin, actionID: context.actionID },
+      },
+      { id: Math.floor(Math.random() * 1_000_000_000) + 1, time: context.nextTime() },
+    ]),
+  );
+}
+
+function isSecretDone(frame: readonly unknown[], actionID: string): boolean {
+  const action = frame[2];
+  if (!isObject(action)) return false;
+  return [isDoneAction(action), hasActionID(action.meta, actionID)].every(
+    Boolean,
+  );
+}
+function isDoneAction(action: Record<string, unknown>): boolean {
+  return action.type === "secret.CREATE_ONE_DONE";
+}
+function hasActionID(value: unknown, actionID: string): boolean {
+  return isObject(value) && value.actionID === actionID;
 }

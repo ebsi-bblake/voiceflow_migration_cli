@@ -69,10 +69,10 @@ path. The Docker image/container runner is not the active deployment.
 - **Type:** task
 - **Status:** todo
 - **Agent/s:** @backend-engineer
-- **Question:** Can `xyops/migration-cli.ts` continue to use the existing XYOps HTTP API and seven Event references unchanged while those Events are backed by the one native plugin?
+- **Question:** Can `xyops/cli/index.ts` continue to use the existing XYOps HTTP API and seven Event references unchanged while those Events are backed by the one native plugin?
 - **Blocked by:** P3, P5
 - **Depends on:** P3's compatibility decision and P1's observed XYOps response wrapping
-- **Notes:** Primary files are `xyops/migration-cli.ts`, `xyops/cli/client.ts`, `xyops/cli/config.ts`, `xyops/cli/contracts.ts`, and `xyops/cli/state.ts`; regression coverage is `tests/migration_cli_xyops.test.ts`. Default titles, `XYOPS_EVENT_*` title/ID overrides, `XYOPS_API_KEY`, REST paths, polling, single execute dispatch, unknown execute outcome handling, and omission of `VOICEFLOW_JWT` from requests should remain stable. Extend parsing only if native plugin responses differ from current `job.output`/`job.data` wrapping; do not make the CLI know plugin internals. Add a temporary compatibility mode only if required by a live response, and define its removal condition.
+- **Notes:** Primary files are `xyops/cli/index.ts`, `xyops/cli/client.ts`, `xyops/cli/config.ts`, and `xyops/cli/state.ts`; regression coverage is `tests/migration_cli_xyops.test.ts`. Default titles, `XYOPS_EVENT_*` title/ID overrides, `XYOPS_API_KEY`, REST paths, polling, single execute dispatch, unknown execute outcome handling, and omission of `VOICEFLOW_JWT` from requests should remain stable. Extend parsing only if native plugin responses differ from current `job.output`/`job.data` wrapping; do not make the CLI know plugin internals. Add a temporary compatibility mode only if required by a live response, and define its removal condition.
 
 ### P8 — Build contract and parity verification for all seven Events
 - **Type:** prototype

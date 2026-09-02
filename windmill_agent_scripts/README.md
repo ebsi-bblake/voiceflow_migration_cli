@@ -32,6 +32,7 @@ Deploy libraries first, in this exact order:
 7. `vf_export`
 8. `vf_import`
 9. `vf_api_key`
+10. `vf_secrets`
 
 Then deploy the seven public tools.
 
@@ -49,7 +50,7 @@ vf_list_projects(token, workspaceID)
 vf_list_versions(token, workspaceID, projectID)
 vf_list_folders(token, workspaceID)
 vf_plan_migration(token, sourceWorkspaceID, sourceProjectID, sourceVersionID, destinationWorkspaceID, destinationFolderID, targetSchemaVersion)
-vf_execute_migration(token, planID, sourceWorkspaceID, sourceProjectID, sourceVersionID, destinationWorkspaceID, destinationFolderID, targetSchemaVersion, confirmed)
+vf_execute_migration(token, planID, sourceWorkspaceID, sourceProjectID, sourceVersionID, destinationWorkspaceID, destinationFolderID, targetSchemaVersion, confirmed, secretFileContents?)
 ```
 
 Suggested Windmill summaries and descriptions:
@@ -65,6 +66,10 @@ Suggested Windmill summaries and descriptions:
 Follow this sequence: session check -> discovery -> plan -> human confirmation
 -> execute. `confirmed` is a cooperative policy signal, not server-enforced
 approval. Use `runScriptByPath` in production; preview is for testing only.
+`secretFileContents` is optional and should be a JSON object mapping secret
+names to string values, for example `{ "theKey": "theval" }`. Secret values
+must not be logged. The CLI reads the local JSON file before invoking this
+script.
 
 There is no Base64 across MCP; bytes stay in one execute job. Operations are
 non-idempotent, and `IMPORT_OUTCOME_UNKNOWN` means do not retry until

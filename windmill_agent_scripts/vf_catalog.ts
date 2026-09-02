@@ -134,7 +134,6 @@ function projectRecord(
 type CatalogIDs = Readonly<{ id: string; workspaceID: string }>;
 
 // This boundary must preserve row omission while narrowing both IDs together.
-// oxlint-disable-next-line complexity
 function readCatalogIDs(row: RawRow): CatalogIDs | undefined {
   const id = toID(row);
   const workspaceID = normalizeOptionalID(row.workspaceID);
@@ -261,9 +260,7 @@ export async function loadFolders(
   return projectRows(rows, projectFolder);
 }
 
-export function workspaceOptions(
-  rows: readonly WorkspaceRecord[],
-): Option[] {
+export function workspaceOptions(rows: readonly WorkspaceRecord[]): Option[] {
   return buildOptions(rows);
 }
 
@@ -271,7 +268,9 @@ export function projectOptions(
   rows: readonly ProjectRecord[],
   workspaceID: string,
 ): Option[] {
-  return buildOptions(selectProjectsInWorkspace(rows, normalizeID(workspaceID)));
+  return buildOptions(
+    selectProjectsInWorkspace(rows, normalizeID(workspaceID)),
+  );
 }
 
 export function folderOptions(
@@ -311,9 +310,7 @@ function buildVersionOptions(
   });
 }
 
-export async function listWorkspaces(
-  auth: AuthContext,
-): Promise<Option[]> {
+export async function listWorkspaces(auth: AuthContext): Promise<Option[]> {
   return workspaceOptions(await loadWorkspaces(auth));
 }
 

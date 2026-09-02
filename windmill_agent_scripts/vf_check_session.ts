@@ -7,10 +7,13 @@ import {
 } from "./vf_contracts";
 import { isRetryableHttpStatus, requestBytes, type HttpBytes } from "./vf_http";
 
-type SessionResult = { active: boolean; loginRequired?: boolean; loginUrl?: string };
+type SessionResult = {
+  active: boolean;
+  loginRequired?: boolean;
+  loginUrl?: string;
+};
 
 // HTTP status policy intentionally covers authentication, success, and dependency classes.
-// oxlint-disable-next-line complexity
 function sessionResult(response: HttpBytes): SessionResult {
   if (response.status === 401 || response.status === 403)
     return {

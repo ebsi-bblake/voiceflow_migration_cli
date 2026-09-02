@@ -9,8 +9,7 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function requiredID(value: unknown): string {
-  if (!isNonEmptyString(value))
-    throw new OperationFault("INVALID_ARGUMENT");
+  if (!isNonEmptyString(value)) throw new OperationFault("INVALID_ARGUMENT");
   return value.trim();
 }
 
@@ -20,8 +19,7 @@ function isNumericFolder(value: string): boolean {
 
 function requiredFolderID(value: unknown): string {
   const folderID = requiredID(value);
-  if (!isNumericFolder(folderID))
-    throw new OperationFault("INVALID_ARGUMENT");
+  if (!isNumericFolder(folderID)) throw new OperationFault("INVALID_ARGUMENT");
   return folderID;
 }
 
@@ -31,8 +29,7 @@ function isSafeFilename(value: string): boolean {
 
 function validFilename(value: string): string {
   const name = value.trim();
-  if (!isSafeFilename(name))
-    throw new OperationFault("INVALID_ARGUMENT");
+  if (!isSafeFilename(name)) throw new OperationFault("INVALID_ARGUMENT");
   return name;
 }
 
@@ -73,14 +70,15 @@ function nestedProjectID(row: ImportResponseRecord): string | undefined {
 }
 
 function readProjectID(row: ImportResponseRecord): string | undefined {
-  return [row.projectID, row.projectId, row.id]
-    .map(primitiveID)
-    .find((id): id is string => id !== undefined) ?? nestedProjectID(row);
+  return (
+    [row.projectID, row.projectId, row.id]
+      .map(primitiveID)
+      .find((id): id is string => id !== undefined) ?? nestedProjectID(row)
+  );
 }
 
 function requireImportRecord(value: unknown): ImportResponseRecord {
-  if (!isRecord(value))
-    throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
+  if (!isRecord(value)) throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
   return value;
 }
 
@@ -130,8 +128,10 @@ function buildImportForm(
 }
 
 function isUnknownImportDependency(error: unknown): boolean {
-  return error instanceof OperationFault &&
-    ["DEPENDENCY_TIMEOUT", "DEPENDENCY_FAILURE"].includes(error.code);
+  return (
+    error instanceof OperationFault &&
+    ["DEPENDENCY_TIMEOUT", "DEPENDENCY_FAILURE"].includes(error.code)
+  );
 }
 
 function translateImportRequestError(error: unknown): unknown {
@@ -168,7 +168,6 @@ function isUnsuccessfulStatus(status: number): boolean {
 }
 
 // Status handling is the explicit import outcome policy.
-// oxlint-disable-next-line complexity
 function validateImportStatus(status: number): void {
   if (isUnknownImportStatus(status))
     throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");

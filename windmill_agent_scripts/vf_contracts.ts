@@ -50,6 +50,10 @@ export type MigrationPlan = {
     destinationFolder: string;
   };
 };
+export type SecretEntry = {
+  name: string;
+  value: string;
+};
 export type ImportedReceipt = {
   importStatus: number;
   importBytes: number;
