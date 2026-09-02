@@ -336,7 +336,7 @@ describe("native XYOps event plugin boundary", () => {
 
     const response = JSON.parse(rendered) as { description?: string };
     expect(response.description).toContain(diagnostics.trim());
-    expect(diagnostics).toMatch(/^stage=response error=Error message=/);
+    expect(diagnostics).toMatch(/^pluginVersion=0.1.0 stage=response error=Error message=/);
     expect(diagnostics).not.toContain(secret);
     expect(diagnostics).not.toContain("project-secret");
     expect(diagnostics).not.toContain("exported-data");
@@ -349,7 +349,7 @@ describe("native XYOps event plugin boundary", () => {
       "input",
       new Error(`token-secret ${"x".repeat(500)}\n    at secret-file.ts:1:1`),
     );
-    expect(diagnostic).toMatch(/^stage=input error=Error message=/);
+    expect(diagnostic).toMatch(/^pluginVersion=0.1.0 stage=input error=Error message=/);
     expect(diagnostic).not.toContain("token-secret");
     expect(diagnostic).not.toContain("secret-file.ts");
     expect(diagnostic.length).toBeLessThanOrEqual(320);
@@ -391,7 +391,7 @@ describe("native XYOps event plugin boundary", () => {
       expect(response).toMatchObject({ xy: 1, complete: true, code: "MISSING_SECRET" });
       expect(response.description).toContain(stderr);
       expect(stderr).toBe(
-        "stage=secret error=PluginValidationFault message=The Voiceflow JWT secret is not configured.",
+        "pluginVersion=0.1.0 stage=secret error=PluginValidationFault message=The Voiceflow JWT secret is not configured.",
       );
     } finally {
       rmSync(directory, { recursive: true, force: true });

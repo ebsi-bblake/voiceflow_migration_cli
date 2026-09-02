@@ -1,3 +1,4 @@
+import { PLUGIN_VERSION } from "./version";
 import type { PluginStage } from "./types";
 export type { PluginStage } from "./types";
 
@@ -89,7 +90,7 @@ export const formatPluginDiagnostic: FormatPluginDiagnostic = (
     readErrorMessage(error),
     maxDiagnosticLength,
   );
-  return `stage=${stage} error=${fallbackDiagnosticValue(errorClass, "UnknownError")} message=${fallbackDiagnosticValue(message, "Unknown error")}`.slice(
+  return `pluginVersion=${PLUGIN_VERSION} stage=${stage} error=${fallbackDiagnosticValue(errorClass, "UnknownError")} message=${fallbackDiagnosticValue(message, "Unknown error")}`.slice(
     0,
     maxDiagnosticLength,
   );

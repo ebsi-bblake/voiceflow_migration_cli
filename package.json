@@ -1,5 +1,6 @@
 {
   "name": "voiceflow-automation",
+  "version": "0.1.0",
   "devDependencies": {
     "@types/node": "^22.0.0",
     "oxlint": "^1.80.0",
@@ -10,7 +11,7 @@
     "lint": "oxlint xyops tests",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "build:plugin": "bun build xyops/plugin/entrypoint.ts --target=node --format=cjs --outfile=dist/voiceflow-event-plugin.cjs",
+    "build:plugin": "bun build xyops/plugin/entrypoint.ts --target=node --format=cjs --banner='// Voiceflow XYOps Event Plugin v0.1.0' --outfile=dist/voiceflow-event-plugin.cjs",
     "check": "bun run lint && bun run typecheck && bun run test"
   }
 }
