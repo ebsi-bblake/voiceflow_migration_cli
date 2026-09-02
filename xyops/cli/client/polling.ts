@@ -1,14 +1,30 @@
 import { asCliError, fail, type CliError } from "../diagnostics";
 import { isCompletedJob, normalizeVoiceflowResponse } from "../guards";
-import type { EventParameters, ResponseGuard, VoiceflowEnvelope, XYOpsConfig, XYOpsEventReference, XYOpsJob } from "../types";
+import type {
+  EventParameters,
+  ResponseGuard,
+  VoiceflowEnvelope,
+  XYOpsConfig,
+  XYOpsEventReference,
+  XYOpsJob,
+} from "../types";
 import { type Request, type Sleep } from "./http";
-import { readJobOutput, readJobResponse, readWaitResponseData, requireEnvelope, requireSuccessfulJob } from "./job-response";
+import {
+  readJobOutput,
+  readJobResponse,
+  readWaitResponseData,
+  requireEnvelope,
+  requireSuccessfulJob,
+} from "./job-response";
 
 const WAIT_PATH = "/api/app/run_event/v1/wait";
 const JOB_PATH = "/api/app/get_job/v1";
 const MAX_READ_ATTEMPTS = 3;
 
-type EventBody = (reference: XYOpsEventReference, params: EventParameters) => Readonly<Record<string, unknown>>;
+type EventBody = (
+  reference: XYOpsEventReference,
+  params: EventParameters,
+) => Readonly<Record<string, unknown>>;
 export const eventBody: EventBody = (reference, params) => ({
   ...(typeof reference === "string" ? { title: reference } : reference),
   params,
@@ -24,7 +40,16 @@ export const readEventWithRetry = <T>(
   attempt = 0,
 ): Promise<VoiceflowEnvelope<T>> =>
   readEventAttempt(request, reference, params, guard).catch((error) =>
-    retryRead(request, sleeper, intervalMs, reference, params, guard, attempt, error),
+    retryRead(
+      request,
+      sleeper,
+      intervalMs,
+      reference,
+      params,
+      guard,
+      attempt,
+      error,
+    ),
   );
 
 const readEventAttempt = <T>(
@@ -34,14 +59,15 @@ const readEventAttempt = <T>(
   guard: ResponseGuard<VoiceflowEnvelope<T>>,
 ): Promise<VoiceflowEnvelope<T>> =>
   request(WAIT_PATH, eventBody(reference, params), WAIT_PATH)
-    .then((response) => normalizeVoiceflowResponse(readWaitResponseData(response, WAIT_PATH)))
+    .then((response) =>
+      normalizeVoiceflowResponse(readWaitResponseData(response, WAIT_PATH)),
+    )
     .then((data) => requireEnvelope(data, guard, WAIT_PATH));
 
 const isRetryableReadError = (error: CliError): boolean =>
-  error.diagnostic.retryable && ["timeout", "network", "http"].includes(error.diagnostic.code);
+  [error.diagnostic.retryable, ["timeout", "network", "http"].includes(error.diagnostic.code)].every(Boolean);
 
 // Retry policy combines transport classification and the bounded attempt count.
-// oxlint-disable-next-line complexity
 const retryRead = <T>(
   request: Request,
   sleeper: Sleep,
@@ -53,19 +79,32 @@ const retryRead = <T>(
   error: unknown,
 ): Promise<VoiceflowEnvelope<T>> => {
   const cliError = asCliError(error);
-  return !isRetryableReadError(cliError) || attempt === MAX_READ_ATTEMPTS - 1
+  return shouldStopRetry(cliError, attempt)
     ? Promise.reject(cliError)
     : sleeper(Math.min(intervalMs, 250 * 2 ** attempt)).then(() =>
-        readEventWithRetry(request, sleeper, intervalMs, reference, params, guard, attempt + 1),
+        readEventWithRetry(
+          request,
+          sleeper,
+          intervalMs,
+          reference,
+          params,
+          guard,
+          attempt + 1,
+        ),
       );
 };
+const shouldStopRetry = (error: CliError, attempt: number): boolean =>
+  !isRetryableReadError(error) || attempt === MAX_READ_ATTEMPTS - 1;
 
 const completeJob = <T>(
   job: XYOpsJob,
   guard: ResponseGuard<VoiceflowEnvelope<T>>,
 ): VoiceflowEnvelope<T> => {
   const result = normalizeVoiceflowResponse(
-    readJobOutput(requireSuccessfulJob(job, JOB_PATH, "The migration execute job failed."), JOB_PATH),
+    readJobOutput(
+      requireSuccessfulJob(job, JOB_PATH, "The migration execute job failed."),
+      JOB_PATH,
+    ),
   );
   if (!guard(result))
     throw fail("envelope", {
@@ -76,7 +115,6 @@ const completeJob = <T>(
 };
 
 // Polling intentionally checks completion and deadline at each remote observation.
-// oxlint-disable-next-line complexity
 const pollUntilComplete = async <T>(
   id: string,
   request: Request,
@@ -85,15 +123,37 @@ const pollUntilComplete = async <T>(
   deadline: number,
   guard: ResponseGuard<VoiceflowEnvelope<T>>,
 ): Promise<VoiceflowEnvelope<T>> => {
-  const job = readJobResponse(await request(JOB_PATH, { id }, JOB_PATH), JOB_PATH);
+  const job = readJobResponse(
+    await request(JOB_PATH, { id }, JOB_PATH),
+    JOB_PATH,
+  );
   if (isCompletedJob(job.completed)) return completeJob(job, guard);
-  await sleeper(Math.min(intervalMs, Math.max(0, deadline - Date.now())));
+  return pollIncompleteJob(id, request, sleeper, intervalMs, deadline, guard);
+};
+const pollIncompleteJob = async <T>(
+  id: string,
+  request: Request,
+  sleeper: Sleep,
+  intervalMs: number,
+  deadline: number,
+  guard: ResponseGuard<VoiceflowEnvelope<T>>,
+): Promise<VoiceflowEnvelope<T>> => {
+  await waitForNextPoll(sleeper, intervalMs, deadline);
   if (Date.now() > deadline)
-    return Promise.reject(fail("execute-outcome-unknown", {
-      endpoint: JOB_PATH,
-      nextAction: "The execute job timed out; reconcile before retrying.",
-    }));
+    return Promise.reject(
+      fail("execute-outcome-unknown", {
+        endpoint: JOB_PATH,
+        nextAction: "The execute job timed out; reconcile before retrying.",
+      }),
+    );
   return pollUntilComplete(id, request, sleeper, intervalMs, deadline, guard);
+};
+const waitForNextPoll = async (
+  sleeper: Sleep,
+  intervalMs: number,
+  deadline: number,
+): Promise<void> => {
+  await sleeper(Math.min(intervalMs, Math.max(0, deadline - Date.now())));
 };
 
 export const pollJob = <T>(
