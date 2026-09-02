@@ -14,8 +14,8 @@ type CreateSecret = (
 export const createSecret: CreateSecret = (auth, assistantID, secret) =>
   new Promise((resolve, reject) => {
     const ws = new WebSocketConstructor(URL);
-    const clientID = createUUID().replaceAll("-", "").slice(0, 8);
-    const origin = `${auth.creatorID}:${clientID}:${createUUID().replaceAll("-", "").slice(0, 8)}`;
+    const clientID = createUUID().replace(/-/g, "").slice(0, 8);
+    const origin = `${auth.creatorID}:${clientID}:${createUUID().replace(/-/g, "").slice(0, 8)}`;
     const actionID = createUUID();
     const subscriptionID = Math.floor(Math.random() * 1_000_000_000) + 1;
     let actionTime = 1;
