@@ -274,16 +274,15 @@ export const isExecuteResult: IsExecuteResult = (value) =>
 type IsSecretMap = (value: unknown) => boolean;
 const isSecretMap: IsSecretMap = (value) =>
   isRecord(value) && Object.values(value).every((entry) => typeof entry === "string");
+const isPrimitiveEventParameter = (value: unknown): value is string | boolean =>
+  typeof value === "string" || typeof value === "boolean";
 type IsEventParameterEntry = (
   entry: readonly [string, EventParameterValue | undefined],
 ) => entry is [string, EventParameterValue];
-// oxlint-disable-next-line complexity
 export const isEventParameterEntry: IsEventParameterEntry = (
   entry,
 ): entry is [string, EventParameterValue] =>
-  typeof entry[1] === "string" ||
-  typeof entry[1] === "boolean" ||
-  isSecretMap(entry[1]);
+  isPrimitiveEventParameter(entry[1]) || isSecretMap(entry[1]);
 type IsRetryableStatus = (status: number) => boolean;
 export const isRetryableStatus: IsRetryableStatus = (status) =>
   [status === 408, status === 429, status >= 500].some(Boolean);
