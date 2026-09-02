@@ -17,8 +17,7 @@ export const requiredFolderID: RequiredFolderID = (value) => {
 type ValidFilename = (value: string) => string;
 export const validFilename: ValidFilename = (value) => {
   const name = value.trim();
-  if (!isSafeFilename(name))
-    throw new OperationFault("INVALID_ARGUMENT");
+  if (!isSafeFilename(name)) throw new OperationFault("INVALID_ARGUMENT");
   return name;
 };
 const isNumericFolder = (value: string): boolean => /^\d+$/.test(value);
@@ -33,7 +32,8 @@ const primitiveID: PrimitiveID = (value) => {
   const id = String(value).trim();
   return nonEmptyID(id);
 };
-const nonEmptyID = (id: string): string | undefined => id === "" ? undefined : id;
+const nonEmptyID = (id: string): string | undefined =>
+  id === "" ? undefined : id;
 const isPrimitiveID = (value: unknown): value is string | number => {
   if (typeof value === "string") return true;
   return typeof value === "number";
@@ -54,9 +54,14 @@ export const receipt: Receipt = (value, status, bytes) => {
   if (!isRecord(value)) throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
   return receiptFromRecord(value, status, bytes);
 };
-const receiptFromRecord = (value: RecordValue, status: number, bytes: number): ImportedReceipt => {
+const receiptFromRecord = (
+  value: RecordValue,
+  status: number,
+  bytes: number,
+): ImportedReceipt => {
   const projectID = projectIDFromRecord(value);
-  if (projectID === undefined) throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
+  if (projectID === undefined)
+    throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
   return {
     importStatus: status,
     importBytes: bytes,
@@ -69,5 +74,6 @@ const receiptFromRecord = (value: RecordValue, status: number, bytes: number): I
 const projectIDFromRecord = (value: RecordValue): string | undefined =>
   firstProjectID(value) ?? nestedProjectID(value);
 export const firstProjectID = (value: RecordValue): string | undefined =>
-  [value.projectID, value.projectId, value.id].map(primitiveID).find((id) => id !== undefined);
-
+  [value.projectID, value.projectId, value.id]
+    .map(primitiveID)
+    .find((id) => id !== undefined);

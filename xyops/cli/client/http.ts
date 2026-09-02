@@ -1,5 +1,9 @@
 import { fail, type CliError } from "../diagnostics";
-import { isRetryableStatus, isSuccessfulCode, isXYOpsResponse } from "../guards";
+import {
+  isRetryableStatus,
+  isSuccessfulCode,
+  isXYOpsResponse,
+} from "../guards";
 import type { XYOpsResponse } from "../types";
 
 export type Sleep = (milliseconds: number) => Promise<void>;
@@ -39,7 +43,10 @@ const fetchRequest = async (
     .finally(() => clearTimeout(timeout));
 };
 
-const requireHTTPResponse = (response: Response, endpoint: string): Response => {
+const requireHTTPResponse = (
+  response: Response,
+  endpoint: string,
+): Response => {
   if (!response.ok)
     throw fail("http", {
       endpoint,
@@ -59,18 +66,30 @@ const parseJSONResponse = async (
         endpoint,
         nextAction: "XYOps returned an invalid JSON response.",
       }),
-    )
+    ),
   );
 
-const requireXYOpsResponse = (value: unknown, endpoint: string): XYOpsResponse => {
+const requireXYOpsResponse = (
+  value: unknown,
+  endpoint: string,
+): XYOpsResponse => {
   if (!isXYOpsResponse(value))
-    throw fail("api", { endpoint, nextAction: "XYOps returned an invalid response." });
+    throw fail("api", {
+      endpoint,
+      nextAction: "XYOps returned an invalid response.",
+    });
   return value;
 };
 
-const requireSuccessfulResponse = (value: XYOpsResponse, endpoint: string): XYOpsResponse => {
+const requireSuccessfulResponse = (
+  value: XYOpsResponse,
+  endpoint: string,
+): XYOpsResponse => {
   if (!isSuccessfulCode(value.code))
-    throw fail("api", { endpoint, nextAction: "XYOps rejected the migration event." });
+    throw fail("api", {
+      endpoint,
+      nextAction: "XYOps rejected the migration event.",
+    });
   return value;
 };
 
@@ -89,7 +108,10 @@ export const fetchJSON = async (
     await fetchRequest(fetcher, url, apiKey, body, timeoutMs, endpoint),
     endpoint,
   );
-  return validateAPIResponse(await parseJSONResponse(response, endpoint), endpoint);
+  return validateAPIResponse(
+    await parseJSONResponse(response, endpoint),
+    endpoint,
+  );
 };
 
 export const defaultSleep: Sleep = (milliseconds) =>

@@ -10,10 +10,12 @@ type ListProjectsResult = {
 
 type ListProjectsForWorkspace = (
   sourceWorkspaceID: string,
-) => (auth: Parameters<typeof listProjects>[0]) =>
-  ReturnType<typeof listProjects>;
-const listProjectsForWorkspace: ListProjectsForWorkspace = (sourceWorkspaceID) =>
-  (auth) => listProjects(auth, sourceWorkspaceID);
+) => (
+  auth: Parameters<typeof listProjects>[0],
+) => ReturnType<typeof listProjects>;
+const listProjectsForWorkspace: ListProjectsForWorkspace =
+  (sourceWorkspaceID) => (auth) =>
+    listProjects(auth, sourceWorkspaceID);
 
 type Main = (
   token: string,

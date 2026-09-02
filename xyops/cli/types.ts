@@ -83,7 +83,9 @@ export type ExecuteResult = Readonly<{
   imported: Readonly<{ projectID: string; [key: string]: unknown }>;
   apiKeyRetrieved: boolean;
 }>;
-export type EventParameterValue = string | boolean;
+export type SecretEntry = Readonly<{ name: string; value: string }>;
+export type SecretMap = Readonly<Record<string, string>>;
+export type EventParameterValue = string | boolean | SecretMap;
 export type EventParameters = Readonly<Record<string, EventParameterValue>>;
 export type XYOpsEventConfig = Readonly<{
   checkSession: XYOpsEventReference;

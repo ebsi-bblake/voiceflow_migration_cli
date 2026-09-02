@@ -3,6 +3,7 @@ import type {
   EventParameters,
   MigrationSelection,
   Option,
+  SecretMap,
 } from "./types";
 import { isEventParameterEntry } from "./guards";
 import type { MigrationState } from "./types";
@@ -117,8 +118,13 @@ export const planParameters: PlanParameters = (selection) =>
 type ExecuteParameters = (
   selection: MigrationSelection,
   planID: string,
+  secretFileContents?: SecretMap,
 ) => EventParameters;
-export const executeParameters: ExecuteParameters = (selection, planID) =>
+export const executeParameters: ExecuteParameters = (
+  selection,
+  planID,
+  secretFileContents,
+) =>
   eventParametersFor("execute-migration", {
     PLAN_ID: planID,
     SOURCE_WORKSPACE_ID: selection.sourceWorkspaceID,
@@ -128,4 +134,5 @@ export const executeParameters: ExecuteParameters = (selection, planID) =>
     DESTINATION_FOLDER_ID: selection.destinationFolderID,
     TARGET_SCHEMA_VERSION: selection.targetSchemaVersion,
     CONFIRMED: true,
+    SECRET_FILE_CONTENTS: secretFileContents,
   });

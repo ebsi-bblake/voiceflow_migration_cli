@@ -1,16 +1,23 @@
 import type { Writable } from "node:stream";
 import { dispatchOperation } from "./operation_dispatch";
-import type { NativePluginJob, OperationHandlers, PluginInput, PluginStage, XYOpsPluginResponse } from "./types";
+import type {
+  NativePluginJob,
+  OperationHandlers,
+  PluginInput,
+  PluginStage,
+  XYOpsPluginResponse,
+} from "./types";
 import { readVoiceflowJWT } from "./job_validation";
 import { readPluginJob } from "./stdin_job";
 import { mapVoiceflowEnvelope, mapPluginError } from "./wire_protocol";
-import {
-  formatPluginDiagnostic,
-} from "./diagnostics";
+import { formatPluginDiagnostic } from "./diagnostics";
 
 type PluginEnvironment = Readonly<Record<string, string | undefined>>;
 type PluginOutput = Pick<Writable, "write">;
-type WriteDiagnostic = (diagnostics: PluginOutput | undefined, diagnostic: string) => void;
+type WriteDiagnostic = (
+  diagnostics: PluginOutput | undefined,
+  diagnostic: string,
+) => void;
 const writeDiagnostic: WriteDiagnostic = (diagnostics, diagnostic) => {
   if (diagnostics === undefined) return;
   diagnostics.write(`${diagnostic}\n`);
@@ -58,7 +65,9 @@ export const runNativePlugin: RunNativePlugin = (
   handlers,
   diagnostics,
 ) =>
-  buildPluginResponse(input, environment, handlers, diagnostics).then((response) => {
-    output.write(`${JSON.stringify(response)}\n`);
-    return 0;
-  });
+  buildPluginResponse(input, environment, handlers, diagnostics).then(
+    (response) => {
+      output.write(`${JSON.stringify(response)}\n`);
+      return 0;
+    },
+  );

@@ -11,12 +11,12 @@ type ListVersionsResult = {
 type ListVersionsForSelection = (
   sourceWorkspaceID: string,
   sourceProjectID: string,
-) => (auth: Parameters<typeof listVersions>[0]) =>
-  ReturnType<typeof listVersions>;
-const listVersionsForSelection: ListVersionsForSelection = (
-  sourceWorkspaceID,
-  sourceProjectID,
-) => (auth) => listVersions(auth, sourceWorkspaceID, sourceProjectID);
+) => (
+  auth: Parameters<typeof listVersions>[0],
+) => ReturnType<typeof listVersions>;
+const listVersionsForSelection: ListVersionsForSelection =
+  (sourceWorkspaceID, sourceProjectID) => (auth) =>
+    listVersions(auth, sourceWorkspaceID, sourceProjectID);
 
 type Main = (
   token: string,

@@ -7,6 +7,8 @@ export { run } from "./migration";
 if (import.meta.main) {
   run().catch((error: unknown) => {
     process.exitCode = 1;
-    console.error(JSON.stringify({ migrationFailed: cliErrorOutput(asCliError(error)) }));
+    console.error(
+      JSON.stringify({ migrationFailed: cliErrorOutput(asCliError(error)) }),
+    );
   });
 }

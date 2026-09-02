@@ -427,7 +427,6 @@ describe("XYOps CLI adapter", () => {
   });
 
   // The fixture intentionally models dispatch, active, and completed protocol states.
-  // oxlint-disable-next-line complexity
   const nativeJobResponse = (path: string, requestCount: number): Response => {
     if (path === "/api/app/run_event/v1")
       return new Response(JSON.stringify({ code: 0, id: "native-job" }));

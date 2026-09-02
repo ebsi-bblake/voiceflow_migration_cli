@@ -22,7 +22,12 @@ export const importVersion: ImportVersion = async (
   destinationFolderID,
   targetSchemaVersion,
 ) => {
-  const input = importInput(destinationWorkspaceID, destinationFolderID, targetSchemaVersion, artifact);
+  const input = importInput(
+    destinationWorkspaceID,
+    destinationFolderID,
+    targetSchemaVersion,
+    artifact,
+  );
   const form = new FormData();
   form.append(
     "file",
@@ -35,18 +40,45 @@ export const importVersion: ImportVersion = async (
   return parseImportResponse(response, artifact.bytes.byteLength);
 };
 
-type ImportInput = { readonly workspace: string; readonly folder: string; readonly schema: string };
-type ImportInputFactory = (workspace: string, folder: string, schema: string, artifact: ExportArtifact) => ImportInput;
-const importInput: ImportInputFactory = (workspace, folder, schema, artifact) => {
+type ImportInput = {
+  readonly workspace: string;
+  readonly folder: string;
+  readonly schema: string;
+};
+type ImportInputFactory = (
+  workspace: string,
+  folder: string,
+  schema: string,
+  artifact: ExportArtifact,
+) => ImportInput;
+const importInput: ImportInputFactory = (
+  workspace,
+  folder,
+  schema,
+  artifact,
+) => {
   const normalizedWorkspace = requireVoiceflowString(workspace);
   validateArtifactSize(artifact);
-  return { workspace: normalizedWorkspace, folder: requiredFolderID(folder), schema: requireVoiceflowString(schema) };
+  return {
+    workspace: normalizedWorkspace,
+    folder: requiredFolderID(folder),
+    schema: requireVoiceflowString(schema),
+  };
 };
 const validateArtifactSize = (artifact: ExportArtifact): void => {
-  if (artifact.bytes.byteLength > 50_000_000) throw new OperationFault("INVALID_ARGUMENT");
+  if (artifact.bytes.byteLength > 50_000_000)
+    throw new OperationFault("INVALID_ARGUMENT");
 };
-type RequestImportResponse = (auth: AuthContext, workspace: string, form: FormData) => Promise<HttpBytes>;
-const requestImportResponse: RequestImportResponse = async (auth, workspace, form) => {
+type RequestImportResponse = (
+  auth: AuthContext,
+  workspace: string,
+  form: FormData,
+) => Promise<HttpBytes>;
+const requestImportResponse: RequestImportResponse = async (
+  auth,
+  workspace,
+  form,
+) => {
   try {
     return await requestBytes({
       url: `https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/import-file/${encodeURIComponent(workspace)}`,
@@ -64,26 +96,37 @@ const requestImportResponse: RequestImportResponse = async (auth, workspace, for
 };
 type ImportRequestFault = (error: unknown) => OperationFault | unknown;
 const importRequestFault: ImportRequestFault = (error) =>
-  isUnknownImportDependency(error) ? new OperationFault("IMPORT_OUTCOME_UNKNOWN") : error;
+  isUnknownImportDependency(error)
+    ? new OperationFault("IMPORT_OUTCOME_UNKNOWN")
+    : error;
 const isUnknownImportDependency = (error: unknown): error is OperationFault => {
   if (!(error instanceof OperationFault)) return false;
   return ["DEPENDENCY_TIMEOUT", "DEPENDENCY_FAILURE"].includes(error.code);
 };
 
-type ParseImportResponse = (response: HttpBytes, bytes: number) => ImportedReceipt;
+type ParseImportResponse = (
+  response: HttpBytes,
+  bytes: number,
+) => ImportedReceipt;
 const parseImportResponse: ParseImportResponse = (response, bytes) => {
   validateImportStatus(response.status);
   return receipt(parseImportBody(response.bytes), response.status, bytes);
 };
 const validateImportStatus = (status: number): void => {
-  if (isImportOutcomeUnknownStatus(status)) throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
+  if (isImportOutcomeUnknownStatus(status))
+    throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
   ensureSuccessfulStatus(status);
 };
 const ensureSuccessfulStatus = (status: number): void => {
-  if (!isSuccessfulStatus(status)) throw new OperationFault("DEPENDENCY_FAILURE");
+  if (!isSuccessfulStatus(status))
+    throw new OperationFault("DEPENDENCY_FAILURE");
 };
-const isSuccessfulStatus = (status: number): boolean => status >= 200 && status < 300;
+const isSuccessfulStatus = (status: number): boolean =>
+  status >= 200 && status < 300;
 const parseImportBody = (bytes: ArrayBuffer): unknown => {
-  try { return JSON.parse(new TextDecoder().decode(bytes)); }
-  catch { throw new OperationFault("IMPORT_OUTCOME_UNKNOWN"); }
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    throw new OperationFault("IMPORT_OUTCOME_UNKNOWN");
+  }
 };

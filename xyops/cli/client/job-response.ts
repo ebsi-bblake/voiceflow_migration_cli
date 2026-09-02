@@ -56,18 +56,17 @@ export const readLaunchID = (
 };
 
 // XYOps has two supported response envelopes for jobs.
-// oxlint-disable-next-line complexity
-const findResponseJob = (response: XYOpsResponse): XYOpsJob | undefined => {
-  if (isXYOpsJobResponse(response)) return response.job;
-  if (!hasResponseData(response)) return undefined;
-  return readJobContainer(response.data);
-};
+const findResponseJob = (response: XYOpsResponse): XYOpsJob | undefined =>
+  isXYOpsJobResponse(response)
+    ? response.job
+    : hasResponseData(response)
+      ? readJobContainer(response.data)
+      : undefined;
 
 const sensitiveField =
   /token|api[_-]?key|password|secret|authorization|credential|params?|output|data|activity|fields|env/i;
 
 // Debug logging is deliberately isolated and redacts sensitive DTO branches.
-// oxlint-disable-next-line complexity
 const redactResponseDTO = (value: unknown, key = ""): unknown => {
   if (sensitiveField.test(key)) return "[redacted]";
   if (Array.isArray(value)) return value.map((item) => redactResponseDTO(item));
@@ -131,7 +130,6 @@ const normalizeFailureDetail = (value: string): string =>
     .trim();
 
 // These checks intentionally guard against accidentally exposing structured or secret data.
-// oxlint-disable-next-line complexity
 const isUnsafeFailureDetail = (value: string): boolean =>
   !value ||
   value.startsWith("{") ||
@@ -149,7 +147,6 @@ const logFailedJobResponse = (job: XYOpsJobResult): void => {
 };
 
 // Failure descriptions are sanitized before crossing the CLI boundary.
-// oxlint-disable-next-line complexity
 const describeFailure = (job: XYOpsJobResult, fallback: string): string => {
   const detail = selectFailureDetail(job);
   if (detail === undefined) return fallback;
@@ -191,7 +188,6 @@ const hasReadableOutput = (
   typeof job.output === "string" && job.output.trim().length > 0;
 
 // Output may be encoded as JSON text or returned in the data field.
-// oxlint-disable-next-line complexity
 export const readJobOutput = (
   job: XYOpsJobResult,
   endpoint: string,

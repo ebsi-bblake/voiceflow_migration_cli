@@ -41,6 +41,7 @@ function requestURL(input: RequestInfo | URL): string {
   if (typeof input === "string") return input;
   return requestObjectURL(input);
 }
+
 function requestObjectURL(input: Request | URL): string {
   if (input instanceof URL) return input.href;
   return input.url;
@@ -61,6 +62,7 @@ async function retrieveWithControlledFetch(
     globalThis.fetch = previousFetch;
   }
 }
+
 function controlledFetch(body: string, requests: FetchObservation[]) {
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     rejectRepeatedRequest(requests);
@@ -68,19 +70,24 @@ function controlledFetch(body: string, requests: FetchObservation[]) {
     return new Response(body, { status: 200 });
   };
 }
+
 function rejectRepeatedRequest(requests: readonly FetchObservation[]): void {
   if (requests.length > 0) throw new Error("Unexpected repeated API-key request");
 }
+
 function fetchObservation(input: RequestInfo | URL, init?: RequestInit): FetchObservation {
   return { url: requestURL(input), method: requestMethod(init), authorization: requestAuthorization(init) };
 }
+
 function requestMethod(init?: RequestInit): string {
   if (init === undefined) return "GET";
   return requestMethodValue(init.method);
 }
+
 function requestMethodValue(method: string | undefined): string {
   return method === undefined ? "GET" : method;
 }
+
 function requestAuthorization(init?: RequestInit): string | null {
   return new Headers(init?.headers).get("Authorization");
 }

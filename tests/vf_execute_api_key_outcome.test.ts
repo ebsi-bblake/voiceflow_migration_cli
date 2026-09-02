@@ -182,13 +182,16 @@ function executeScenarioInIsolatedProcess(scenario: ExecuteScenario): unknown {
   validateIsolatedExecution(child.exitCode, stdout, scenario, stderr);
   return JSON.parse(stdout) as unknown;
 }
+
 function validateIsolatedExecution(exitCode: number, stdout: string, scenario: ExecuteScenario, stderr: string): void {
   validateExecuteExit(exitCode, stderr);
   validateExecuteStdout(stdout);
 }
+
 function validateExecuteExit(exitCode: number, stderr: string): void {
   if (exitCode !== 0) throw new Error(`Isolated execute scenario failed with exit ${exitCode}: ${stderr}`);
 }
+
 function validateExecuteStdout(stdout: string): void {
   if (!stdout) throw new Error("Isolated execute scenario returned no envelope");
 }

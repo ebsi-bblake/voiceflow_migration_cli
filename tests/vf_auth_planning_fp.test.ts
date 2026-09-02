@@ -46,7 +46,6 @@ type PlanningScenarioResult = {
 };
 
 type PlanningScenario = "catalog";
-
 function encodeClaims(claims: Record<string, unknown>): string {
   const payload = btoa(JSON.stringify(claims))
     .replace(/=/g, "")
@@ -92,9 +91,11 @@ const catalogRowsByType: Readonly<Record<string, readonly unknown[]>> = {
       },
   ],
 };
+
 function requireCatalogRows(type: string | undefined): readonly unknown[] {
   return catalogRowsByKey(type === undefined ? "" : type, type);
 }
+
 function catalogRowsByKey(key: string, originalType: string | undefined): readonly unknown[] {
   const rows = catalogRowsByType[key];
   if (rows === undefined) throw new Error(`Unexpected catalog type: ${String(originalType)}`);
@@ -149,13 +150,16 @@ function scenarioResultFromIsolatedProcess<Result>(
   validateScenarioOutput(child.exitCode, stdout, scenario, stderr);
   return JSON.parse(stdout) as Result;
 }
+
 function validateScenarioOutput(exitCode: number, stdout: string, scenario: PlanningScenario, stderr: string): void {
   validateScenarioExit(exitCode, scenario, stderr);
   validateScenarioStdout(stdout, scenario);
 }
+
 function validateScenarioExit(exitCode: number, scenario: PlanningScenario, stderr: string): void {
   if (exitCode !== 0) throw new Error(`Isolated ${scenario} scenario failed with exit ${exitCode}: ${stderr}`);
 }
+
 function validateScenarioStdout(stdout: string, scenario: PlanningScenario): void {
   if (!stdout) throw new Error(`Isolated ${scenario} scenario returned no result`);
 }

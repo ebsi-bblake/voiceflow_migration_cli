@@ -10,10 +10,12 @@ type ListFoldersResult = {
 
 type ListFoldersForWorkspace = (
   destinationWorkspaceID: string,
-) => (auth: Parameters<typeof listFolders>[0]) =>
-  ReturnType<typeof listFolders>;
-const listFoldersForWorkspace: ListFoldersForWorkspace = (destinationWorkspaceID) =>
-  (auth) => listFolders(auth, destinationWorkspaceID);
+) => (
+  auth: Parameters<typeof listFolders>[0],
+) => ReturnType<typeof listFolders>;
+const listFoldersForWorkspace: ListFoldersForWorkspace =
+  (destinationWorkspaceID) => (auth) =>
+    listFolders(auth, destinationWorkspaceID);
 
 type Main = (
   token: string,

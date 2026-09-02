@@ -18,9 +18,11 @@ import type {
   EventParameters,
   MigrationPlan,
   MigrationSelection,
+  SecretMap,
   VoiceflowWarning,
 } from "../types";
 import { asCliError, cliErrorOutput, fail } from "../diagnostics";
+import { readSecretFile } from "../secrets";
 import {
   executeParameters,
   eventParametersFor,
@@ -44,6 +46,7 @@ const printHelp: PrintHelp = () => {
   console.log(
     `Local configuration: XYOPS_API_KEY=<key> (required), XYOPS_BASE_URL=<url> (default: ${DEFAULT_XYOPS_BASE_URL}).`,
   );
+  console.log("Optional --secrets=<local-env-file> supplies project secrets.");
   console.log(
     "Optional XYOPS_EVENT_* overrides accept title:<event-title> or id:<event-id>.",
   );
@@ -145,7 +148,6 @@ const summarizeExecution: SummarizeExecution = (value, planID) => {
   };
 };
 
-type Run = () => Promise<void>;
 const helpRequested = (): boolean =>
   process.argv.includes("--help") || process.argv.includes("-h");
 const requireActiveSession = (active: boolean): void => {
@@ -191,8 +193,14 @@ type DestinationSelection = Pick<
   MigrationSelection,
   "destinationWorkspaceID" | "destinationFolderID" | "targetSchemaVersion"
 >;
-type SelectSourceSelection = (context: MigrationContext) => Promise<SourceSelection>;
-const selectSourceSelection: SelectSourceSelection = async ({ reader, client, config }) => {
+type SelectSourceSelection = (
+  context: MigrationContext,
+) => Promise<SourceSelection>;
+const selectSourceSelection: SelectSourceSelection = async ({
+  reader,
+  client,
+  config,
+}) => {
   const sourceWorkspaceID = await selectCatalog(
     reader,
     client,
@@ -216,8 +224,14 @@ const selectSourceSelection: SelectSourceSelection = async ({ reader, client, co
   );
   return { sourceWorkspaceID, sourceProjectID, sourceVersionID };
 };
-type SelectDestinationSelection = (context: MigrationContext) => Promise<DestinationSelection>;
-const selectDestinationSelection: SelectDestinationSelection = async ({ reader, client, config }) => {
+type SelectDestinationSelection = (
+  context: MigrationContext,
+) => Promise<DestinationSelection>;
+const selectDestinationSelection: SelectDestinationSelection = async ({
+  reader,
+  client,
+  config,
+}) => {
   const destinationWorkspaceID = await selectCatalog(
     reader,
     client,
@@ -237,7 +251,10 @@ const selectDestinationSelection: SelectDestinationSelection = async ({ reader, 
   );
   return { destinationWorkspaceID, destinationFolderID, targetSchemaVersion };
 };
-type ReadMigrationPlan = (context: MigrationContext, selection: MigrationSelection) => Promise<MigrationPlan>;
+type ReadMigrationPlan = (
+  context: MigrationContext,
+  selection: MigrationSelection,
+) => Promise<MigrationPlan>;
 const readMigrationPlan: ReadMigrationPlan = ({ client, config }, selection) =>
   client
     .readEvent(
@@ -252,13 +269,17 @@ type ConfirmAndExecuteMigration = (
   context: MigrationContext,
   selection: MigrationSelection,
   planID: string,
+  secretFileContents?: SecretMap,
 ) => Promise<void>;
 const confirmAndExecuteMigration: ConfirmAndExecuteMigration = async (
   { reader, client, config },
   selection,
   planID,
+  secretFileContents,
 ) => {
-  const confirmation = (await reader.ask("Perform this real migration? (yes/no): "))
+  const confirmation = (
+    await reader.ask("Perform this real migration? (yes/no): ")
+  )
     .trim()
     .toLowerCase();
   if (!requireConfirmation(confirmation)) {
@@ -267,7 +288,7 @@ const confirmAndExecuteMigration: ConfirmAndExecuteMigration = async (
   }
   const executeResponse = await client.executeEvent(
     config.events.executeMigration,
-    executeParameters(selection, planID),
+    executeParameters(selection, planID, secretFileContents),
     isVoiceflowEnvelope(isExecuteResult),
   );
   const execute = requireEnvelopeResult(
@@ -277,6 +298,24 @@ const confirmAndExecuteMigration: ConfirmAndExecuteMigration = async (
   );
   console.log(JSON.stringify(summarizeExecution(execute, planID)));
   warnAPIKeyRetrieval(executeResponse);
+};
+type ReadSecretFileContents = (
+  path: string,
+) => Promise<SecretMap | undefined>;
+const readSecretFileContents: ReadSecretFileContents = (path) =>
+  path === "" ? Promise.resolve(undefined) : readSecretFile(path);
+type ReadSecretsArgument = () => string | undefined;
+const readSecretsArgument: ReadSecretsArgument = () =>
+  process.argv.find((argument) => argument.startsWith("--secrets="))?.slice(10);
+type ReadSecretsForMigration = (
+  reader: PromptReader,
+) => Promise<SecretMap | undefined>;
+const readSecretsForMigration: ReadSecretsForMigration = async (reader) => {
+  const argumentPath = readSecretsArgument();
+  const path =
+    argumentPath ??
+    (await reader.ask("Secrets file path (leave blank to skip): ")).trim();
+  return readSecretFileContents(path);
 };
 type PerformMigration = (context: MigrationContext) => Promise<void>;
 const performMigration: PerformMigration = async (context) => {
@@ -299,10 +338,18 @@ const performMigration: PerformMigration = async (context) => {
     ...(await selectDestinationSelection(context)),
   };
   const selection = stateSelection(state);
+  const secretFileContents = await readSecretsForMigration(context.reader);
   const plan = await readMigrationPlan(context, selection);
   displayPlan(plan);
-  await confirmAndExecuteMigration(context, selection, plan.planID);
+  await confirmAndExecuteMigration(
+    context,
+    selection,
+    plan.planID,
+    secretFileContents,
+  );
 };
+
+type Run = () => Promise<void>;
 export const run: Run = async () => {
   if (helpRequested()) {
     printHelp();

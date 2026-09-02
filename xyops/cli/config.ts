@@ -1,7 +1,15 @@
 import { fail } from "./diagnostics";
 import { isHTTPURL, isInvalidDuration } from "./guards";
-import type { XYOpsConfig, XYOpsEventConfig, XYOpsEventReference } from "./types";
-export type { XYOpsConfig, XYOpsEventConfig, XYOpsEventReference } from "./types";
+import type {
+  XYOpsConfig,
+  XYOpsEventConfig,
+  XYOpsEventReference,
+} from "./types";
+export type {
+  XYOpsConfig,
+  XYOpsEventConfig,
+  XYOpsEventReference,
+} from "./types";
 
 export const DEFAULT_HTTP_TIMEOUT_MS = 15_000;
 export const DEFAULT_POLL_INTERVAL_MS = 1_000;
@@ -20,7 +28,10 @@ const DEFAULT_EVENT_TITLES = {
 
 type Environment = Readonly<Record<string, string | undefined>>;
 
-type ReadTrimmedEnvironment = (environment: Environment, name: string) => string;
+type ReadTrimmedEnvironment = (
+  environment: Environment,
+  name: string,
+) => string;
 const readTrimmedEnvironment: ReadTrimmedEnvironment = (environment, name) =>
   (environment[name] ?? "").trim();
 
@@ -32,7 +43,10 @@ const requiredEnvironment: RequiredEnvironment = (environment, name) => {
   return value;
 };
 
-type EventReferenceParser = (value: string, name: string) => XYOpsEventReference;
+type EventReferenceParser = (
+  value: string,
+  name: string,
+) => XYOpsEventReference;
 type ParseEventId = EventReferenceParser;
 const parseEventId: ParseEventId = (value, name) => {
   if (!value)
@@ -49,11 +63,12 @@ const parseEventTitle: ParseEventTitle = (value, name) => {
     });
   return { title: value };
 };
-const EVENT_REFERENCE_PARSERS: Readonly<Record<string, EventReferenceParser>> = {
-  "": parseEventId,
-  "id:": parseEventId,
-  "title:": parseEventTitle,
-};
+const EVENT_REFERENCE_PARSERS: Readonly<Record<string, EventReferenceParser>> =
+  {
+    "": parseEventId,
+    "id:": parseEventId,
+    "title:": parseEventTitle,
+  };
 const EVENT_REFERENCE_PREFIXES = ["id:", "title:"] as const;
 type FindEventReferencePrefix = (value: string) => string;
 const findEventReferencePrefix: FindEventReferencePrefix = (value) =>
@@ -72,7 +87,10 @@ const readEventReference: ReadEventReference = (
   const value = readTrimmedEnvironment(environment, name);
   if (!value) return { title: fallback };
   const prefix = findEventReferencePrefix(value);
-  return EVENT_REFERENCE_PARSERS[prefix](value.slice(prefix.length).trim(), name);
+  return EVENT_REFERENCE_PARSERS[prefix](
+    value.slice(prefix.length).trim(),
+    name,
+  );
 };
 
 type PositiveMilliseconds = (
@@ -134,13 +152,41 @@ const readBaseURL: ReadBaseURL = (environment) =>
 
 type ReadEventConfig = (environment: Environment) => XYOpsEventConfig;
 const readEventConfig: ReadEventConfig = (environment) => ({
-  checkSession: readEventReference(environment, "XYOPS_EVENT_CHECK_SESSION", DEFAULT_EVENT_TITLES.checkSession),
-  listWorkspaces: readEventReference(environment, "XYOPS_EVENT_LIST_WORKSPACES", DEFAULT_EVENT_TITLES.listWorkspaces),
-  listProjects: readEventReference(environment, "XYOPS_EVENT_LIST_PROJECTS", DEFAULT_EVENT_TITLES.listProjects),
-  listVersions: readEventReference(environment, "XYOPS_EVENT_LIST_VERSIONS", DEFAULT_EVENT_TITLES.listVersions),
-  listFolders: readEventReference(environment, "XYOPS_EVENT_LIST_FOLDERS", DEFAULT_EVENT_TITLES.listFolders),
-  planMigration: readEventReference(environment, "XYOPS_EVENT_PLAN_MIGRATION", DEFAULT_EVENT_TITLES.planMigration),
-  executeMigration: readEventReference(environment, "XYOPS_EVENT_EXECUTE_MIGRATION", DEFAULT_EVENT_TITLES.executeMigration),
+  checkSession: readEventReference(
+    environment,
+    "XYOPS_EVENT_CHECK_SESSION",
+    DEFAULT_EVENT_TITLES.checkSession,
+  ),
+  listWorkspaces: readEventReference(
+    environment,
+    "XYOPS_EVENT_LIST_WORKSPACES",
+    DEFAULT_EVENT_TITLES.listWorkspaces,
+  ),
+  listProjects: readEventReference(
+    environment,
+    "XYOPS_EVENT_LIST_PROJECTS",
+    DEFAULT_EVENT_TITLES.listProjects,
+  ),
+  listVersions: readEventReference(
+    environment,
+    "XYOPS_EVENT_LIST_VERSIONS",
+    DEFAULT_EVENT_TITLES.listVersions,
+  ),
+  listFolders: readEventReference(
+    environment,
+    "XYOPS_EVENT_LIST_FOLDERS",
+    DEFAULT_EVENT_TITLES.listFolders,
+  ),
+  planMigration: readEventReference(
+    environment,
+    "XYOPS_EVENT_PLAN_MIGRATION",
+    DEFAULT_EVENT_TITLES.planMigration,
+  ),
+  executeMigration: readEventReference(
+    environment,
+    "XYOPS_EVENT_EXECUTE_MIGRATION",
+    DEFAULT_EVENT_TITLES.executeMigration,
+  ),
 });
 
 type ReadDurations = (environment: Environment) => Readonly<{
@@ -149,9 +195,21 @@ type ReadDurations = (environment: Environment) => Readonly<{
   pollTimeoutMs: number;
 }>;
 const readDurations: ReadDurations = (environment) => ({
-  httpTimeoutMs: positiveMilliseconds(environment, "XYOPS_HTTP_TIMEOUT_MS", DEFAULT_HTTP_TIMEOUT_MS),
-  pollIntervalMs: positiveMilliseconds(environment, "XYOPS_POLL_INTERVAL_MS", DEFAULT_POLL_INTERVAL_MS),
-  pollTimeoutMs: positiveMilliseconds(environment, "XYOPS_POLL_TIMEOUT_MS", DEFAULT_POLL_TIMEOUT_MS),
+  httpTimeoutMs: positiveMilliseconds(
+    environment,
+    "XYOPS_HTTP_TIMEOUT_MS",
+    DEFAULT_HTTP_TIMEOUT_MS,
+  ),
+  pollIntervalMs: positiveMilliseconds(
+    environment,
+    "XYOPS_POLL_INTERVAL_MS",
+    DEFAULT_POLL_INTERVAL_MS,
+  ),
+  pollTimeoutMs: positiveMilliseconds(
+    environment,
+    "XYOPS_POLL_TIMEOUT_MS",
+    DEFAULT_POLL_TIMEOUT_MS,
+  ),
 });
 
 type ReadXYOpsConfig = (environment?: Environment) => XYOpsConfig;

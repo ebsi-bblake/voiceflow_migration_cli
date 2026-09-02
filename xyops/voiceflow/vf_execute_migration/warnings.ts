@@ -16,5 +16,3 @@ export const executeWarnings: ExecuteWarnings = (apiKeyRetrieved) => {
   }
   return warnings;
 };
-
-

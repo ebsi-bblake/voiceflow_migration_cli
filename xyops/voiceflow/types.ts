@@ -58,6 +58,7 @@ export type ImportedReceipt = Readonly<{
   folderID?: string;
 }>;
 export type AuthContext = Readonly<{ token: string; creatorID: string }>;
+export type SecretEntry = Readonly<{ name: string; value: string }>;
 export type ApiKeyDiagnostic = Readonly<{ code: string; message: string }>;
 export type ApiKeyStatus =
   | { readonly apiKeyRetrieved: true; readonly postImport?: never }
@@ -111,4 +112,5 @@ export type ExecuteResult = Readonly<{
   importBytes: number;
   selected: MigrationSelection;
   imported: ImportedReceipt;
-}> & ApiKeyStatus;
+}> &
+  ApiKeyStatus;

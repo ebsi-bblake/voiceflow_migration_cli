@@ -50,7 +50,8 @@ const recordKeyCandidates = (value: unknown): string[] => {
   return keyFields.flatMap((field) => stringValue(value[field]));
 };
 const keyFields = ["apiKey", "api_key", "key", "token"] as const;
-const stringValue = (value: unknown): string[] => typeof value === "string" ? [value.trim()] : [];
+const stringValue = (value: unknown): string[] =>
+  typeof value === "string" ? [value.trim()] : [];
 
 type ParseKeys = (bytes: ArrayBuffer) => string[];
 const parseKeys: ParseKeys = (bytes) => {
@@ -68,9 +69,7 @@ const selectVoiceflowApiKeys: SelectVoiceflowApiKeys = (keys) =>
   keys.filter((key) => /^VF\.DM\..+/.test(key));
 
 type DeduplicateStrings = (values: readonly string[]) => string[];
-const deduplicateStrings: DeduplicateStrings = (values) => [
-  ...new Set(values),
-];
+const deduplicateStrings: DeduplicateStrings = (values) => [...new Set(values)];
 
 type RetrieveApiKeyStatus = (
   auth: AuthContext,
@@ -84,18 +83,41 @@ export const retrieveApiKeyStatus: RetrieveApiKeyStatus = async (
   if (!id) return missingProjectApiKeyOutcome();
   return retrieveApiKeyStatusForProject(auth, id);
 };
-const retrieveApiKeyStatusForProject = async (auth: AuthContext, id: string): Promise<ApiKeyStatus> =>
+const retrieveApiKeyStatusForProject = async (
+  auth: AuthContext,
+  id: string,
+): Promise<ApiKeyStatus> =>
   retrieveValidatedApiKey(auth, id).catch(() => failedApiKeyRetrievalOutcome());
-const retrieveValidatedApiKey = async (auth: AuthContext, id: string): Promise<ApiKeyStatus> => {
-  const response = await requestBytes({ url: `https://identity-api.empyrean.voiceflow.com/v1alpha1/api-key/legacy/project/${encodeURIComponent(id)}`, init: { method: "POST", headers: { Authorization: `Bearer ${auth.token}` } }, maxBytes: 1_048_576, timeoutMs: 30_000 });
-  const keys = deduplicateStrings(selectVoiceflowApiKeys(parseKeys(response.bytes)));
-  if (!isSuccessfulApiKeyResponse(response.status, keys)) throw new Error("retrieval failed");
+const retrieveValidatedApiKey = async (
+  auth: AuthContext,
+  id: string,
+): Promise<ApiKeyStatus> => {
+  const response = await requestBytes({
+    url: `https://identity-api.empyrean.voiceflow.com/v1alpha1/api-key/legacy/project/${encodeURIComponent(id)}`,
+    init: {
+      method: "POST",
+      headers: { Authorization: `Bearer ${auth.token}` },
+    },
+    maxBytes: 1_048_576,
+    timeoutMs: 30_000,
+  });
+  const keys = deduplicateStrings(
+    selectVoiceflowApiKeys(parseKeys(response.bytes)),
+  );
+  if (!isSuccessfulApiKeyResponse(response.status, keys))
+    throw new Error("retrieval failed");
   return successfulApiKeyOutcome();
 };
-const isSuccessfulApiKeyResponse = (status: number, keys: readonly string[]): boolean => {
+const isSuccessfulApiKeyResponse = (
+  status: number,
+  keys: readonly string[],
+): boolean => {
   return isSuccessfulStatus(status) && hasSingleKey(keys);
 };
-const normalizeProjectID = (projectID: string | undefined): string | undefined =>
+const normalizeProjectID = (
+  projectID: string | undefined,
+): string | undefined =>
   projectID === undefined ? undefined : projectID.trim();
-const isSuccessfulStatus = (status: number): boolean => status >= 200 && status < 300;
+const isSuccessfulStatus = (status: number): boolean =>
+  status >= 200 && status < 300;
 const hasSingleKey = (keys: readonly string[]): boolean => keys.length === 1;

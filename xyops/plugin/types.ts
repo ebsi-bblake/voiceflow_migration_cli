@@ -1,5 +1,6 @@
 import type { Envelope } from "../voiceflow/vf_contracts";
 import type { supportedPluginOperations } from "./operations";
+import type { SecretEntry } from "../voiceflow/types";
 
 export type PluginOperation = (typeof supportedPluginOperations)[number];
 
@@ -29,17 +30,22 @@ export type PluginValidationCode =
   | "INVALID_INPUT"
   | "MISSING_SECRET"
   | "UNKNOWN_OPERATION";
-
 type PluginEnvelope = Envelope<unknown>;
 type CheckSessionHandler = (token: string) => Promise<PluginEnvelope>;
 type ListWorkspacesHandler = (token: string) => Promise<PluginEnvelope>;
-type ListProjectsHandler = (token: string, sourceWorkspaceID: string) => Promise<PluginEnvelope>;
+type ListProjectsHandler = (
+  token: string,
+  sourceWorkspaceID: string,
+) => Promise<PluginEnvelope>;
 type ListVersionsHandler = (
   token: string,
   sourceWorkspaceID: string,
   sourceProjectID: string,
 ) => Promise<PluginEnvelope>;
-type ListFoldersHandler = (token: string, destinationWorkspaceID: string) => Promise<PluginEnvelope>;
+type ListFoldersHandler = (
+  token: string,
+  destinationWorkspaceID: string,
+) => Promise<PluginEnvelope>;
 type PlanMigrationHandler = (
   token: string,
   sourceWorkspaceID: string,
@@ -59,6 +65,7 @@ type ExecuteMigrationHandler = (
   destinationFolderID: string,
   targetSchemaVersion?: string,
   confirmed?: boolean,
+  secretFileContents?: readonly SecretEntry[],
 ) => Promise<PluginEnvelope>;
 
 export type OperationHandlers = Readonly<{

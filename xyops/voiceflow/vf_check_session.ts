@@ -1,9 +1,5 @@
 import { resolveVoiceflowAuth } from "./vf_auth";
-import {
-  failure,
-  success,
-  OperationFault,
-} from "./vf_contracts";
+import { failure, success, OperationFault } from "./vf_contracts";
 import { requestBytes } from "./vf_http";
 import { isRetryableHttpStatus } from "./guards";
 import type { Envelope, HttpBytes } from "./types";
@@ -31,7 +27,8 @@ const successfulSessionResult = (status: number): CheckSessionResult => {
   return { active: true };
 };
 const loginRequiredStatus = new Set([401, 403]);
-const isSuccessfulStatus = (status: number): boolean => status >= 200 && status < 300;
+const isSuccessfulStatus = (status: number): boolean =>
+  status >= 200 && status < 300;
 const dependencyFault = (status: number): OperationFault =>
   new OperationFault("DEPENDENCY_FAILURE", isRetryableHttpStatus(status));
 

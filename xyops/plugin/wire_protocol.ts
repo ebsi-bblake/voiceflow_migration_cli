@@ -1,7 +1,9 @@
 import { PluginValidationFault } from "./validation_fault";
 import type { XYOpsPluginResponse, VoiceflowEnvelope } from "./types";
 
-type MapVoiceflowEnvelope = (envelope: VoiceflowEnvelope) => XYOpsPluginResponse;
+type MapVoiceflowEnvelope = (
+  envelope: VoiceflowEnvelope,
+) => XYOpsPluginResponse;
 export const mapVoiceflowEnvelope: MapVoiceflowEnvelope = (envelope) => {
   if (envelope.ok) {
     return {
@@ -37,8 +39,14 @@ export const createProtocolFailure: CreateProtocolFailure = (
   description,
 });
 
-type AppendPluginDiagnostic = (description: string, diagnostic?: string) => string;
-const appendPluginDiagnostic: AppendPluginDiagnostic = (description, diagnostic) =>
+type AppendPluginDiagnostic = (
+  description: string,
+  diagnostic?: string,
+) => string;
+const appendPluginDiagnostic: AppendPluginDiagnostic = (
+  description,
+  diagnostic,
+) =>
   diagnostic === undefined ? description : `${description} [${diagnostic}]`;
 
 type MapPluginError = (
