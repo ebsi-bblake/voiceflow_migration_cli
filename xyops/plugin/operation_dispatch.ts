@@ -12,8 +12,6 @@ import {
 } from "../voiceflow/vf_contracts";
 import { createUUID } from "../voiceflow/vf_uuid";
 import type { NativePluginJob, OperationHandlers } from "./types";
-import { parseSecretEntries } from "../voiceflow/vf_secrets";
-import type { SecretEntry } from "../voiceflow/types";
 export type { OperationHandlers } from "./types";
 
 type PluginEnvelope = Envelope<unknown>;
@@ -50,14 +48,12 @@ const optionalParameter: OptionalParameter = (job, name) => {
   if (value === undefined) return undefined;
   return trimParameter(value);
 };
-type OptionalSecretEntries = (
+type OptionalSecretInput = (
   job: NativePluginJob,
   name: string,
-) => readonly SecretEntry[] | undefined;
-const optionalSecretEntries: OptionalSecretEntries = (job, name) => {
-  const value = job.params[name];
-  return value === undefined ? undefined : parseSecretEntries(value);
-};
+) => unknown;
+const optionalSecretInput: OptionalSecretInput = (job, name) =>
+  job.params[name];
 type RequiredConfirmation = (job: NativePluginJob) => true;
 const requiredConfirmation: RequiredConfirmation = (job) => {
   if (job.params.CONFIRMED !== true)
@@ -113,7 +109,7 @@ const operationInvocations: OperationInvocations = {
       requiredParameter(job, "DESTINATION_FOLDER_ID"),
       optionalParameter(job, "TARGET_SCHEMA_VERSION"),
       requiredConfirmation(job),
-      optionalSecretEntries(job, "SECRET_FILE_CONTENTS"),
+      optionalSecretInput(job, "SECRET_FILE_CONTENTS"),
     ),
 };
 type InvokeOperation = (

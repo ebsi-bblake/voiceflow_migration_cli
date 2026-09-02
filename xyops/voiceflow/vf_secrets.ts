@@ -12,21 +12,10 @@ export const parseSecretsFile: ParseSecretsFile = (contents) =>
 
 type ParseSecretEntries = (value: unknown) => readonly SecretEntry[];
 export const parseSecretEntries: ParseSecretEntries = (value) =>
-  typeof value === "string"
-    ? parseSecretEntriesJSON(value)
-    : Array.isArray(value)
-      ? parseSecretEntryList(value)
-      : parseSecretMap(value);
+  typeof value === "string" ? parseSecretEntriesJSON(value) : parseSecretMap(value);
 const parseSecretMap = (value: unknown): readonly SecretEntry[] => {
   if (!isRecord(value)) throw new Error("Secrets must be a JSON object.");
   return Object.entries(value).map(parseSecretEntry);
-};
-const parseSecretEntryList = (value: readonly unknown[]): readonly SecretEntry[] =>
-  value.map(parseSecretListItem);
-const parseSecretListItem = (value: unknown): SecretEntry => {
-  if (!isRecord(value) || typeof value.name !== "string" || typeof value.value !== "string")
-    throw new Error("Secret entries must contain string name and value fields.");
-  return { name: value.name, value: value.value };
 };
 const parseSecretEntry = ([name, entryValue]: readonly [string, unknown]): SecretEntry => {
   if (typeof entryValue !== "string")

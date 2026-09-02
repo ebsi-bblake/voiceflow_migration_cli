@@ -1,6 +1,5 @@
 import type { Envelope } from "../voiceflow/vf_contracts";
 import type { supportedPluginOperations } from "./operations";
-import type { SecretEntry } from "../voiceflow/types";
 
 export type PluginOperation = (typeof supportedPluginOperations)[number];
 
@@ -65,7 +64,7 @@ type ExecuteMigrationHandler = (
   destinationFolderID: string,
   targetSchemaVersion?: string,
   confirmed?: boolean,
-  secretFileContents?: readonly SecretEntry[],
+  secretFileContents?: unknown,
 ) => Promise<PluginEnvelope>;
 
 export type OperationHandlers = Readonly<{
