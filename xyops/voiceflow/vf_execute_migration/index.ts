@@ -100,12 +100,10 @@ const executeConfirmedMigration = async (
       destinationFolderID,
       targetSchemaVersion,
     );
+    stage = "secret-input";
+    const secrets = parseSecretFileContents(secretFileContents);
     stage = "secret-creation";
-    await createProjectSecrets(
-      auth,
-      imported.projectID,
-      parseSecretFileContents(secretFileContents),
-    );
+    await createProjectSecrets(auth, imported.projectID, secrets);
     stage = "api-key-status";
     const apiKey = await retrieveApiKeyStatus(auth, imported.projectID);
     const result: ExecuteResult = {
