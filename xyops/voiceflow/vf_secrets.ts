@@ -11,9 +11,8 @@ export const parseSecretsFile: ParseSecretsFile = (contents) =>
     .map(parseSecretLine);
 
 type ParseSecretEntries = (value: unknown) => readonly SecretEntry[];
-export const parseSecretEntries: ParseSecretEntries = (value) => {
-  return parseSecretMap(value);
-};
+export const parseSecretEntries: ParseSecretEntries = (value) =>
+  typeof value === "string" ? parseSecretEntriesJSON(value) : parseSecretMap(value);
 const parseSecretMap = (value: unknown): readonly SecretEntry[] => {
   if (!isRecord(value)) throw new Error("Secrets must be a JSON object.");
   return Object.entries(value).map(parseSecretEntry);
