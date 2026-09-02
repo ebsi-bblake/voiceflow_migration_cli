@@ -1,3 +1,4 @@
+import { PLUGIN_VERSION } from "./version";
 import { PluginValidationFault } from "./validation_fault";
 import type { XYOpsPluginResponse, VoiceflowEnvelope } from "./types";
 
@@ -18,7 +19,7 @@ export const mapVoiceflowEnvelope: MapVoiceflowEnvelope = (envelope) => {
     data: { voiceflow: envelope },
     complete: true,
     code: envelope.error.code,
-    description: `${envelope.error.message} (code=${envelope.error.code})`,
+    description: `[pluginVersion=${PLUGIN_VERSION}] ${envelope.error.message} (code=${envelope.error.code})`,
   };
 };
 
