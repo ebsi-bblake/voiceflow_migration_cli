@@ -24,12 +24,12 @@ const invalidRow: CatalogParseResult<never> = {
 const validRow = <T>(value: T): CatalogParseResult<T> => ({ ok: true, value });
 
 // Runtime validation intentionally handles multiple external representations.
-// oxlint-disable-next-line complexity
-const normalizeOptionalID = (value: unknown): string | undefined => {
-  if (typeof value !== "string" && typeof value !== "number") return undefined;
-  const normalized = String(value).trim();
-  return normalized || undefined;
-};
+const isIDValue = (value: unknown): value is string | number =>
+  typeof value === "string" || typeof value === "number";
+const normalizeOptionalID = (value: unknown): string | undefined =>
+  isIDValue(value) ? nonEmptyID(String(value).trim()) : undefined;
+const nonEmptyID = (value: string): string | undefined =>
+  value === "" ? undefined : value;
 
 const readID = (row: RawCatalogRow): string | undefined =>
   normalizeOptionalID(row.id ?? row._id);
@@ -38,19 +38,16 @@ const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim() !== "";
 
 // Voiceflow has historically emitted several label aliases.
-// oxlint-disable-next-line complexity
 const readLabel = (row: RawCatalogRow, fallback: string): string => {
   const candidate = [row.name, row.title, row.label].find(isNonEmptyString);
-  return candidate?.trim() ?? fallback;
+  return candidate === undefined ? fallback : candidate.trim();
 };
 
 // Catalog environments arrive as either arrays or keyed objects.
-// oxlint-disable-next-line complexity
-const readEnvironmentRows = (value: unknown): readonly RawCatalogRow[] => {
-  if (Array.isArray(value)) return value.filter(isRawRow);
-  if (!isRawRow(value)) return [];
-  return Object.values(value).filter(isRawRow);
-};
+const readEnvironmentRows = (value: unknown): readonly RawCatalogRow[] =>
+  Array.isArray(value) ? value.filter(isRawRow) : readObjectEnvironmentRows(value);
+const readObjectEnvironmentRows = (value: unknown): readonly RawCatalogRow[] =>
+  isRawRow(value) ? Object.values(value).filter(isRawRow) : [];
 
 const isVersionValue = (value: unknown): value is string | number =>
   typeof value === "string" || typeof value === "number";
@@ -72,41 +69,72 @@ const readEnvironments = (value: unknown): readonly EnvironmentRecord[] =>
 
 type ParseWorkspace = (value: unknown) => CatalogParseResult<WorkspaceRecord>;
 // Runtime validation establishes the WorkspaceRecord contract before catalog options are built.
-// oxlint-disable-next-line complexity
-export const parseWorkspace: ParseWorkspace = (value) => {
-  if (!isRawRow(value)) return invalidRow;
+export const parseWorkspace: ParseWorkspace = (value) =>
+  isRawRow(value) ? parseWorkspaceRow(value) : invalidRow;
+const parseWorkspaceRow = (value: RawCatalogRow): CatalogParseResult<WorkspaceRecord> => {
   const id = readID(value);
-  if (id === undefined) return invalidRow;
-  return validRow({ id, label: readLabel(value, id) });
+  return id === undefined ? invalidRow : validRow({ id, label: readLabel(value, id) });
 };
 
-// oxlint-disable-next-line complexity
 const parseProject: (value: unknown) => CatalogParseResult<ProjectRecord> = (
   value,
 ) => {
-  if (!isRawRow(value)) return invalidRow;
-  const id = readID(value);
-  const workspaceID = normalizeOptionalID(value.workspaceID);
-  if (id === undefined || workspaceID === undefined) return invalidRow;
+  return isRawRow(value) ? parseProjectRow(value) : invalidRow;
+};
+const parseProjectRow = (value: RawCatalogRow): CatalogParseResult<ProjectRecord> => {
+  const identity = projectIdentity(readID(value), normalizeOptionalID(value.workspaceID));
+  if (identity === undefined) return invalidRow;
   return validRow({
-    id,
-    label: readLabel(value, id),
-    workspaceID,
+    id: identity.id,
+    label: readLabel(value, identity.id),
+    workspaceID: identity.workspaceID,
     environments: readEnvironments(value.environments),
   });
 };
+type ProjectIdentity = Readonly<{ id: string; workspaceID: string }>;
+const projectIdentity = (
+  id: string | undefined,
+  workspaceID: string | undefined,
+): ProjectIdentity | undefined =>
+  id === undefined ? undefined : withProjectWorkspace(id, workspaceID);
+const withProjectWorkspace = (
+  id: string,
+  workspaceID: string | undefined,
+): ProjectIdentity | undefined =>
+  workspaceID === undefined ? undefined : { id, workspaceID };
 
-// oxlint-disable-next-line complexity
 const parseFolder: (value: unknown) => CatalogParseResult<FolderRecord> = (
   value,
 ) => {
-  if (!isRawRow(value)) return invalidRow;
+  return isRawRow(value) ? parseFolderRow(value) : invalidRow;
+};
+const parseFolderRow = (value: RawCatalogRow): CatalogParseResult<FolderRecord> => {
   const id = readID(value);
   const workspaceID = normalizeOptionalID(value.workspaceID);
-  if (id === undefined || workspaceID === undefined || !isNumericFolderID(id))
-    return invalidRow;
-  return validRow({ id, label: readLabel(value, id), workspaceID });
+  const identity = folderIdentity(id, workspaceID);
+  if (identity === undefined) return invalidRow;
+  return validRow({
+    id: identity.id,
+    label: readLabel(value, identity.id),
+    workspaceID: identity.workspaceID,
+  });
 };
+type FolderIdentity = Readonly<{ id: string; workspaceID: string }>;
+const folderIdentity = (
+  id: string | undefined,
+  workspaceID: string | undefined,
+): FolderIdentity | undefined =>
+  id === undefined ? undefined : numericFolderIdentity(id, workspaceID);
+const numericFolderIdentity = (
+  id: string,
+  workspaceID: string | undefined,
+): FolderIdentity | undefined =>
+  isNumericFolderID(id) ? withFolderWorkspace(id, workspaceID) : undefined;
+const withFolderWorkspace = (
+  id: string,
+  workspaceID: string | undefined,
+): FolderIdentity | undefined =>
+  workspaceID === undefined ? undefined : { id, workspaceID };
 
 export const projectRows: ProjectRows = (parser) => (rows) =>
   rows.flatMap((row) => {

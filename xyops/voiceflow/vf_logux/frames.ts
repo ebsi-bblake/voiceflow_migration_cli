@@ -1,4 +1,3 @@
-/* oxlint-disable complexity */
 import { OperationFault } from "../vf_contracts";
 import { isObject, isRowArray } from "../guards";
 
@@ -21,7 +20,9 @@ export const handleIncomingMessage = (
   context: IncomingContext,
 ): void => {
   if (!isTextMessage(event)) return;
-  const data = event.data;
+  handleTextMessage(event.data, context);
+};
+const handleTextMessage = (data: string, context: IncomingContext): void => {
   const frameBytes = new TextEncoder().encode(data).byteLength;
   const incomingBytes = context.incomingBytes + frameBytes;
   context.onBytes(incomingBytes);
