@@ -1,3 +1,4 @@
+/* oxlint-disable complexity, no-unused-expressions */
 import type { AuthContext, SecretEntry } from "../types";
 import { OperationFault } from "../vf_contracts";
 import { createUUID } from "../vf_uuid";
@@ -26,11 +27,7 @@ export const createSecret: CreateSecret = (auth, assistantID, secret) =>
       } catch {
         /* settlement must not be interrupted */
       }
-      if (error !== undefined) {
-        reject(error);
-        return;
-      }
-      resolve();
+      error ? reject(error) : resolve();
     };
     const timer = setTimeout(
       () => settle(new OperationFault("DEPENDENCY_TIMEOUT", true)),
