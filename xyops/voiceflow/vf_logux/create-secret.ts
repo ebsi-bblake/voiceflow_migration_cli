@@ -30,12 +30,14 @@ export const createSecret: CreateSecret = (auth, assistantID, secret) =>
       error ? reject(error) : resolve();
     };
     const timer = setTimeout(
-      () => settle(new OperationFault("DEPENDENCY_TIMEOUT", true)),
+      () => settle(new OperationFault("DEPENDENCY_TIMEOUT", true, "logux-timeout")),
       15_000,
     );
-    ws.onerror = () => settle(new OperationFault("DEPENDENCY_FAILURE", true));
+    ws.onerror = () =>
+      settle(new OperationFault("DEPENDENCY_FAILURE", true, "logux-error"));
     ws.onclose = () => {
-      if (!settled) settle(new OperationFault("DEPENDENCY_FAILURE", true));
+      if (!settled)
+        settle(new OperationFault("DEPENDENCY_FAILURE", true, "logux-close"));
     };
     ws.onopen = () =>
       ws.send(
@@ -52,7 +54,7 @@ export const createSecret: CreateSecret = (auth, assistantID, secret) =>
       const frame = parseFrame(event.data);
       if (!frame) return;
       if (frame[0] === "error")
-        return settle(new OperationFault("DEPENDENCY_FAILURE"));
+        return settle(new OperationFault("DEPENDENCY_FAILURE", true, "logux-error-frame"));
       if (frame[0] === "connected") {
         return sendSubscription(ws, assistantID, subscriptionID, actionTime++);
       }

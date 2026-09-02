@@ -36,6 +36,7 @@ export class OperationFault extends Error {
   constructor(
     public readonly code: ErrorCode,
     public readonly retryable = false,
+    public readonly diagnostic?: string,
   ) {
     super(messages[code]);
   }
@@ -70,7 +71,10 @@ export const toOperationError: ToOperationError = (error) => {
   if (error instanceof OperationFault) {
     return {
       code: error.code,
-      message: messages[error.code],
+      message:
+        error.diagnostic === undefined
+          ? messages[error.code]
+          : `${messages[error.code]} (stage=${error.diagnostic})`,
       retryable: error.retryable,
     };
   }
