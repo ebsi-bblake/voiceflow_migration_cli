@@ -76,8 +76,10 @@ const executeConfirmedMigration = async (
   operationID: string,
   secretFileContents?: unknown,
 ): Promise<Envelope<ExecuteResult>> => {
+  let stage = "authentication";
   try {
     const auth = await resolveVoiceflowAuth(token);
+    stage = "planning";
     const selection = migrationSelection(
       sourceWorkspaceID,
       sourceProjectID,
@@ -88,7 +90,9 @@ const executeConfirmedMigration = async (
     );
     const plan = await buildMigrationPlan(auth, selection);
     ensureMatchingPlan(plan.planID, planID);
+    stage = "export";
     const artifact = await exportVersion(auth, sourceVersionID);
+    stage = "import";
     const imported = await importVersion(
       auth,
       artifact,
@@ -96,11 +100,13 @@ const executeConfirmedMigration = async (
       destinationFolderID,
       targetSchemaVersion,
     );
+    stage = "secret-creation";
     await createProjectSecrets(
       auth,
       imported.projectID,
       parseSecretFileContents(secretFileContents),
     );
+    stage = "api-key-status";
     const apiKey = await retrieveApiKeyStatus(auth, imported.projectID);
     const result: ExecuteResult = {
       planID,
@@ -119,9 +125,13 @@ const executeConfirmedMigration = async (
       executeWarnings(apiKey.apiKeyRetrieved),
     );
   } catch (error) {
-    return failure("execute-migration", operationID, error);
+    return failure("execute-migration", operationID, addFailureStage(error, stage));
   }
 };
+const addFailureStage = (error: unknown, stage: string): unknown =>
+  error instanceof OperationFault
+    ? error
+    : new Error(`stage=${stage} error=${error instanceof Error ? error.message : String(error)}`);
 const parseSecretFileContents = (contents: unknown) =>
   contents === undefined ? [] : parseSecretEntries(contents);
 const ensureMatchingPlan = (
