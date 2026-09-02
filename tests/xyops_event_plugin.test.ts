@@ -168,7 +168,7 @@ describe("native XYOps event plugin boundary", () => {
     expect(successResponse).toMatchObject({ xy: 1, complete: true, code: 0, data: { voiceflow: { ok: true } } });
 
     const failureResponse = mapVoiceflowEnvelope(failure("check-session", "operation-2", new OperationFault("AUTHENTICATION_FAILED")));
-    expect(failureResponse).toMatchObject({ xy: 1, complete: true, code: "AUTHENTICATION_FAILED", description: "Authentication failed." });
+    expect(failureResponse).toMatchObject({ xy: 1, complete: true, code: "AUTHENTICATION_FAILED", description: "Authentication failed. (code=AUTHENTICATION_FAILED)" });
     expect(failureResponse.data?.voiceflow).toMatchObject({ ok: false, error: { code: "AUTHENTICATION_FAILED" } });
   });
 

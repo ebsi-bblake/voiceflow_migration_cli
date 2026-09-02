@@ -18,7 +18,7 @@ export const mapVoiceflowEnvelope: MapVoiceflowEnvelope = (envelope) => {
     data: { voiceflow: envelope },
     complete: true,
     code: envelope.error.code,
-    description: envelope.error.message,
+    description: `${envelope.error.message} (code=${envelope.error.code})`,
   };
 };
 
