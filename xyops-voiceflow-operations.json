@@ -1,0 +1,316 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "XYOps Voiceflow Operations Detail",
+    "output": "xyops-voiceflow-operations.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "all-operations",
+        "label": "All seven operations",
+        "focus": [
+          "check-session",
+          "list-workspaces",
+          "list-projects",
+          "list-versions",
+          "list-folders",
+          "plan-migration",
+          "execute-migration"
+        ],
+        "note": "Each deployed operation is shown as its own runtime entrypoint."
+      },
+      {
+        "id": "catalog-operations",
+        "label": "Catalog operations",
+        "focus": [
+          "list-workspaces",
+          "list-projects",
+          "list-versions",
+          "list-folders",
+          "catalog",
+          "logux",
+          "auth"
+        ],
+        "note": "Workspace, project, version, and folder operations share catalog projection and Logux sync."
+      },
+      {
+        "id": "migration-operations",
+        "label": "Migration operations",
+        "focus": [
+          "check-session",
+          "plan-migration",
+          "execute-migration",
+          "planning",
+          "transport",
+          "auth"
+        ],
+        "note": "Check session, create a stable plan, then verify and execute the migration."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "check-session",
+      "type": "backend",
+      "label": "check-session",
+      "sublabel": "identity status",
+      "pos": [
+        40,
+        160
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "list-workspaces",
+      "type": "backend",
+      "label": "list-workspaces",
+      "sublabel": "creator workspaces",
+      "pos": [
+        250,
+        160
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "list-projects",
+      "type": "backend",
+      "label": "list-projects",
+      "sublabel": "workspace projects",
+      "pos": [
+        460,
+        160
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "list-versions",
+      "type": "backend",
+      "label": "list-versions",
+      "sublabel": "draft / published",
+      "pos": [
+        670,
+        160
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "list-folders",
+      "type": "backend",
+      "label": "list-folders",
+      "sublabel": "destination folders",
+      "pos": [
+        880,
+        160
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "plan-migration",
+      "type": "backend",
+      "label": "plan-migration",
+      "sublabel": "labels + stable plan ID",
+      "pos": [
+        1090,
+        160
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "execute-migration",
+      "type": "backend",
+      "label": "execute-migration",
+      "sublabel": "confirmed export / import",
+      "pos": [
+        1090,
+        360
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "auth",
+      "type": "security",
+      "label": "Auth normalization",
+      "sublabel": "JWT \u2192 AuthContext",
+      "pos": [
+        40,
+        560
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "catalog",
+      "type": "backend",
+      "label": "Catalog projection",
+      "sublabel": "raw rows \u2192 options",
+      "pos": [
+        280,
+        560
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "planning",
+      "type": "backend",
+      "label": "Planning + execution core",
+      "sublabel": "selection, hash, receipts",
+      "pos": [
+        520,
+        560
+      ],
+      "size": [
+        200,
+        64
+      ]
+    },
+    {
+      "id": "transport",
+      "type": "backend",
+      "label": "HTTP transport",
+      "sublabel": "timeouts + byte limits",
+      "pos": [
+        780,
+        560
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "logux",
+      "type": "external",
+      "label": "Voiceflow Logux",
+      "sublabel": "catalog WebSocket",
+      "pos": [
+        1020,
+        640
+      ],
+      "size": [
+        180,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "xyops/voiceflow operation handlers",
+      "wraps": [
+        "check-session",
+        "list-workspaces",
+        "list-projects",
+        "list-versions",
+        "list-folders",
+        "plan-migration",
+        "execute-migration",
+        "auth",
+        "catalog",
+        "planning",
+        "transport"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "check-auth",
+      "from": "check-session",
+      "to": "auth",
+      "label": "normalize JWT",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "plan-core",
+      "from": "plan-migration",
+      "to": "planning",
+      "label": "build plan",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "execute-core",
+      "from": "execute-migration",
+      "to": "planning",
+      "label": "verify plan + execute",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "catalog-logux",
+      "from": "catalog",
+      "to": "logux",
+      "label": "sync wanted types",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "planning-transport",
+      "from": "planning",
+      "to": "transport",
+      "label": "export / import / lookup",
+      "labelDy": 56
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Catalog operations",
+      "items": [
+        "list-workspaces reads creator workspace rows",
+        "list-projects reads projects for a workspace",
+        "list-versions exposes draft and published versions",
+        "list-folders filters numeric destination folders"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Migration operations",
+      "items": [
+        "plan-migration normalizes selection, loads catalog, and hashes a plan ID",
+        "execute-migration requires literal confirmation and verifies the plan before export/import"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Shared runtime policies",
+      "items": [
+        "check-session calls the identity endpoint and classifies login-required responses",
+        "HTTP calls enforce timeouts and bounded response bodies",
+        "Import outcome uncertainty and API-key retrieval failure remain explicit"
+      ]
+    }
+  ]
+}
