@@ -41,7 +41,9 @@ const translateExecuteDispatchError = (error: unknown): CliError => {
 // The translation must distinguish transport errors from already-classified CLI failures.
 const readCliDiagnostic = (error: unknown): CliDiagnostic | undefined =>
   error instanceof CliError ? error.diagnostic : undefined;
-const isUnknownOutcomeTransport = (diagnostic: CliDiagnostic | undefined): boolean =>
+const isUnknownOutcomeTransport = (
+  diagnostic: CliDiagnostic | undefined,
+): diagnostic is CliDiagnostic =>
   diagnostic !== undefined && ["timeout", "network"].includes(diagnostic.code);
 const translateExecuteJobError = (error: unknown): CliError => {
   const diagnostic = readCliDiagnostic(error);
