@@ -2,7 +2,6 @@
   "name": "voiceflow-automation",
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@types/ws": "^8.18.1",
     "oxlint": "^1.80.0",
     "typescript": "^7.0.2"
   },
@@ -13,8 +12,5 @@
     "typecheck": "tsc --noEmit",
     "build:plugin": "bun build xyops/plugin/entrypoint.ts --target=node --format=cjs --outfile=dist/voiceflow-event-plugin.cjs",
     "check": "bun run lint && bun run typecheck && bun run test"
-  },
-  "dependencies": {
-    "ws": "^8.21.3"
   }
 }

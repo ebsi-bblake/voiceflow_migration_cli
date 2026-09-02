@@ -1,8 +1,6 @@
-import type WebSocket from "ws";
 import type { AuthContext } from "../types";
-const WebSocketConstructor: typeof WebSocket = require("ws");
-import { formatErrorDiagnostic, OperationFault } from "../vf_contracts";
-import { handleFrame, handleIncomingText } from "./frames";
+import { OperationFault } from "../vf_contracts";
+import { handleFrame, handleIncomingMessage } from "./frames";
 import { createSecret } from "./create-secret";
 import { createUUID } from "../vf_uuid";
 import type { SecretEntry } from "../types";
@@ -36,7 +34,7 @@ export const syncCatalog: SyncCatalog = (auth, channel, wanted) => {
     return Promise.reject(new OperationFault("INVALID_ARGUMENT"));
   }
   return new Promise((resolve, reject) => {
-    const ws = new WebSocketConstructor(URL);
+    const ws = new WebSocket(URL);
     const rows: Row[] = [];
     const wantedSet = new Set(wanted);
     const seen = new Set<string>();
@@ -53,7 +51,7 @@ export const syncCatalog: SyncCatalog = (auth, channel, wanted) => {
       clearTimeout(timer);
       closeSocket(ws);
       settlePromise(error, rows, resolve, reject);
-      ws.removeAllListeners();
+      ws.onmessage = null;
     };
     type SafeSend = (frame: readonly unknown[]) => void;
     const safeSend: SafeSend = (frame) => {
@@ -67,28 +65,20 @@ export const syncCatalog: SyncCatalog = (auth, channel, wanted) => {
       () => settle(new OperationFault("DEPENDENCY_TIMEOUT", true)),
       15000,
     );
-    ws.on("error", (error) =>
-      settle(
-        new OperationFault(
-          "DEPENDENCY_FAILURE",
-          true,
-          formatErrorDiagnostic(error),
-        ),
-      ),
-    );
-    ws.on("close", () => {
+    ws.onerror = () => settle(new OperationFault("DEPENDENCY_FAILURE", true));
+    ws.onclose = () => {
       if (!done) settle(new OperationFault("DEPENDENCY_FAILURE", true));
-    });
-    ws.on("open", () =>
+    };
+    ws.onopen = () =>
       safeSend([
         "connect",
         4,
         `${auth.creatorID}:${random8()}:${random8()}`,
         0,
         { token: auth.token, subprotocol: "1.9.0" },
-      ]));
-    ws.on("message", (data) =>
-      handleIncomingText(String(data), {
+      ]);
+    ws.onmessage = (event) =>
+      handleIncomingMessage(event, {
         incomingBytes,
         maxFrameBytes: MAX_INCOMING_FRAME_BYTES,
         maxBytes: MAX_INCOMING_BYTES,
@@ -109,7 +99,7 @@ export const syncCatalog: SyncCatalog = (auth, channel, wanted) => {
             safeSend,
             settle,
           ),
-      }));
+      });
   });
 };
 

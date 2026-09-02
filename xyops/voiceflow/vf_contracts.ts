@@ -36,7 +36,6 @@ export class OperationFault extends Error {
   constructor(
     public readonly code: ErrorCode,
     public readonly retryable = false,
-    public readonly diagnostic?: string,
   ) {
     super(messages[code]);
   }
@@ -45,26 +44,14 @@ export class OperationFault extends Error {
 const maxDiagnosticLength = 240;
 const errorDetail = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
-const sanitizeDiagnostic = (value: string): string =>
-  value
+const safeUnexpectedErrorMessage = (error: unknown): string => {
+  const sanitized = errorDetail(error)
     .replace(/Bearer\s+[^\s]+/gi, "Bearer [redacted]")
     .replace(/VF\.DM\.[^\s"']+/gi, "VF.DM.[redacted]")
     .replace(/https?:\/\/[^\s"']+/gi, "[redacted-url]")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, maxDiagnosticLength);
-const hasErrorCause = (error: unknown): error is Error =>
-  error instanceof Error && error.cause !== undefined;
-const readCauseDiagnostic = (error: unknown): string =>
-  hasErrorCause(error) ? ` cause=${errorDetail(error.cause)}` : "";
-const readErrorName = (error: unknown): string =>
-  error instanceof Error ? error.name : "UnknownError";
-export const formatErrorDiagnostic = (error: unknown): string =>
-  sanitizeDiagnostic(
-    `${readErrorName(error)}: ${errorDetail(error)}${readCauseDiagnostic(error)}`,
-  );
-const safeUnexpectedErrorMessage = (error: unknown): string => {
-  const sanitized = sanitizeDiagnostic(errorDetail(error));
   if ([sanitized === "", containsSensitiveWord(sanitized)].some(Boolean)) {
     return messages.INTERNAL_ERROR;
   }
@@ -74,17 +61,12 @@ const safeUnexpectedErrorMessage = (error: unknown): string => {
 const containsSensitiveWord = (value: string): boolean =>
   /secret|token|password|credential|authorization|jwt/i.test(value);
 
-const operationFaultMessage = (error: OperationFault): string =>
-  error.diagnostic === undefined
-    ? messages[error.code]
-    : `${messages[error.code]} (${error.diagnostic})`;
-
 type ToOperationError = (error: unknown) => OperationError;
 export const toOperationError: ToOperationError = (error) => {
   if (error instanceof OperationFault) {
     return {
       code: error.code,
-      message: operationFaultMessage(error),
+      message: messages[error.code],
       retryable: error.retryable,
     };
   }

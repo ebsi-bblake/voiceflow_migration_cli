@@ -1,9 +1,7 @@
 /* oxlint-disable complexity, no-unused-expressions */
-import type WebSocket from "ws";
 import type { AuthContext, SecretEntry } from "../types";
-import { formatErrorDiagnostic, OperationFault } from "../vf_contracts";
+import { OperationFault } from "../vf_contracts";
 import { createUUID } from "../vf_uuid";
-const WebSocketConstructor: typeof WebSocket = require("ws");
 
 const URL = "wss://realtime.empyrean.voiceflow.com/";
 type CreateSecret = (
@@ -13,7 +11,7 @@ type CreateSecret = (
 ) => Promise<void>;
 export const createSecret: CreateSecret = (auth, assistantID, secret) =>
   new Promise((resolve, reject) => {
-    const ws = new WebSocketConstructor(URL);
+    const ws = new WebSocket(URL);
     const clientID = createUUID().replace(/-/g, "").slice(0, 8);
     const origin = `${auth.creatorID}:${clientID}:${createUUID().replace(/-/g, "").slice(0, 8)}`;
     const actionID = createUUID();
@@ -35,19 +33,11 @@ export const createSecret: CreateSecret = (auth, assistantID, secret) =>
       () => settle(new OperationFault("DEPENDENCY_TIMEOUT", true)),
       15_000,
     );
-    ws.on("error", (error) =>
-      settle(
-        new OperationFault(
-          "DEPENDENCY_FAILURE",
-          true,
-          formatErrorDiagnostic(error),
-        ),
-      ),
-    );
-    ws.on("close", () => {
+    ws.onerror = () => settle(new OperationFault("DEPENDENCY_FAILURE", true));
+    ws.onclose = () => {
       if (!settled) settle(new OperationFault("DEPENDENCY_FAILURE", true));
-    });
-    ws.on("open", () =>
+    };
+    ws.onopen = () =>
       ws.send(
         JSON.stringify([
           "connect",
@@ -56,9 +46,10 @@ export const createSecret: CreateSecret = (auth, assistantID, secret) =>
           0,
           { token: auth.token, subprotocol: "1.9.0" },
         ]),
-      ));
-    ws.on("message", (data) => {
-      const frame = parseFrame(String(data));
+      );
+    ws.onmessage = (event) => {
+      if (typeof event.data !== "string") return;
+      const frame = parseFrame(event.data);
       if (!frame) return;
       if (frame[0] === "error")
         return settle(new OperationFault("DEPENDENCY_FAILURE"));
@@ -76,7 +67,7 @@ export const createSecret: CreateSecret = (auth, assistantID, secret) =>
         );
       }
       if (isDoneFrame(frame, actionID)) settle();
-    });
+    };
   });
 
 const sendSubscription = (
