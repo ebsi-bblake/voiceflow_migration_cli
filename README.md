@@ -15,7 +15,7 @@ Docker image/container runner is not the active deployment.
   executable `xyops/plugin/entrypoint.ts` reads one JSON job from stdin and emits
   one XYOps JSON response on stdout. Diagnostics remain separate from the
   protocol output.
-- `xyops/migration-cli.ts` is the local interactive CLI. It calls configured
+- `xyops/cli/index.ts` is the local interactive CLI. It calls configured
   XYOps Events rather than importing the Voiceflow implementation directly.
 
 The native plugin supports these operations:
@@ -94,7 +94,7 @@ Run the local CLI with an XYOps API key:
 
 ```sh
 export XYOPS_API_KEY='your-xyops-api-key'
-bun run xyops/migration-cli.ts
+bun run xyops/cli/index.ts
 ```
 
 `XYOPS_BASE_URL` is optional and defaults to `http://localhost:5522`.
