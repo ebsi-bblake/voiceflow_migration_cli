@@ -17,6 +17,7 @@ export const createSecret: CreateSecret = (auth, assistantID, secret) =>
     const actionID = createUUID();
     const subscriptionID = Math.floor(Math.random() * 1_000_000_000) + 1;
     let actionTime = 1;
+    let lifecycle = "connecting";
     let settled = false;
     const settle = (error?: OperationFault): void => {
       if (settled) return;
@@ -30,16 +31,17 @@ export const createSecret: CreateSecret = (auth, assistantID, secret) =>
       error ? reject(error) : resolve();
     };
     const timer = setTimeout(
-      () => settle(new OperationFault("DEPENDENCY_TIMEOUT", true, "logux-timeout")),
+      () => settle(new OperationFault("DEPENDENCY_TIMEOUT", true, `logux-${lifecycle}-timeout`)),
       15_000,
     );
     ws.onerror = () =>
-      settle(new OperationFault("DEPENDENCY_FAILURE", true, "logux-error"));
+      settle(new OperationFault("DEPENDENCY_FAILURE", true, `logux-${lifecycle}-error`));
     ws.onclose = () => {
       if (!settled)
-        settle(new OperationFault("DEPENDENCY_FAILURE", true, "logux-close"));
+        settle(new OperationFault("DEPENDENCY_FAILURE", true, `logux-${lifecycle}-close`));
     };
-    ws.onopen = () =>
+    ws.onopen = () => {
+      lifecycle = "connected";
       ws.send(
         JSON.stringify([
           "connect",
@@ -49,16 +51,19 @@ export const createSecret: CreateSecret = (auth, assistantID, secret) =>
           { token: auth.token, subprotocol: "1.9.0" },
         ]),
       );
+    };
     ws.onmessage = (event) => {
       if (typeof event.data !== "string") return;
       const frame = parseFrame(event.data);
       if (!frame) return;
       if (frame[0] === "error")
-        return settle(new OperationFault("DEPENDENCY_FAILURE", true, "logux-error-frame"));
+        return settle(new OperationFault("DEPENDENCY_FAILURE", true, `logux-${lifecycle}-error-frame`));
       if (frame[0] === "connected") {
+        lifecycle = "subscribing";
         return sendSubscription(ws, assistantID, subscriptionID, actionTime++);
       }
       if (isSubscriptionComplete(frame, subscriptionID)) {
+        lifecycle = "creating";
         return sendCreateAction(
           ws,
           assistantID,
@@ -68,7 +73,10 @@ export const createSecret: CreateSecret = (auth, assistantID, secret) =>
           actionTime++,
         );
       }
-      if (isDoneFrame(frame, actionID)) settle();
+      if (isDoneFrame(frame, actionID)) {
+        lifecycle = "completed";
+        settle();
+      }
     };
   });
 
