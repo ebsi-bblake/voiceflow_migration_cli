@@ -53,9 +53,13 @@ const safeUnexpectedErrorMessage = (error: unknown): string => {
     .trim()
     .slice(0, maxDiagnosticLength);
   if ([sanitized === "", containsSensitiveWord(sanitized)].some(Boolean)) {
-    return messages.INTERNAL_ERROR;
+    return `${messages.INTERNAL_ERROR} (${readFailureStage(sanitized)})`;
   }
   return `${messages.INTERNAL_ERROR} (${sanitized})`;
+};
+const readFailureStage = (value: string): string => {
+  const match = value.match(/stage=[a-z-]+/i);
+  return match?.[0] ?? "stage=unknown";
 };
 
 const containsSensitiveWord = (value: string): boolean =>
