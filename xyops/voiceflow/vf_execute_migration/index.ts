@@ -100,7 +100,7 @@ const executeConfirmedMigration = async (
       destinationFolderID,
       targetSchemaVersion,
     );
-    stage = "secret-input";
+    stage = `secret-input-${secretInputKind(secretFileContents)}`;
     const secrets = parseSecretFileContents(secretFileContents);
     stage = "secret-creation";
     await createProjectSecrets(auth, imported.projectID, secrets);
@@ -130,6 +130,12 @@ const addFailureStage = (error: unknown, stage: string): unknown =>
   error instanceof OperationFault
     ? error
     : new Error(`stage=${stage} error=${error instanceof Error ? error.message : String(error)}`);
+const secretInputKind = (contents: unknown): string => {
+  if (contents === undefined) return "missing";
+  if (contents === null) return "null";
+  if (Array.isArray(contents)) return "array";
+  return typeof contents;
+};
 const parseSecretFileContents = (contents: unknown) =>
   contents === undefined ? [] : parseSecretEntries(contents);
 const ensureMatchingPlan = (
