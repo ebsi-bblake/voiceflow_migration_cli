@@ -84,28 +84,55 @@ bun run build:plugin
 The configured XYOps command must invoke the copied artifact with Node, for
 example `node /opt/xyops/voiceflow-event-plugin`.
 
+The standalone migration CLI packaging contract is recorded in
+[`docs/cli-packaging-contract.md`](docs/cli-packaging-contract.md). Its command
+is `voiceflow-cli`, with native single-file artifacts for macOS ARM64/x64,
+Linux ARM64/x64, and Windows x64. Build scripts are available locally, and
+version tags matching `v*.*.*` build a GitHub Release through the phase-3
+workflow. Release and rollback operations are documented in
+[`docs/cli-release-operations.md`](docs/cli-release-operations.md). Linux
+installation is documented in [`docs/cli-installation.md`](docs/cli-installation.md);
+Apple, Windows, Homebrew, and WinGet distribution are deferred.
+
 Run the repository's TypeScript type-check command:
 
 ```sh
 bun run typecheck
 ```
 
-Run the local CLI with an XYOps API key:
+Run the local CLI with an XYOps API key. Keep these values in a local,
+gitignored `.env` file; never commit or share it:
+
+```dotenv
+XYOPS_API_KEY=your-xyops-api-key
+XYOPS_BASE_URL=http://localhost:5522
+```
+
+The CLI does not load `.env` automatically. Load it into the current shell,
+then run the CLI:
 
 ```sh
-export XYOPS_API_KEY='your-xyops-api-key'
+set -a
+. ./.env
+set +a
 bun run xyops/cli/index.ts
 ```
 
-`XYOPS_BASE_URL` is optional and defaults to `http://localhost:5522`.
+`XYOPS_BASE_URL` is optional and defaults to `http://localhost:5522`. The
+standalone executable uses the same environment variables:
+
+```sh
+voiceflow-cli
+```
 
 For non-interactive migration inputs, pass `--config=<path>` using the checked-in
 shape in `xyops/cli/migration.example.json`. See [`docs/migration-config.md`](docs/migration-config.md)
 for the operator walkthrough and secret-file rollout policy. The file uses snake_case keys that
 map explicitly to `MigrationSelection` fields and may contain a `secrets` array
 of `{ "name": string, "value": string }` entries. Unknown top-level fields, blank configured values, blank or duplicate secret names, and extra secret entry fields are rejected; secrets are never included in diagnostics.
-Configured values bypass their prompts, and an omitted `target_schema_version`
-uses the interactive default `13.1`. The former `--secrets` option is rejected.
+Configured values bypass their prompts, so passing a complete config automates
+the migration-selection steps. An omitted `target_schema_version` uses the
+interactive default `13.1`. The former `--secrets` option is rejected.
 `XYOPS_EVENT_*` variables accept `title:<event-title>` or `id:<event-id>`.
 After confirmation, the CLI performs a real Voiceflow export and import.
 

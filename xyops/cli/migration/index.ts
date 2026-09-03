@@ -27,7 +27,7 @@ import { readSecretsForMigration } from "./secret-input";
 type PrintHelp = () => void;
 const printHelp: PrintHelp = () => {
   [
-    "Usage: bun run xyops/cli/index.ts",
+    "Usage: voiceflow-cli [--config=<path>]",
     "Interactively plan and execute a Voiceflow migration through XYOps.",
     `Local configuration: XYOPS_API_KEY=<key> (required), XYOPS_BASE_URL=<url> (default: ${DEFAULT_XYOPS_BASE_URL}).`,
     "Optional --config=<JSON-file> supplies migration IDs, schema version, and project secrets.",
