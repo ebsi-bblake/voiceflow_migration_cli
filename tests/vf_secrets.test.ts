@@ -4,6 +4,7 @@ import {
   parseSecretEntriesJSON,
   parseSecretsFile,
 } from "../xyops/voiceflow/vf_secrets";
+import { parseSecretEntries as parseArchivedSecretEntries } from "../windmill_agent_scripts/vf_secrets";
 
 describe("secret file parsing", () => {
   test("accepts JSON name/value entries", () => {
@@ -32,12 +33,29 @@ describe("secret file parsing", () => {
     );
   });
 
-  test("rejects entries without string name and value fields", () => {
-    expect(() => parseSecretEntries([{ name: "TEST_SECRET" }])).toThrow(
-      "string value",
-    );
-    expect(() => parseSecretEntries([{ value: "value" }])).toThrow(
-      "string name",
-    );
+  test("rejects malformed and duplicate entries", () => {
+    const malformed = [
+      [{ name: "TEST_SECRET" }],
+      [{ value: "value" }],
+      [{ name: "TEST_SECRET", value: "value", extra: true }],
+    ];
+    malformed.forEach((entries) => {
+      expect(() => parseSecretEntries(entries)).toThrow();
+      expect(() => parseArchivedSecretEntries(entries)).toThrow();
+    });
+    const duplicate = [
+      { name: "TEST_SECRET", value: "first" },
+      { name: "TEST_SECRET", value: "second" },
+    ];
+    expect(() => parseSecretEntries(duplicate)).toThrow("duplicate");
+    expect(() => parseArchivedSecretEntries(duplicate)).toThrow("duplicate");
+  });
+
+  test("keeps active and archived parsers aligned for valid entries", () => {
+    const entries = [
+      { name: "FIRST_SECRET", value: "first value" },
+      { name: "SECOND_SECRET", value: "second value" },
+    ];
+    expect(parseArchivedSecretEntries(entries)).toEqual(parseSecretEntries(entries));
   });
 });

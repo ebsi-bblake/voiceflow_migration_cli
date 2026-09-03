@@ -292,14 +292,22 @@ export const isExecuteResult: IsExecuteResult = (value) =>
     ]),
   );
 type IsSecretEntries = (value: unknown) => boolean;
-const isSecretEntries: IsSecretEntries = (value) =>
-  Array.isArray(value) &&
-  value.every(
-    (entry) =>
-      isRecord(entry) &&
-      typeof entry.name === "string" &&
-      typeof entry.value === "string",
-  );
+const isSecretEntries: IsSecretEntries = (value) => {
+  if (!Array.isArray(value)) return false;
+  const names = new Set<string>();
+  return value.every((entry) => {
+    if (
+      !isRecord(entry) ||
+      Object.keys(entry).length !== 2 ||
+      typeof entry.name !== "string" ||
+      typeof entry.value !== "string" ||
+      names.has(entry.name)
+    )
+      return false;
+    names.add(entry.name);
+    return true;
+  });
+};
 const isPrimitiveEventParameter = (value: unknown): value is string | boolean =>
   typeof value === "string" || typeof value === "boolean";
 type IsEventParameterEntry = (

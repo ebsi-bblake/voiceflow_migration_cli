@@ -5,6 +5,7 @@ import {
   isCheckSessionResult,
   isOptionResult,
   isVoiceflowEnvelope,
+  isEventParameterEntry,
 } from "../xyops/cli/guards";
 import { run } from "../xyops/cli/index";
 import {
@@ -70,6 +71,16 @@ const nextPollCount = (path: string, pollCount: number): number => path === "/ap
 const isFirstPoll = (pollCount: number): boolean => pollCount === 1;
 
 describe("XYOps CLI adapter", () => {
+  test("guards secret event parameters as ordered name/value arrays", () => {
+    expect(isEventParameterEntry(["SECRET_FILE_CONTENTS", [
+      { name: "TOKEN", value: "value" },
+    ]])).toBe(true);
+    expect(isEventParameterEntry(["SECRET_FILE_CONTENTS", { TOKEN: "value" }])).toBe(false);
+    expect(isEventParameterEntry(["SECRET_FILE_CONTENTS", [
+      { name: "TOKEN", value: "value", extra: true },
+    ]])).toBe(false);
+  });
+
   test("sends a title-based event request without a JWT and unwraps a read-only envelope", async () => {
     const requests: Array<{ url: string; body: string; headers: Headers }> = [];
     const client = createXYOpsClient(config, {

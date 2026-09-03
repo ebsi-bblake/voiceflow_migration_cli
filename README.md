@@ -98,6 +98,14 @@ bun run xyops/cli/index.ts
 ```
 
 `XYOPS_BASE_URL` is optional and defaults to `http://localhost:5522`.
+
+For non-interactive migration inputs, pass `--config=<path>` using the checked-in
+shape in `xyops/cli/migration.example.json`. See [`docs/migration-config.md`](docs/migration-config.md)
+for the operator walkthrough and secret-file rollout policy. The file uses snake_case keys that
+map explicitly to `MigrationSelection` fields and may contain a `secrets` array
+of `{ "name": string, "value": string }` entries. Unknown top-level fields, blank configured values, blank or duplicate secret names, and extra secret entry fields are rejected; secrets are never included in diagnostics.
+Configured values bypass their prompts, and an omitted `target_schema_version`
+uses the interactive default `13.1`. The former `--secrets` option is rejected.
 `XYOPS_EVENT_*` variables accept `title:<event-title>` or `id:<event-id>`.
 After confirmation, the CLI performs a real Voiceflow export and import.
 

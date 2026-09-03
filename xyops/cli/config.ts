@@ -1,7 +1,9 @@
-import { fail } from "./diagnostics";
+import { readFile } from "node:fs/promises";
+import { CliError, fail } from "./diagnostics";
 import { isInvalidDuration } from "./guards";
 import { parseXYOpsURL } from "../voiceflow/vf_urls";
 import type {
+  SecretEntries,
   XYOpsConfig,
   XYOpsEventConfig,
   XYOpsEventReference,
@@ -11,6 +13,17 @@ export type {
   XYOpsEventConfig,
   XYOpsEventReference,
 } from "./types";
+
+/** The file contract deliberately uses snake_case to match the CLI config file. */
+export type MigrationFileConfig = Readonly<{
+  sourceWorkspaceID?: string;
+  sourceProjectID?: string;
+  sourceVersionID?: string;
+  destinationWorkspaceID?: string;
+  destinationFolderID?: string;
+  targetSchemaVersion?: string;
+  secrets?: SecretEntries;
+}>;
 
 export const DEFAULT_HTTP_TIMEOUT_MS = 15_000;
 export const DEFAULT_POLL_INTERVAL_MS = 1_000;
@@ -226,3 +239,125 @@ export const readXYOpsConfig: ReadXYOpsConfig = (
   events: readEventConfig(environment),
   ...readDurations(environment),
 });
+
+type ConfigFileRecord = Record<string, unknown>;
+const CONFIG_KEYS = new Set([
+  "source_workspace_id",
+  "source_project_id",
+  "source_version_id",
+  "destination_workspace_id",
+  "destination_folder_id",
+  "target_schema_version",
+  "secrets",
+]);
+
+type IsRecord = (value: unknown) => value is ConfigFileRecord;
+const isRecord: IsRecord = (value): value is ConfigFileRecord =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+type ValidateConfigArguments = () => void;
+const validateConfigArguments: ValidateConfigArguments = () => {
+  const legacyArgument = process.argv.find((argument) =>
+    argument.startsWith("--secrets="),
+  );
+  if (legacyArgument)
+    throw fail("configuration", {
+      nextAction: "--secrets is unsupported; provide secrets in --config=<path>.",
+    });
+};
+
+type ReadConfigArgument = () => string | undefined;
+const readConfigArgument: ReadConfigArgument = () =>
+  process.argv
+    .find((argument) => argument.startsWith("--config="))
+    ?.slice(9);
+
+type ParseConfigString = (value: unknown, key: string) => string;
+const parseConfigString: ParseConfigString = (value, key) => {
+  if (typeof value !== "string" || !value.trim())
+    throw fail("configuration", {
+      nextAction: `${key} must be a non-empty string.`,
+    });
+  return value.trim();
+};
+
+type ParseConfigSecrets = (value: unknown) => SecretEntries;
+const parseConfigSecrets: ParseConfigSecrets = (value) => {
+  if (!Array.isArray(value))
+    throw fail("configuration", {
+      nextAction: "secrets must be an array of objects with string name and value fields.",
+    });
+  const names = new Set<string>();
+  return value.map((entry, index) => {
+    if (!isRecord(entry) || Object.keys(entry).length !== 2 ||
+        typeof entry.name !== "string" ||
+        !entry.name.trim() ||
+        typeof entry.value !== "string")
+      throw fail("configuration", {
+        nextAction: `secrets[${index}] must contain only string name and value fields.`,
+      });
+    if (names.has(entry.name))
+      throw fail("configuration", {
+        nextAction: `secrets[${index}] duplicates an earlier secret name.`,
+      });
+    names.add(entry.name);
+    return { name: entry.name, value: entry.value };
+  });
+};
+
+type MigrationStringField = readonly [
+  input: string,
+  output: keyof Omit<MigrationFileConfig, "secrets">,
+];
+const MIGRATION_STRING_FIELDS: readonly MigrationStringField[] = [
+  ["source_workspace_id", "sourceWorkspaceID"],
+  ["source_project_id", "sourceProjectID"],
+  ["source_version_id", "sourceVersionID"],
+  ["destination_workspace_id", "destinationWorkspaceID"],
+  ["destination_folder_id", "destinationFolderID"],
+  ["target_schema_version", "targetSchemaVersion"],
+];
+
+type ParseConfiguredStrings = (
+  value: ConfigFileRecord,
+) => Partial<Omit<MigrationFileConfig, "secrets">>;
+const parseConfiguredStrings: ParseConfiguredStrings = (value) =>
+  MIGRATION_STRING_FIELDS.reduce(
+    (config, [input, output]) =>
+      value[input] === undefined
+        ? config
+        : { ...config, [output]: parseConfigString(value[input], input) },
+    {},
+  );
+
+type ParseMigrationFileConfig = (value: unknown) => MigrationFileConfig;
+const parseMigrationFileConfig: ParseMigrationFileConfig = (value) => {
+  if (!isRecord(value))
+    throw fail("configuration", {
+      nextAction: "The migration config must contain one JSON object.",
+    });
+  const unknownKey = Object.keys(value).find((key) => !CONFIG_KEYS.has(key));
+  if (unknownKey)
+    throw fail("configuration", {
+      nextAction: `The migration config contains unsupported field '${unknownKey}'.`,
+    });
+  return {
+    ...parseConfiguredStrings(value),
+    ...(value.secrets === undefined ? {} : { secrets: parseConfigSecrets(value.secrets) }),
+  };
+};
+
+type ReadMigrationFileConfig = (path?: string) => Promise<MigrationFileConfig | undefined>;
+export const readMigrationFileConfig: ReadMigrationFileConfig = async (path) => {
+  validateConfigArguments();
+  const configPath = path ?? readConfigArgument();
+  if (configPath === undefined || configPath.trim() === "") return undefined;
+  try {
+    return parseMigrationFileConfig(await readFile(configPath, "utf8").then(JSON.parse));
+  } catch (error: unknown) {
+    if (error instanceof CliError) throw error;
+    throw fail("configuration", {
+      nextAction: "Unable to read and validate the migration config file.",
+    });
+  }
+};

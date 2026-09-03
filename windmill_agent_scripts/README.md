@@ -69,8 +69,11 @@ Follow this sequence: session check -> discovery -> plan -> human confirmation
 approval. Use `runScriptByPath` in production; preview is for testing only.
 `secretFileContents` is optional and should be a JSON array of objects with
 string `name` and `value` fields, for example `[{ "name": "theKey", "value": "theval" }]`.
-Secret values must not be logged. The CLI reads the local JSON file before
-invoking this script.
+Secret values must not be logged. The active CLI reads the local top-level
+configuration object described in [`../docs/migration-config.md`](../docs/migration-config.md)
+before invoking the native XYOps event; this Windmill contract is retained for
+archived deployments only. `VOICEFLOW_JWT` remains a separate Windmill secret
+binding and is never part of the project secrets array.
 
 There is no Base64 across MCP; bytes stay in one execute job. Operations are
 non-idempotent, and `IMPORT_OUTCOME_UNKNOWN` means do not retry until

@@ -15,11 +15,20 @@ export const parseSecretEntries: ParseSecretEntries = (value) =>
 const parseSecretEntryArray = (value: unknown): readonly SecretEntry[] => {
   if (!Array.isArray(value))
     throw new Error("Secrets must be a JSON array of name/value entries.");
-  return value.map(parseSecretEntry);
+  const names = new Set<string>();
+  return value.map((entry, index) => {
+    const secret = parseSecretEntry(entry);
+    if (names.has(secret.name))
+      throw new Error(`Secret entries contain duplicate name at index ${index}.`);
+    names.add(secret.name);
+    return secret;
+  });
 };
 
 const parseSecretEntry = (value: unknown): SecretEntry => {
-  if (!isRecord(value) || typeof value.name !== "string")
+  if (!isRecord(value) || Object.keys(value).length !== 2)
+    throw new Error("Secret entries must contain only name and value fields.");
+  if (typeof value.name !== "string")
     throw new Error("Secret entries must contain a string name.");
   if (typeof value.value !== "string")
     throw new Error("Secret entries must contain a string value.");

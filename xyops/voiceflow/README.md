@@ -104,7 +104,10 @@ The remaining operation parameters are the IDs and migration values documented
 by the CLI contract, including `SOURCE_WORKSPACE_ID`, `SOURCE_PROJECT_ID`,
 `SOURCE_VERSION_ID`, `DESTINATION_WORKSPACE_ID`, `DESTINATION_FOLDER_ID`,
 `TARGET_SCHEMA_VERSION`, `PLAN_ID`, and the literal boolean `CONFIRMED` for
-execution.
+execution. The local CLI can source these values and project secrets from the
+single `--config=<path>` object described in [`../../docs/migration-config.md`](../../docs/migration-config.md).
+That file's project `secrets` array is distinct from this plugin's
+`VOICEFLOW_JWT` Secret Vault binding.
 
 ## Test the artifact
 

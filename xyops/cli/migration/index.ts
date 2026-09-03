@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import {
   DEFAULT_XYOPS_BASE_URL,
+  readMigrationFileConfig,
   readXYOpsConfig,
 } from "../config";
 import { createXYOpsClient } from "../client";
@@ -29,7 +30,9 @@ const printHelp: PrintHelp = () => {
     "Usage: bun run xyops/cli/index.ts",
     "Interactively plan and execute a Voiceflow migration through XYOps.",
     `Local configuration: XYOPS_API_KEY=<key> (required), XYOPS_BASE_URL=<url> (default: ${DEFAULT_XYOPS_BASE_URL}).`,
-    "Optional --secrets=<JSON-file> supplies project secrets as name/value entries.",
+    "Optional --config=<JSON-file> supplies migration IDs, schema version, and project secrets.",
+    'Config format: { "source_workspace_id": "...", "target_schema_version": "13.1", "secrets": [{ "name": "EXAMPLE_SECRET", "value": "REDACTED" }] }.',
+    "Configured values bypass their prompts; missing values are selected interactively.",
     "Optional XYOPS_EVENT_* overrides accept title:<event-title> or id:<event-id>.",
     "Default event titles must match the configured XYOps Event titles.",
   ].forEach((msg) => console.log(msg));
@@ -65,7 +68,10 @@ const performMigration: PerformMigration = async (context) => {
     ...(await selectDestinationSelection(context)),
   };
   const selection = stateSelection(state);
-  const secretFileContents = await readSecretsForMigration(context.reader);
+  const secretFileContents = await readSecretsForMigration(
+    context.reader,
+    context.migrationConfig,
+  );
   const plan = await readMigrationPlan(context, selection);
   displayPlan(plan);
   await confirmAndExecuteMigration(
@@ -90,10 +96,11 @@ export const run: Run = async () => {
   );
 
   const config = readXYOpsConfig();
+  const migrationConfig = await readMigrationFileConfig();
   const client = createXYOpsClient(config);
   const reader = CreatePromptReader();
   try {
-    await performMigration({ reader, client, config });
+    await performMigration({ reader, client, config, migrationConfig });
   } finally {
     reader.close();
   }

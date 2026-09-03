@@ -6,6 +6,7 @@ import type {
   SecretEntries,
 } from "./types";
 import { isEventParameterEntry } from "./guards";
+import { fail } from "./diagnostics";
 import type { MigrationState } from "./types";
 export type { MigrationState } from "./types";
 
@@ -30,10 +31,21 @@ type RequireStateValue = (
 ) => string;
 const isPresentStateValue = (value: unknown): value is string =>
   typeof value === "string" && value.trim() !== "";
+const CONFIGURATION_NAMES: Readonly<Record<keyof MigrationState, string>> = {
+  sourceWorkspaceID: "source_workspace_id",
+  sourceProjectID: "source_project_id",
+  sourceVersionID: "source_version_id",
+  destinationWorkspaceID: "destination_workspace_id",
+  destinationFolderID: "destination_folder_id",
+  targetSchemaVersion: "target_schema_version",
+  planID: "plan_id",
+};
 export const requireStateValue: RequireStateValue = (state, key) => {
   const value = state[key];
   if (!isPresentStateValue(value))
-    throw new Error(`Missing state value: ${key}`);
+    throw fail("invalid-input", {
+      nextAction: `Required migration field '${CONFIGURATION_NAMES[key]}' is missing.`,
+    });
   return value;
 };
 
