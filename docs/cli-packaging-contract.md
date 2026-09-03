@@ -28,7 +28,7 @@ credentials. Configuration is supplied at runtime:
 | macOS x64 | `bun-darwin-x64` | `voiceflow-cli-darwin-x64` |
 | Linux ARM64 | `bun-linux-arm64` | `voiceflow-cli-linux-arm64` |
 | Linux x64 | `bun-linux-x64` | `voiceflow-cli-linux-x64` |
-| Windows x64 | `bun-windows-x64` | `voiceflow-cli-windows-x64.exe` |
+| Windows x64 (baseline CPU) | `bun-windows-x64-baseline` | `voiceflow-cli-windows-x64.exe` |
 
 These are the supported release targets. Other operating systems and
 architectures are unsupported and must produce no silently substituted artifact.
