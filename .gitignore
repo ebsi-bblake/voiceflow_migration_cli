@@ -1,4 +1,12 @@
-.slim/deepwork/
+# Local agent and workspace artifacts
+.obsidian/
+.slim/
+archive/
+AGENTS.md
+ENGINEERING_AUDIT.md
+runtime-*
+xyops-voiceflow-*
+
 node_modules/
 dist/
 .env
