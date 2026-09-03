@@ -65,7 +65,10 @@ const readEventAttempt = <T>(
     .then((data) => requireEnvelope(data, guard, WAIT_PATH));
 
 const isRetryableReadError = (error: CliError): boolean =>
-  [error.diagnostic.retryable, ["timeout", "network", "http"].includes(error.diagnostic.code)].every(Boolean);
+  [
+    error.diagnostic.retryable,
+    ["timeout", "network", "http"].includes(error.diagnostic.code),
+  ].every(Boolean);
 
 // Retry policy combines transport classification and the bounded attempt count.
 const retryRead = <T>(

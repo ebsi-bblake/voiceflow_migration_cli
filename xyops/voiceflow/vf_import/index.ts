@@ -2,7 +2,7 @@ import type { AuthContext } from "../types";
 import type { ExportArtifact, HttpBytes, ImportedReceipt } from "../types";
 import { OperationFault } from "../vf_contracts";
 import { requestBytes } from "../vf_http";
-import { parseFolderID, parseSchemaVersion, parseWorkspaceID } from "../vf_validation";
+import { parseSchemaVersion, parseWorkspaceID } from "../vf_validation";
 import { VOICEFLOW_REALTIME_HTTP_ORIGIN, encodePathSegment } from "../vf_urls";
 import { isImportOutcomeUnknownStatus } from "../guards";
 export { isImportOutcomeUnknownStatus } from "../guards";

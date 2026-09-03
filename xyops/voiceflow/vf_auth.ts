@@ -1,4 +1,5 @@
 import { OperationFault } from "./vf_contracts";
+import { VoiceflowRegex } from "./vf_regex";
 import { isClaims, isValidCreatorID } from "./guards";
 import type { AuthContext } from "./types";
 
@@ -12,7 +13,7 @@ const normalizeVoiceflowToken: NormalizeVoiceflowToken = (input) => {
     throw new OperationFault("AUTHENTICATION_FAILED");
   const token = input
     .trim()
-    .replace(/^Bearer\s+/i, "")
+    .replace(VoiceflowRegex.bearerPrefix, "")
     .trim();
   validateTokenShape(token);
   return token;
@@ -29,7 +30,7 @@ type DecodeClaims = (token: string) => Claims;
 const decodeClaims: DecodeClaims = (token) => {
   try {
     const part = token.split(".")[1];
-    const normalizedPart = part.replace(/-/g, "+").replace(/_/g, "/");
+    const normalizedPart = part.replace(VoiceflowRegex.base64UrlDash, "+").replace(VoiceflowRegex.base64UrlUnderscore, "/");
     const padded = normalizedPart.padEnd(
       Math.ceil(normalizedPart.length / 4) * 4,
       "=",

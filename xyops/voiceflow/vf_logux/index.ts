@@ -1,5 +1,6 @@
 import type { AuthContext } from "../types";
 import { OperationFault } from "../vf_contracts";
+import { VoiceflowRegex } from "../vf_regex";
 import { handleFrame, handleIncomingMessage } from "./frames";
 import { createSecret } from "./create-secret";
 import { createUUID } from "../vf_uuid";
@@ -18,7 +19,7 @@ const MAX_INCOMING_BYTES = 8_388_608;
 
 type Random8 = () => string;
 const random8: Random8 = () =>
-  createUUID().replace(/-/g, "").slice(0, 8);
+  createUUID().replace(VoiceflowRegex.base64UrlDash, "").slice(0, 8);
 
 type SendFrame = (ws: WebSocket, frame: readonly unknown[]) => void;
 const sendFrame: SendFrame = (ws, frame) => {

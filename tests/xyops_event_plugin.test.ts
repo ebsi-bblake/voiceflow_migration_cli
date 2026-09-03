@@ -146,7 +146,9 @@ describe("native XYOps event plugin boundary", () => {
         params: {
           ...baseParameters,
           operation: "execute_migration",
-          SECRET_FILE_CONTENTS: { VF_TEST_SECRET: "value" },
+          SECRET_FILE_CONTENTS: [
+            { name: "VF_TEST_SECRET", value: "value" },
+          ],
         },
       },
       "test-token",
@@ -160,7 +162,9 @@ describe("native XYOps event plugin boundary", () => {
     );
 
     expect(result.ok).toBe(true);
-    expect(received).toEqual({ VF_TEST_SECRET: "value" });
+    expect(received).toEqual([
+      { name: "VF_TEST_SECRET", value: "value" },
+    ]);
   });
 
   test("uses a UUID for a dispatch failure fallback", async () => {

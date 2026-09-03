@@ -10,6 +10,7 @@ export type {
   Warning,
   WarningCode,
 } from "./types";
+import { VoiceflowRegex } from "./vf_regex";
 import type {
   ErrorCode,
   Failure,
@@ -48,10 +49,10 @@ const errorDetail = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 const safeUnexpectedErrorMessage = (error: unknown): string => {
   const sanitized = errorDetail(error)
-    .replace(/Bearer\s+[^\s]+/gi, "Bearer [redacted]")
-    .replace(/VF\.DM\.[^\s"']+/gi, "VF.DM.[redacted]")
-    .replace(/https?:\/\/[^\s"']+/gi, "[redacted-url]")
-    .replace(/\s+/g, " ")
+    .replace(VoiceflowRegex.redactedBearer, "Bearer [redacted]")
+    .replace(VoiceflowRegex.voiceflowAPIKey, "VF.DM.[redacted]")
+    .replace(VoiceflowRegex.redactedURL, "[redacted-url]")
+    .replace(VoiceflowRegex.whitespace, " ")
     .trim()
     .slice(0, maxDiagnosticLength);
   if ([sanitized === "", containsSensitiveWord(sanitized)].some(Boolean)) {
@@ -60,12 +61,12 @@ const safeUnexpectedErrorMessage = (error: unknown): string => {
   return `${messages.INTERNAL_ERROR} (${sanitized})`;
 };
 const readFailureStage = (value: string): string => {
-  const match = value.match(/stage=[a-z-]+/i);
+  const match = value.match(VoiceflowRegex.diagnosticStage);
   return match?.[0] ?? "stage=unknown";
 };
 
 const containsSensitiveWord = (value: string): boolean =>
-  /secret|token|password|credential|authorization|jwt/i.test(value);
+  VoiceflowRegex.sensitiveWord.test(value);
 
 type ToOperationError = (error: unknown) => OperationError;
 export const toOperationError: ToOperationError = (error) => {

@@ -291,9 +291,15 @@ export const isExecuteResult: IsExecuteResult = (value) =>
       ),
     ]),
   );
-type IsSecretMap = (value: unknown) => boolean;
-const isSecretMap: IsSecretMap = (value) =>
-  isRecord(value) && Object.values(value).every((entry) => typeof entry === "string");
+type IsSecretEntries = (value: unknown) => boolean;
+const isSecretEntries: IsSecretEntries = (value) =>
+  Array.isArray(value) &&
+  value.every(
+    (entry) =>
+      isRecord(entry) &&
+      typeof entry.name === "string" &&
+      typeof entry.value === "string",
+  );
 const isPrimitiveEventParameter = (value: unknown): value is string | boolean =>
   typeof value === "string" || typeof value === "boolean";
 type IsEventParameterEntry = (
@@ -302,7 +308,7 @@ type IsEventParameterEntry = (
 export const isEventParameterEntry: IsEventParameterEntry = (
   entry,
 ): entry is [string, EventParameterValue] =>
-  isPrimitiveEventParameter(entry[1]) || isSecretMap(entry[1]);
+  isPrimitiveEventParameter(entry[1]) || isSecretEntries(entry[1]);
 type IsRetryableStatus = (status: number) => boolean;
 export const isRetryableStatus: IsRetryableStatus = (status) =>
   [status === 408, status === 429, status >= 500].some(Boolean);

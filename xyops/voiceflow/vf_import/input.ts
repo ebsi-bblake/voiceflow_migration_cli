@@ -1,4 +1,5 @@
 import { OperationFault } from "../vf_contracts";
+import { VoiceflowRegex } from "../vf_regex";
 import { parseFolderID } from "../vf_validation";
 import { isRecord } from "../guards";
 import type { ImportedReceipt } from "../types";
@@ -18,7 +19,7 @@ export const validFilename: ValidFilename = (value) => {
 };
 
 const isSafeFilename = (value: string): boolean => {
-  if (!/^[^/\\]+\.vf$/i.test(value)) return false;
+  if (!VoiceflowRegex.filename.test(value)) return false;
   return !value.includes("..");
 };
 

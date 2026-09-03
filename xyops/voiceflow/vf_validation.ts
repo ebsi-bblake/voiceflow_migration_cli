@@ -1,4 +1,5 @@
 import { OperationFault } from "./vf_contracts";
+import { VoiceflowRegex } from "./vf_regex";
 
 const MAX_ID_LENGTH = 128;
 const MAX_NAME_LENGTH = 256;
@@ -10,7 +11,8 @@ const hasControlCharacter = (value: string): boolean =>
     const code = character.charCodeAt(0);
     return code <= 31 || (code >= 127 && code <= 159);
   });
-const hasPathSeparator = (value: string): boolean => /[\\/]/.test(value);
+const hasPathSeparator = (value: string): boolean =>
+  VoiceflowRegex.pathSeparator.test(value);
 const rejectInvalidString = (value: unknown, maximum: number): string => {
   if (typeof value !== "string") throw new OperationFault("INVALID_ARGUMENT");
   const normalized = value.trim();
@@ -25,7 +27,8 @@ const rejectInvalidString = (value: unknown, maximum: number): string => {
 };
 const parsePathSafeString = (value: unknown, maximum: number): string => {
   const normalized = rejectInvalidString(value, maximum);
-  if (hasPathSeparator(normalized)) throw new OperationFault("INVALID_ARGUMENT");
+  if (hasPathSeparator(normalized))
+    throw new OperationFault("INVALID_ARGUMENT");
   return normalized;
 };
 
@@ -41,7 +44,8 @@ export const parseVersionID: ParseVersionID = (value) =>
 type ParseFolderID = (value: unknown) => string;
 export const parseFolderID: ParseFolderID = (value) => {
   const normalized = parsePathSafeString(value, MAX_ID_LENGTH);
-  if (!/^\d+$/.test(normalized)) throw new OperationFault("INVALID_ARGUMENT");
+  if (!VoiceflowRegex.numericID.test(normalized))
+    throw new OperationFault("INVALID_ARGUMENT");
   return normalized;
 };
 type ParseFolderName = (value: unknown) => string;

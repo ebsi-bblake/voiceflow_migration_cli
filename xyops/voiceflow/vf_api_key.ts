@@ -1,5 +1,6 @@
 import type { AuthContext } from "./types";
 import { requestBytes } from "./vf_http";
+import { VoiceflowRegex } from "./vf_regex";
 import { isRecord } from "./guards";
 import type { ApiKeyDiagnostic, ApiKeyStatus } from "./types";
 import { VOICEFLOW_IDENTITY_ORIGIN, encodePathSegment } from "./vf_urls";
@@ -67,7 +68,7 @@ const parseKeys: ParseKeys = (bytes) => {
 
 type SelectVoiceflowApiKeys = (keys: readonly string[]) => string[];
 const selectVoiceflowApiKeys: SelectVoiceflowApiKeys = (keys) =>
-  keys.filter((key) => /^VF\.DM\..+/.test(key));
+  keys.filter((key) => VoiceflowRegex.projectAPIKey.test(key));
 
 type DeduplicateStrings = (values: readonly string[]) => string[];
 const deduplicateStrings: DeduplicateStrings = (values) => [...new Set(values)];

@@ -3,7 +3,7 @@ import type {
   EventParameters,
   MigrationSelection,
   Option,
-  SecretMap,
+  SecretEntries,
 } from "./types";
 import { isEventParameterEntry } from "./guards";
 import type { MigrationState } from "./types";
@@ -118,7 +118,7 @@ export const planParameters: PlanParameters = (selection) =>
 type ExecuteParameters = (
   selection: MigrationSelection,
   planID: string,
-  secretFileContents?: SecretMap,
+  secretFileContents?: SecretEntries,
 ) => EventParameters;
 export const executeParameters: ExecuteParameters = (
   selection,

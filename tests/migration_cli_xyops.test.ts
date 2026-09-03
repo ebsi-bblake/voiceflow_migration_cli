@@ -606,7 +606,12 @@ describe("XYOps CLI adapter", () => {
       PLAN_ID: "plan-1",
       CONFIRMED: true,
     });
-    expect(executeParameters(selection, "plan-1", { VF_TEST_SECRET: "value" }))
-      .toMatchObject({ SECRET_FILE_CONTENTS: { VF_TEST_SECRET: "value" } });
+    expect(
+      executeParameters(selection, "plan-1", [
+        { name: "VF_TEST_SECRET", value: "value" },
+      ]),
+    ).toMatchObject({
+      SECRET_FILE_CONTENTS: [{ name: "VF_TEST_SECRET", value: "value" }],
+    });
   });
 });

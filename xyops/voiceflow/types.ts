@@ -7,6 +7,7 @@ export const VoiceflowOperation = {
   PlanMigration: "plan_migration",
   ExecuteMigration: "execute_migration",
 } as const;
+
 export type VoiceflowOperation =
   (typeof VoiceflowOperation)[keyof typeof VoiceflowOperation];
 

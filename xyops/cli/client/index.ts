@@ -77,17 +77,13 @@ const translateExecuteJobError = (error: unknown): CliError => {
 const toCliError = (error: unknown): CliError =>
   error instanceof CliError ? error : fail("execute-outcome-unknown");
 
-const resolveFetcher = (dependencies: CreateClientDependencies): typeof fetch =>
-  dependencies.fetcher ?? fetch;
-const resolveSleeper = (dependencies: CreateClientDependencies): Sleep =>
-  dependencies.sleeper ?? defaultSleep;
 // Client construction binds optional infrastructure dependencies once at the boundary.
 export const createXYOpsClient = (
   config: XYOpsConfig,
   dependencies: CreateClientDependencies = {},
 ): XYOpsClient => {
-  const fetcher = resolveFetcher(dependencies);
-  const sleeper = resolveSleeper(dependencies);
+  const fetcher = dependencies.fetcher ?? fetch;
+  const sleeper = dependencies.sleeper ?? defaultSleep;
   const streamer = dependencies.streamer ?? streamJob;
   const request: Request = (path, body, endpoint) =>
     fetchJSON(
@@ -122,7 +118,11 @@ export const createXYOpsClient = (
       .then((job) =>
         normalizeVoiceflowResponse(
           readJobOutput(
-            requireSuccessfulJob(job, JOB_PATH, "The migration execute job failed."),
+            requireSuccessfulJob(
+              job,
+              JOB_PATH,
+              "The migration execute job failed.",
+            ),
             JOB_PATH,
           ),
         ),
@@ -133,17 +133,11 @@ export const createXYOpsClient = (
     id: string,
     guard: ResponseGuard<VoiceflowEnvelope<T>>,
   ) =>
-    streamer(
-      fetcher,
-      config.baseURL,
-      config.apiKey,
-      id,
-      config.httpTimeoutMs,
-      {
-        maxBytes: config.streamMaxBytes,
-        maxFrameBytes: config.streamMaxFrameBytes,
-      },
-    ).catch((error) => Promise.reject(translateExecuteStreamError(error)))
+    streamer(fetcher, config.baseURL, config.apiKey, id, config.httpTimeoutMs, {
+      maxBytes: config.streamMaxBytes,
+      maxFrameBytes: config.streamMaxFrameBytes,
+    })
+      .catch((error) => Promise.reject(translateExecuteStreamError(error)))
       .then((stream) => {
         if (stream.kind === "failure")
           return Promise.reject(

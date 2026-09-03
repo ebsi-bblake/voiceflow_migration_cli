@@ -2,150 +2,37 @@
 import {
   DEFAULT_XYOPS_BASE_URL,
   readXYOpsConfig,
-  type XYOpsEventReference,
 } from "../config";
 import { createXYOpsClient } from "../client";
-import {
-  isCheckSessionResult,
-  isExecuteResult,
-  isMigrationPlan,
-  isOptionResult,
-  isVoiceflowEnvelope,
-} from "../guards";
+import { isCheckSessionResult, isVoiceflowEnvelope } from "../guards";
 import { requireEnvelopeResult } from "../validation";
-import type {
-  ExecuteResult,
-  EventParameters,
-  MigrationPlan,
-  MigrationSelection,
-  SecretMap,
-  VoiceflowWarning,
-} from "../types";
 import { asCliError, cliErrorOutput, fail } from "../diagnostics";
-import { readSecretFile } from "../secrets";
 import {
-  executeParameters,
   eventParametersFor,
   initialMigrationState,
-  listFoldersParameters,
-  listProjectsParameters,
-  listVersionsParameters,
-  listWorkspacesParameters,
-  planParameters,
   stateSelection,
   type MigrationState,
 } from "../state";
-import { bounded, chooseOption, PromptReader } from "../prompt";
+import { CreatePromptReader } from "../prompt";
+import {
+  selectSourceSelection,
+  selectDestinationSelection,
+  type MigrationContext,
+} from "./selection";
+import { readMigrationPlan } from "./planning";
+import { confirmAndExecuteMigration, displayPlan } from "./execution";
+import { readSecretsForMigration } from "./secret-input";
 
 type PrintHelp = () => void;
 const printHelp: PrintHelp = () => {
-  console.log("Usage: bun run xyops/cli/index.ts");
-  console.log(
+  [
+    "Usage: bun run xyops/cli/index.ts",
     "Interactively plan and execute a Voiceflow migration through XYOps.",
-  );
-  console.log(
     `Local configuration: XYOPS_API_KEY=<key> (required), XYOPS_BASE_URL=<url> (default: ${DEFAULT_XYOPS_BASE_URL}).`,
-  );
-  console.log("Optional --secrets=<local-env-file> supplies project secrets.");
-  console.log(
+    "Optional --secrets=<JSON-file> supplies project secrets as name/value entries.",
     "Optional XYOPS_EVENT_* overrides accept title:<event-title> or id:<event-id>.",
-  );
-  console.log(
     "Default event titles must match the configured XYOps Event titles.",
-  );
-};
-
-type ReadOptions = (
-  value: unknown,
-  title: string,
-) => readonly { value: string; label: string }[];
-const readOptions: ReadOptions = (value, title) => {
-  try {
-    return requireEnvelopeResult(value, title, isOptionResult).options;
-  } catch {
-    throw fail("envelope", {
-      nextAction: `${title} returned no usable options.`,
-    });
-  }
-};
-
-type SelectCatalog = (
-  reader: PromptReader,
-  client: ReturnType<typeof createXYOpsClient>,
-  eventReference: XYOpsEventReference,
-  parameters: EventParameters,
-  title: string,
-) => Promise<string>;
-const selectCatalog: SelectCatalog = async (
-  reader,
-  client,
-  eventReference,
-  parameters,
-  title,
-) => {
-  const response = await client.readEvent(
-    eventReference,
-    parameters,
-    isVoiceflowEnvelope(isOptionResult),
-  );
-  return chooseOption(reader, title, readOptions(response, title));
-};
-
-type DisplayPlan = (plan: MigrationPlan) => void;
-const displayPlan: DisplayPlan = (plan) => {
-  console.log("\nMigration plan:");
-  console.log(`Plan ID: ${bounded(plan.planID, 100)}`);
-  console.log(`Source workspace: ${bounded(plan.labels.sourceWorkspace)}`);
-  console.log(`Source project: ${bounded(plan.labels.sourceProject)}`);
-  console.log(`Source version: ${bounded(plan.labels.sourceVersion)}`);
-  console.log(
-    `Destination workspace: ${bounded(plan.labels.destinationWorkspace)}`,
-  );
-  console.log(`Destination folder: ${bounded(plan.labels.destinationFolder)}`);
-  console.log(
-    `Target schema: ${bounded(plan.selection.targetSchemaVersion, 40)}`,
-  );
-};
-
-type IsWarning = (value: VoiceflowWarning, code: string) => boolean;
-const isWarning: IsWarning = (value, code) => value.code === code;
-
-type NumberField = (
-  value: ExecuteResult,
-  key: "exportStatus" | "exportBytes" | "importStatus" | "importBytes",
-) => number;
-const numberField: NumberField = (value, key) => value[key];
-const executionFieldKeys = [
-  "exportStatus",
-  "exportBytes",
-  "importStatus",
-  "importBytes",
-] as const;
-const apiKeySummary = (
-  value: ExecuteResult,
-): Readonly<Record<string, unknown>> =>
-  typeof value.apiKeyRetrieved === "boolean"
-    ? { apiKeyRetrieved: value.apiKeyRetrieved }
-    : {};
-
-type SummarizeExecution = (
-  value: unknown,
-  planID: string,
-) => Readonly<Record<string, unknown>>;
-const summarizeExecution: SummarizeExecution = (value, planID) => {
-  if (!isExecuteResult(value))
-    throw fail("envelope", {
-      nextAction: "The execute event returned an invalid result.",
-    });
-  const fields = Object.fromEntries(
-    executionFieldKeys.map((key) => [key, numberField(value, key)]),
-  );
-  return {
-    migrationCompleted: true,
-    planID,
-    ...fields,
-    ...apiKeySummary(value),
-  };
+  ].forEach((msg) => console.log(msg));
 };
 
 const helpRequested = (): boolean =>
@@ -156,167 +43,7 @@ const requireActiveSession = (active: boolean): void => {
       nextAction: "The configured Voiceflow session is not active.",
     });
 };
-const requireConfirmation = (confirmation: string): boolean =>
-  ["y", "yes"].includes(confirmation);
-const hasAPIKeyRetrievalWarning = (
-  response: Awaited<
-    ReturnType<ReturnType<typeof createXYOpsClient>["executeEvent"]>
-  >,
-): boolean =>
-  response.ok &&
-  response.warnings.some((warning) =>
-    isWarning(warning, "API_KEY_RETRIEVAL_FAILED"),
-  );
-const warnAPIKeyRetrieval = (
-  response: Awaited<
-    ReturnType<ReturnType<typeof createXYOpsClient>["executeEvent"]>
-  >,
-): void => {
-  if (hasAPIKeyRetrievalWarning(response)) {
-    console.error(
-      "WARNING: migration completed, but API-key retrieval failed.",
-    );
-    process.exitCode = 2;
-  }
-};
-const defaultSchemaVersion = (value: string): string => value || "13.1";
-type MigrationContext = Readonly<{
-  reader: PromptReader;
-  client: ReturnType<typeof createXYOpsClient>;
-  config: ReturnType<typeof readXYOpsConfig>;
-}>;
-type SourceSelection = Pick<
-  MigrationSelection,
-  "sourceWorkspaceID" | "sourceProjectID" | "sourceVersionID"
->;
-type DestinationSelection = Pick<
-  MigrationSelection,
-  "destinationWorkspaceID" | "destinationFolderID" | "targetSchemaVersion"
->;
-type SelectSourceSelection = (
-  context: MigrationContext,
-) => Promise<SourceSelection>;
-const selectSourceSelection: SelectSourceSelection = async ({
-  reader,
-  client,
-  config,
-}) => {
-  const sourceWorkspaceID = await selectCatalog(
-    reader,
-    client,
-    config.events.listWorkspaces,
-    listWorkspacesParameters(),
-    "Source workspace",
-  );
-  const sourceProjectID = await selectCatalog(
-    reader,
-    client,
-    config.events.listProjects,
-    listProjectsParameters(sourceWorkspaceID),
-    "Source project",
-  );
-  const sourceVersionID = await selectCatalog(
-    reader,
-    client,
-    config.events.listVersions,
-    listVersionsParameters(sourceWorkspaceID, sourceProjectID),
-    "Source draft/published version",
-  );
-  return { sourceWorkspaceID, sourceProjectID, sourceVersionID };
-};
-type SelectDestinationSelection = (
-  context: MigrationContext,
-) => Promise<DestinationSelection>;
-const selectDestinationSelection: SelectDestinationSelection = async ({
-  reader,
-  client,
-  config,
-}) => {
-  const destinationWorkspaceID = await selectCatalog(
-    reader,
-    client,
-    config.events.listWorkspaces,
-    listWorkspacesParameters(),
-    "Destination workspace",
-  );
-  const destinationFolderID = await selectCatalog(
-    reader,
-    client,
-    config.events.listFolders,
-    listFoldersParameters(destinationWorkspaceID),
-    "Destination folder",
-  );
-  const targetSchemaVersion = defaultSchemaVersion(
-    (await reader.ask("Target schema version [13.1]: ")).trim(),
-  );
-  return { destinationWorkspaceID, destinationFolderID, targetSchemaVersion };
-};
-type ReadMigrationPlan = (
-  context: MigrationContext,
-  selection: MigrationSelection,
-) => Promise<MigrationPlan>;
-const readMigrationPlan: ReadMigrationPlan = ({ client, config }, selection) =>
-  client
-    .readEvent(
-      config.events.planMigration,
-      planParameters(selection),
-      isVoiceflowEnvelope(isMigrationPlan),
-    )
-    .then((response) =>
-      requireEnvelopeResult(response, "plan_migration", isMigrationPlan),
-    );
-type ConfirmAndExecuteMigration = (
-  context: MigrationContext,
-  selection: MigrationSelection,
-  planID: string,
-  secretFileContents?: SecretMap,
-) => Promise<void>;
-const confirmAndExecuteMigration: ConfirmAndExecuteMigration = async (
-  { reader, client, config },
-  selection,
-  planID,
-  secretFileContents,
-) => {
-  const confirmation = (
-    await reader.ask("Perform this real migration? (yes/no): ")
-  )
-    .trim()
-    .toLowerCase();
-  if (!requireConfirmation(confirmation)) {
-    console.log("Aborted; no migration performed.");
-    return;
-  }
-  const executeResponse = await client.executeEvent(
-    config.events.executeMigration,
-    executeParameters(selection, planID, secretFileContents),
-    isVoiceflowEnvelope(isExecuteResult),
-  );
-  const execute = requireEnvelopeResult(
-    executeResponse,
-    "execute_migration",
-    isExecuteResult,
-  );
-  console.log(JSON.stringify(summarizeExecution(execute, planID)));
-  warnAPIKeyRetrieval(executeResponse);
-};
-type ReadSecretFileContents = (
-  path: string,
-) => Promise<SecretMap | undefined>;
-const readSecretFileContents: ReadSecretFileContents = (path) =>
-  path === "" ? Promise.resolve(undefined) : readSecretFile(path);
-type ReadSecretsArgument = () => string | undefined;
-const readSecretsArgument: ReadSecretsArgument = () =>
-  process.argv.find((argument) => argument.startsWith("--secrets="))?.slice(10);
-type ReadSecretsForMigration = (
-  reader: PromptReader,
-) => Promise<SecretMap | undefined>;
-const readSecretsForMigration: ReadSecretsForMigration = async (reader) => {
-  const argumentPath = readSecretsArgument();
-  const path =
-    argumentPath ??
-    (await reader.ask("Secrets file path (leave blank to skip): ")).trim();
-  return readSecretFileContents(path);
-};
+
 type PerformMigration = (context: MigrationContext) => Promise<void>;
 const performMigration: PerformMigration = async (context) => {
   const { client, config } = context;
@@ -364,7 +91,7 @@ export const run: Run = async () => {
 
   const config = readXYOpsConfig();
   const client = createXYOpsClient(config);
-  const reader = new PromptReader();
+  const reader = CreatePromptReader();
   try {
     await performMigration({ reader, client, config });
   } finally {

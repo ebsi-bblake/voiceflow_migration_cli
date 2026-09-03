@@ -1,4 +1,5 @@
 import { PLUGIN_VERSION } from "./version";
+import { VoiceflowRegex } from "../voiceflow/vf_regex";
 import { PluginStage } from "./types";
 export type { PluginStage } from "./types";
 
@@ -26,32 +27,32 @@ const readErrorMessage: ReadErrorMessage = (error) =>
 type RemoveStackLines = (message: string) => string;
 const removeStackLines: RemoveStackLines = (message) =>
   message
-    .split(/\r?\n/u)
-    .filter((line) => !/^\s*at\s+/u.test(line))
+    .split(VoiceflowRegex.pluginLineBreak)
+    .filter((line) => !VoiceflowRegex.stackFrame.test(line))
     .join(" ");
 
 type RedactSensitiveValues = (message: string) => string;
 const redactSensitiveValues: RedactSensitiveValues = (message) =>
   message
-    .replace(/\bBearer\s+[^\s,;}]+/giu, "Bearer [REDACTED]")
+    .replace(VoiceflowRegex.bearerValue, "Bearer [REDACTED]")
     .replace(
-      /\b(?:eyJ[A-Za-z0-9_-]{4,}\.)[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/gu,
+      VoiceflowRegex.pluginJWT,
       "[REDACTED_JWT]",
     )
     .replace(
-      /(["']?(?:api[ _-]?key|access[ _-]?token|refresh[ _-]?token|authorization|password|secret|token|jwt)["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^,;}\s]+)/giu,
+      VoiceflowRegex.sensitiveAssignment,
       "$1[REDACTED]",
     )
     .replace(
-      /(["']?(?:params?|payload|export(?:ed)?(?:data|base64)?)["']?\s*[:=]\s*)(?:\{[^\n]*\}|\[[^\n]*\]|[^,;}\s]+)/giu,
+      VoiceflowRegex.dataAssignment,
       "$1[REDACTED_DATA]",
     )
-    .replace(/\{[^\n]*\}|\[[^\n]*\]/gu, "[REDACTED_DATA]")
+    .replace(VoiceflowRegex.structuredData, "[REDACTED_DATA]")
     .replace(
-      /\b(?:jwt|token|api[ _-]?key|sk|pk|vf)[_-][A-Za-z0-9_-]+\b/giu,
+      VoiceflowRegex.prefixedSecret,
       "[REDACTED]",
     )
-    .replace(/\b[A-Za-z0-9_-]{24,}\b/gu, "[REDACTED]");
+    .replace(VoiceflowRegex.pluginLongToken, "[REDACTED]");
 
 type SanitizeDiagnosticText = (value: string, limit: number) => string;
 const isControlCharacter = (character: string): boolean => {
@@ -64,7 +65,7 @@ const sanitizeDiagnosticText: SanitizeDiagnosticText = (value, limit) =>
     .split("")
     .map((character) => (isControlCharacter(character) ? " " : character))
     .join("")
-    .replace(/\s+/gu, " ")
+    .replace(VoiceflowRegex.whitespace, " ")
     .trim()
     .slice(0, limit);
 

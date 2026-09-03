@@ -1,6 +1,7 @@
 /* oxlint-disable complexity, no-unused-expressions */
 import type { AuthContext, SecretEntry } from "../types";
 import { OperationFault } from "../vf_contracts";
+import { VoiceflowRegex } from "../vf_regex";
 import { createUUID } from "../vf_uuid";
 import { VOICEFLOW_REALTIME_WEBSOCKET_URL } from "../vf_urls";
 
@@ -12,8 +13,8 @@ type CreateSecret = (
 export const createSecret: CreateSecret = (auth, assistantID, secret) =>
   new Promise((resolve, reject) => {
     const ws = new WebSocket(VOICEFLOW_REALTIME_WEBSOCKET_URL);
-    const clientID = createUUID().replace(/-/g, "").slice(0, 8);
-    const origin = `${auth.creatorID}:${clientID}:${createUUID().replace(/-/g, "").slice(0, 8)}`;
+    const clientID = createUUID().replace(VoiceflowRegex.base64UrlDash, "").slice(0, 8);
+    const origin = `${auth.creatorID}:${clientID}:${createUUID().replace(VoiceflowRegex.base64UrlDash, "").slice(0, 8)}`;
     const actionID = createUUID();
     const subscriptionID = Math.floor(Math.random() * 1_000_000_000) + 1;
     let actionTime = 1;

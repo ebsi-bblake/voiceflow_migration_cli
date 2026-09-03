@@ -1,4 +1,6 @@
 /** Pure Voiceflow boundary guards shared by the active runtime modules. */
+import { VoiceflowRegex } from "./vf_regex";
+
 export type RecordValue = Readonly<Record<string, unknown>>;
 
 const isNonNullObject = (value: unknown): value is object =>
@@ -12,7 +14,8 @@ const isRecordArray = (value: unknown[]): value is RecordValue[] =>
   value.every(isRecord);
 export const isRowArray = (value: unknown): value is readonly RecordValue[] =>
   Array.isArray(value) && isRecordArray(value);
-export const isNumericFolderID = (id: string): boolean => /^\d+$/.test(id);
+export const isNumericFolderID = (id: string): boolean =>
+  VoiceflowRegex.numericID.test(id);
 const isServerErrorStatus = (status: number): boolean =>
   status >= 500 && status < 600;
 const isRetryableStatusCode = (status: number): boolean =>
@@ -30,7 +33,8 @@ const isControlCode = (code: number): boolean =>
 const isC1ControlCode = (code: number): boolean => code >= 127 && code <= 159;
 const hasControlCharacter = (value: string): boolean =>
   Array.from(value).some((character) => isControlCode(character.charCodeAt(0)));
-const hasPathSeparator = (value: string): boolean => /[\\/]/.test(value);
+const hasPathSeparator = (value: string): boolean =>
+  VoiceflowRegex.pathSeparator.test(value);
 export const isValidCreatorID = (value: string): boolean => {
   const creatorID = value.trim();
   return [
