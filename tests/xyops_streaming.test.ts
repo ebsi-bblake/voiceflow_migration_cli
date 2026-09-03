@@ -74,6 +74,14 @@ test("uses the terminal event and safely ignores progress-only updates", async (
   expect(result).toMatchObject({ kind: "success", jobID: "job-1", code: 0 });
 });
 
+test("uses the final status update when end is an empty completion marker", async () => {
+  const result = await streamRequest(
+    lifecycleStream({}, { id: "job-1", code: 0 }),
+  );
+
+  expect(result).toMatchObject({ kind: "success", jobID: "job-1", code: 0 });
+});
+
 test("uses terminal failure over a successful progress update", async () => {
   const result = await streamRequest(lifecycleStream({ id: "job-1", code: "plugin_failure", description: "migration failed" }, { id: "job-1", code: 0 }));
 

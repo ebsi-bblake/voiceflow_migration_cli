@@ -67,6 +67,19 @@ export const parseSSE: ParseSSE = (source, limits = {}) => {
   return events
 };
 
+type TerminalJobData = Readonly<{
+  id: string;
+  code: number | string;
+}>;
+
+type HasTerminalJobStatus = (
+  data: Record<string, unknown> | undefined,
+) => data is Record<string, unknown> & TerminalJobData;
+const hasTerminalJobStatus: HasTerminalJobStatus = (data): data is Record<string, unknown> & TerminalJobData =>
+  data !== undefined &&
+  isNonEmptyString(data.id) &&
+  (typeof data.code === "number" || typeof data.code === "string");
+
 type ReadSSEResponse = (
   response: Response,
   limits: XYOpsStreamLimits,
@@ -104,9 +117,9 @@ const readSSEResponse: ReadSSEResponse = async (response, limits) => {
     .slice()
     .reverse()
     .find((event: XYOpsStreamEvent) => event.type === "end")?.data;
-  // The end event is authoritative; update events may contain progress only.
-  const latest = terminal ?? updates.at(-1)?.data;
-  if (latest === undefined || !isNonEmptyString(latest.id) || (typeof latest.code !== "number" && typeof latest.code !== "string"))
+  // Some XYOps versions use end as an empty completion marker; retain the terminal update in that case.
+  const latest = [terminal, ...updates.map((event) => event.data).reverse()].find(hasTerminalJobStatus);
+  if (latest === undefined)
     return streamError("XYOps ended the stream without a terminal job status.");
   if (!events.some((event) => event.type === "end"))
     return streamError("XYOps ended the stream before the terminal event.");
