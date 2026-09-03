@@ -2,8 +2,8 @@
 import type { AuthContext, SecretEntry } from "../types";
 import { OperationFault } from "../vf_contracts";
 import { createUUID } from "../vf_uuid";
+import { VOICEFLOW_REALTIME_WEBSOCKET_URL } from "../vf_urls";
 
-const URL = "wss://realtime.empyrean.voiceflow.com/";
 type CreateSecret = (
   auth: AuthContext,
   assistantID: string,
@@ -11,7 +11,7 @@ type CreateSecret = (
 ) => Promise<void>;
 export const createSecret: CreateSecret = (auth, assistantID, secret) =>
   new Promise((resolve, reject) => {
-    const ws = new WebSocket(URL);
+    const ws = new WebSocket(VOICEFLOW_REALTIME_WEBSOCKET_URL);
     const clientID = createUUID().replace(/-/g, "").slice(0, 8);
     const origin = `${auth.creatorID}:${clientID}:${createUUID().replace(/-/g, "").slice(0, 8)}`;
     const actionID = createUUID();

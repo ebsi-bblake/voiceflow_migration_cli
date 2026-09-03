@@ -14,26 +14,20 @@ import {
   type MigrationPlan,
   type MigrationSelection,
 } from "./vf_contracts";
+import { parseFolderID, parseProjectID, parseSchemaVersion, parseVersionID, parseWorkspaceID } from "./vf_validation";
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
 
-function required(value: unknown): string {
-  if (!isNonEmptyString(value)) throw new OperationFault("INVALID_ARGUMENT");
-  return value.trim();
-}
 
 export function normalizeMigrationSelection(
   input: MigrationSelection,
 ): MigrationSelection {
   return {
-    sourceWorkspaceID: required(input.sourceWorkspaceID),
-    sourceProjectID: required(input.sourceProjectID),
-    sourceVersionID: required(input.sourceVersionID),
-    destinationWorkspaceID: required(input.destinationWorkspaceID),
-    destinationFolderID: required(input.destinationFolderID),
-    targetSchemaVersion: required(input.targetSchemaVersion),
+    sourceWorkspaceID: parseWorkspaceID(input.sourceWorkspaceID),
+    sourceProjectID: parseProjectID(input.sourceProjectID),
+    sourceVersionID: parseVersionID(input.sourceVersionID),
+    destinationWorkspaceID: parseWorkspaceID(input.destinationWorkspaceID),
+    destinationFolderID: parseFolderID(input.destinationFolderID),
+    targetSchemaVersion: parseSchemaVersion(input.targetSchemaVersion),
   };
 }
 

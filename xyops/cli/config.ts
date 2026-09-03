@@ -1,5 +1,6 @@
 import { fail } from "./diagnostics";
-import { isHTTPURL, isInvalidDuration } from "./guards";
+import { isInvalidDuration } from "./guards";
+import { parseXYOpsURL } from "../voiceflow/vf_urls";
 import type {
   XYOpsConfig,
   XYOpsEventConfig,
@@ -124,25 +125,15 @@ const parseDuration: ParseDuration = (raw, name) => {
   return Math.floor(value);
 };
 
-type ParseBaseURL = (value: string) => URL;
-const parseBaseURL: ParseBaseURL = (value) => {
-  try {
-    return new URL(value);
-  } catch {
-    throw fail("configuration", {
-      nextAction: "XYOPS_BASE_URL must be a valid HTTP URL.",
-    });
-  }
-};
-
 type NormalizeBaseURL = (value: string) => string;
 const normalizeBaseURL: NormalizeBaseURL = (value) => {
-  const url = parseBaseURL(value);
-  if (!isHTTPURL(url))
+  try {
+    return parseXYOpsURL(value);
+  } catch {
     throw fail("configuration", {
-      nextAction: "XYOPS_BASE_URL must use HTTP or HTTPS.",
+      nextAction: "XYOPS_BASE_URL must be a valid HTTP URL without credentials or fragments.",
     });
-  return url.toString().replace(/\/$/, "");
+  }
 };
 
 type ReadBaseURL = (environment: Environment) => string;

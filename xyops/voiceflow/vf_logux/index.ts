@@ -4,9 +4,10 @@ import { handleFrame, handleIncomingMessage } from "./frames";
 import { createSecret } from "./create-secret";
 import { createUUID } from "../vf_uuid";
 import type { SecretEntry } from "../types";
+import { VOICEFLOW_REALTIME_WEBSOCKET_URL } from "../vf_urls";
 
 type Row = Readonly<Record<string, unknown>>;
-const URL = "wss://realtime.empyrean.voiceflow.com/";
+
 const SUPPORTED_WANTED_TYPES: ReadonlySet<string> = new Set([
   "workspace.CRUD:REPLACE",
   "project.CRUD:REPLACE",
@@ -34,7 +35,7 @@ export const syncCatalog: SyncCatalog = (auth, channel, wanted) => {
     return Promise.reject(new OperationFault("INVALID_ARGUMENT"));
   }
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(URL);
+    const ws = new WebSocket(VOICEFLOW_REALTIME_WEBSOCKET_URL);
     const rows: Row[] = [];
     const wantedSet = new Set(wanted);
     const seen = new Set<string>();

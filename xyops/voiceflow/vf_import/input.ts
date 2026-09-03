@@ -1,5 +1,5 @@
 import { OperationFault } from "../vf_contracts";
-import { requireVoiceflowString } from "../vf_validation";
+import { parseFolderID } from "../vf_validation";
 import { isRecord } from "../guards";
 import type { ImportedReceipt } from "../types";
 
@@ -7,11 +7,7 @@ type RecordValue = Readonly<Record<string, unknown>>;
 
 type RequiredFolderID = (value: unknown) => string;
 export const requiredFolderID: RequiredFolderID = (value) => {
-  const folderID = requireVoiceflowString(value);
-  if (!isNumericFolder(folderID)) {
-    throw new OperationFault("INVALID_ARGUMENT");
-  }
-  return folderID;
+  return parseFolderID(value);
 };
 
 type ValidFilename = (value: string) => string;
@@ -20,7 +16,7 @@ export const validFilename: ValidFilename = (value) => {
   if (!isSafeFilename(name)) throw new OperationFault("INVALID_ARGUMENT");
   return name;
 };
-const isNumericFolder = (value: string): boolean => /^\d+$/.test(value);
+
 const isSafeFilename = (value: string): boolean => {
   if (!/^[^/\\]+\.vf$/i.test(value)) return false;
   return !value.includes("..");

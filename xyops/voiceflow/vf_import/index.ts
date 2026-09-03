@@ -2,7 +2,8 @@ import type { AuthContext } from "../types";
 import type { ExportArtifact, HttpBytes, ImportedReceipt } from "../types";
 import { OperationFault } from "../vf_contracts";
 import { requestBytes } from "../vf_http";
-import { requireVoiceflowString } from "../vf_validation";
+import { parseFolderID, parseSchemaVersion, parseWorkspaceID } from "../vf_validation";
+import { VOICEFLOW_REALTIME_HTTP_ORIGIN, encodePathSegment } from "../vf_urls";
 import { isImportOutcomeUnknownStatus } from "../guards";
 export { isImportOutcomeUnknownStatus } from "../guards";
 
@@ -57,12 +58,12 @@ const importInput: ImportInputFactory = (
   schema,
   artifact,
 ) => {
-  const normalizedWorkspace = requireVoiceflowString(workspace);
+  const normalizedWorkspace = parseWorkspaceID(workspace);
   validateArtifactSize(artifact);
   return {
     workspace: normalizedWorkspace,
     folder: requiredFolderID(folder),
-    schema: requireVoiceflowString(schema),
+    schema: parseSchemaVersion(schema),
   };
 };
 const validateArtifactSize = (artifact: ExportArtifact): void => {
@@ -81,7 +82,7 @@ const requestImportResponse: RequestImportResponse = async (
 ) => {
   try {
     return await requestBytes({
-      url: `https://realtime-http-api.empyrean.voiceflow.com/v1alpha1/assistant/import-file/${encodeURIComponent(workspace)}`,
+      url: `${VOICEFLOW_REALTIME_HTTP_ORIGIN}/v1alpha1/assistant/import-file/${encodePathSegment(workspace)}`,
       init: {
         method: "POST",
         headers: { Authorization: `Bearer ${auth.token}` },

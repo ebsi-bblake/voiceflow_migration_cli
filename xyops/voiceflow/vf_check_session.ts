@@ -4,6 +4,7 @@ import { requestBytes } from "./vf_http";
 import { isRetryableHttpStatus } from "./guards";
 import type { Envelope, HttpBytes } from "./types";
 import { createUUID } from "./vf_uuid";
+import { VOICEFLOW_CREATOR_ORIGIN, VOICEFLOW_IDENTITY_ORIGIN } from "./vf_urls";
 
 type CheckSessionResult = {
   active: boolean;
@@ -17,7 +18,7 @@ const sessionResult: SessionResult = (response) => {
     return {
       active: false,
       loginRequired: true,
-      loginUrl: "https://creator.empyrean.voiceflow.com/",
+      loginUrl: `${VOICEFLOW_CREATOR_ORIGIN}/`,
     };
   }
   return successfulSessionResult(response.status);
@@ -39,7 +40,7 @@ export const main: Main = async (token) => {
   try {
     const auth = await resolveVoiceflowAuth(token);
     const response = await requestBytes({
-      url: "https://identity-api.empyrean.voiceflow.com/v1alpha1/user",
+      url: `${VOICEFLOW_IDENTITY_ORIGIN}/v1alpha1/user`,
       init: { headers: { Authorization: `Bearer ${auth.token}` } },
       maxBytes: 65536,
       timeoutMs: 15000,

@@ -14,7 +14,13 @@ import {
 import type { AuthContext } from "../vf_auth";
 import { OperationFault } from "../vf_contracts";
 import type { MigrationPlan, MigrationSelection } from "../types";
-import { requireVoiceflowString } from "../vf_validation";
+import {
+  parseFolderID,
+  parseSchemaVersion,
+  parseProjectID,
+  parseVersionID,
+  parseWorkspaceID,
+} from "../vf_validation";
 
 type NormalizeMigrationSelection = (
   input: MigrationSelection,
@@ -22,12 +28,12 @@ type NormalizeMigrationSelection = (
 export const normalizeMigrationSelection: NormalizeMigrationSelection = (
   input,
 ) => ({
-  sourceWorkspaceID: requireVoiceflowString(input.sourceWorkspaceID),
-  sourceProjectID: requireVoiceflowString(input.sourceProjectID),
-  sourceVersionID: requireVoiceflowString(input.sourceVersionID),
-  destinationWorkspaceID: requireVoiceflowString(input.destinationWorkspaceID),
-  destinationFolderID: requireVoiceflowString(input.destinationFolderID),
-  targetSchemaVersion: requireVoiceflowString(input.targetSchemaVersion),
+  sourceWorkspaceID: parseWorkspaceID(input.sourceWorkspaceID),
+  sourceProjectID: parseProjectID(input.sourceProjectID),
+  sourceVersionID: parseVersionID(input.sourceVersionID),
+  destinationWorkspaceID: parseWorkspaceID(input.destinationWorkspaceID),
+  destinationFolderID: parseFolderID(input.destinationFolderID),
+  targetSchemaVersion: parseSchemaVersion(input.targetSchemaVersion),
 });
 
 type FindLabel = (options: readonly Option[], value: string) => string;

@@ -3,24 +3,10 @@ import type { ExportArtifact } from "./vf_export";
 import type { ImportedReceipt } from "./vf_contracts";
 import { OperationFault } from "./vf_contracts";
 import { requestBytes, type HttpBytes } from "./vf_http";
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function requiredID(value: unknown): string {
-  if (!isNonEmptyString(value)) throw new OperationFault("INVALID_ARGUMENT");
-  return value.trim();
-}
-
-function isNumericFolder(value: string): boolean {
-  return /^\d+$/.test(value);
-}
+import { parseFolderID, parseSchemaVersion, parseWorkspaceID } from "./vf_validation";
 
 function requiredFolderID(value: unknown): string {
-  const folderID = requiredID(value);
-  if (!isNumericFolder(folderID)) throw new OperationFault("INVALID_ARGUMENT");
-  return folderID;
+  return parseFolderID(value);
 }
 
 function isSafeFilename(value: string): boolean {
@@ -200,9 +186,9 @@ export async function importVersion(
   destinationFolderID: string,
   targetSchemaVersion: string,
 ): Promise<ImportedReceipt> {
-  const workspace = requiredID(destinationWorkspaceID);
+  const workspace = parseWorkspaceID(destinationWorkspaceID);
   const folder = requiredFolderID(destinationFolderID);
-  const schema = requiredID(targetSchemaVersion);
+  const schema = parseSchemaVersion(targetSchemaVersion);
   validateArtifactSize(artifact);
   const response = await requestImport(
     auth,

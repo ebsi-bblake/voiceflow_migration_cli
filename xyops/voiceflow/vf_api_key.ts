@@ -2,6 +2,7 @@ import type { AuthContext } from "./types";
 import { requestBytes } from "./vf_http";
 import { isRecord } from "./guards";
 import type { ApiKeyDiagnostic, ApiKeyStatus } from "./types";
+import { VOICEFLOW_IDENTITY_ORIGIN, encodePathSegment } from "./vf_urls";
 
 export type { ApiKeyDiagnostic, ApiKeyStatus } from "./types";
 
@@ -93,7 +94,7 @@ const retrieveValidatedApiKey = async (
   id: string,
 ): Promise<ApiKeyStatus> => {
   const response = await requestBytes({
-    url: `https://identity-api.empyrean.voiceflow.com/v1alpha1/api-key/legacy/project/${encodeURIComponent(id)}`,
+    url: `${VOICEFLOW_IDENTITY_ORIGIN}/v1alpha1/api-key/legacy/project/${encodePathSegment(id)}`,
     init: {
       method: "POST",
       headers: { Authorization: `Bearer ${auth.token}` },
