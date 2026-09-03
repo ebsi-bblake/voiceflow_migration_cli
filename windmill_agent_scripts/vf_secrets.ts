@@ -5,14 +5,17 @@ import type { SecretEntry } from "./vf_contracts";
 export function parseSecretEntries(value: unknown): SecretEntry[] {
   return typeof value === "string"
     ? parseSecretEntriesJSON(value)
-    : parseSecretMap(value);
+    : parseSecretEntryArray(value);
 }
-function parseSecretMap(value: unknown): SecretEntry[] {
-  if (!isRecord(value)) throw new Error("Secrets must be a JSON object.");
-  return Object.entries(value).map(([name, entryValue]) => {
-    if (typeof entryValue !== "string")
-      throw new Error("Secret values must be strings.");
-    return { name, value: entryValue };
+function parseSecretEntryArray(value: unknown): SecretEntry[] {
+  if (!Array.isArray(value))
+    throw new Error("Secrets must be a JSON array of name/value entries.");
+  return value.map((entryValue) => {
+    if (!isRecord(entryValue) || typeof entryValue.name !== "string")
+      throw new Error("Secret entries must contain a string name.");
+    if (typeof entryValue.value !== "string")
+      throw new Error("Secret entries must contain a string value.");
+    return { name: entryValue.name, value: entryValue.value };
   });
 }
 

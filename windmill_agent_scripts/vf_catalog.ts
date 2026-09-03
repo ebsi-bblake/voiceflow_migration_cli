@@ -1,6 +1,7 @@
 import type { AuthContext } from "./vf_auth";
 import { syncCatalog } from "./vf_logux";
 import { OperationFault } from "./vf_contracts";
+import { VoiceflowRegex } from "./vf_regex";
 
 export type Option = { value: string; label: string };
 export type WorkspaceRecord = Readonly<{ id: string; label: string }>;
@@ -176,7 +177,7 @@ function validFolderIDs(ids: CatalogIDs | undefined): ids is CatalogIDs {
 }
 
 function isNumericFolderID(id: string): boolean {
-  return /^\d+$/.test(id);
+  return VoiceflowRegex.numericID.test(id);
 }
 
 function projectRows<T>(

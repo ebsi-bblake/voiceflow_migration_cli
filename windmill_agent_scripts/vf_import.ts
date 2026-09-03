@@ -2,6 +2,7 @@ import type { AuthContext } from "./vf_auth";
 import type { ExportArtifact } from "./vf_export";
 import type { ImportedReceipt } from "./vf_contracts";
 import { OperationFault } from "./vf_contracts";
+import { VoiceflowRegex } from "./vf_regex";
 import { requestBytes, type HttpBytes } from "./vf_http";
 import { parseFolderID, parseSchemaVersion, parseWorkspaceID } from "./vf_validation";
 
@@ -10,7 +11,7 @@ function requiredFolderID(value: unknown): string {
 }
 
 function isSafeFilename(value: string): boolean {
-  return /^[^/\\]+\.vf$/i.test(value) && !value.includes("..");
+  return VoiceflowRegex.filename.test(value) && !value.includes("..");
 }
 
 function validFilename(value: string): string {

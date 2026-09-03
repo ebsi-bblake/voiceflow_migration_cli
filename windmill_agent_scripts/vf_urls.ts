@@ -1,4 +1,5 @@
 import { OperationFault } from "./vf_contracts";
+import { VoiceflowRegex } from "./vf_regex";
 export const VOICEFLOW_CREATOR_ORIGIN = "https://creator.empyrean.voiceflow.com";
 export const VOICEFLOW_IDENTITY_ORIGIN = "https://identity-api.empyrean.voiceflow.com";
 export const VOICEFLOW_REALTIME_HTTP_ORIGIN = "https://realtime-http-api.empyrean.voiceflow.com";
@@ -9,5 +10,5 @@ export const parseXYOpsURL = (value: string): string => {
   try { url = new URL(value); } catch { throw new OperationFault("INVALID_ARGUMENT"); }
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.hash)
     throw new OperationFault("INVALID_ARGUMENT");
-  return url.toString().replace(/\/+$/, "");
+  return url.toString().replace(VoiceflowRegex.trailingSlashes, "");
 };

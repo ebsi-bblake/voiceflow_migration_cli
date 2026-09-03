@@ -1,4 +1,5 @@
 import { OperationFault } from "./vf_contracts";
+import { VoiceflowRegex } from "./vf_regex";
 
 export type AuthContext = { token: string; creatorID: string };
 type Claims = Record<string, unknown>;
@@ -8,7 +9,7 @@ function requireTokenInput(input: unknown): string {
     throw new OperationFault("AUTHENTICATION_FAILED");
   return input
     .trim()
-    .replace(/^Bearer\s+/i, "")
+    .replace(VoiceflowRegex.bearerPrefix, "")
     .trim();
 }
 
@@ -24,7 +25,7 @@ async function acquireVoiceflowToken(input: unknown): Promise<string> {
 
 function decodePayload(token: string): string {
   const part = token.split(".")[1];
-  const normalized = part.replace(/-/g, "+").replace(/_/g, "/");
+  const normalized = part.replace(VoiceflowRegex.base64UrlDash, "+").replace(VoiceflowRegex.base64UrlUnderscore, "/");
   const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
   return new TextDecoder().decode(
     Uint8Array.from(atob(padded), (character) => character.charCodeAt(0)),
@@ -67,7 +68,7 @@ function isCreatorID(value: unknown): value is string | number {
 }
 
 function isValidCreatorID(value: string): boolean {
-  return /^[A-Za-z0-9_-]{1,128}$/.test(value);
+  return VoiceflowRegex.creatorID.test(value);
 }
 
 function requireCreatorIDValue(value: unknown): string | number {

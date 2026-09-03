@@ -1,4 +1,5 @@
 import type { AuthContext } from "./vf_auth";
+import { VoiceflowRegex } from "./vf_regex";
 import { requestBytes } from "./vf_http";
 
 export type ApiKeyDiagnostic = {
@@ -78,7 +79,7 @@ function parseKeys(bytes: ArrayBuffer): string[] {
 }
 
 function isVoiceflowAPIKey(value: string): boolean {
-  return /^VF\.DM\..+/.test(value);
+  return VoiceflowRegex.projectAPIKey.test(value);
 }
 
 function readSingleAPIKey(bytes: ArrayBuffer): string | undefined {
