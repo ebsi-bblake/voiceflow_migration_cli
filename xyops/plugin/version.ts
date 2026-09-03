@@ -1,1 +1,3 @@
-export const PLUGIN_VERSION = "0.1.9";
+import packageMetadata from "../../package.json";
+
+export const PLUGIN_VERSION = packageMetadata.version;
