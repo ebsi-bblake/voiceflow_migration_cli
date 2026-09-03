@@ -1,3 +1,5 @@
+import { XYOpsStreamEventType } from "./types";
+import { ErrorCode, VoiceflowOperation, WarningCode } from "../voiceflow/types";
 import type {
   EventParameterValue,
   ExecuteResult,
@@ -112,7 +114,7 @@ export const isXYOpsLaunchResponse: IsXYOpsLaunchResponse = (value) =>
   );
 
 type IsXYOpsStreamEvent = (value: unknown) => value is XYOpsStreamEvent;
-const streamEventTypes = ["start", "update", "end"] as const;
+const streamEventTypes = Object.values(XYOpsStreamEventType);
 export const isXYOpsStreamEvent: IsXYOpsStreamEvent = (value) =>
   satisfiesRecord<XYOpsStreamEvent>(value, (record) =>
     all([
@@ -178,14 +180,19 @@ export const isXYOpsWaitResponse: IsXYOpsWaitResponse = (value) =>
 type IsVoiceflowEnvelope = <T>(
   resultGuard: ResponseGuard<T>,
 ) => ResponseGuard<VoiceflowEnvelope<T>>;
+const operations = Object.values(VoiceflowOperation);
+const errorCodes = Object.values(ErrorCode);
+const warningCodes = Object.values(WarningCode);
+const isKnownCode = (value: unknown, codes: readonly string[]): value is string =>
+  typeof value === "string" && codes.some((code) => code === value);
 const isWarning = (value: unknown): value is VoiceflowWarning =>
   satisfiesRecord<VoiceflowWarning>(value, (record) =>
-    all([isNonEmptyString(record.code), isNonEmptyString(record.message)]),
+    all([isKnownCode(record.code, warningCodes), isNonEmptyString(record.message)]),
   );
 const isFailure = (value: unknown): value is VoiceflowFailure["error"] =>
   satisfiesRecord<VoiceflowFailure["error"]>(value, (record) =>
     all([
-      isNonEmptyString(record.code),
+      isKnownCode(record.code, errorCodes),
       typeof record.message === "string",
       typeof record.retryable === "boolean",
     ]),
@@ -214,7 +221,8 @@ const isEnvelopeRecord = <T>(
   guard: ResponseGuard<T>,
 ): boolean =>
   all([
-    isNonEmptyString(record.operation),
+    typeof record.operation === "string" &&
+      operations.some((operation) => operation === record.operation),
     isNonEmptyString(record.operationID),
     isEnvelopeBody(record, guard),
   ]);

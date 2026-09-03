@@ -80,4 +80,10 @@ export type OperationHandlers = Readonly<{
 export type PluginInputChunk = Uint8Array | string;
 export type PluginInput = AsyncIterable<PluginInputChunk>;
 
-export type PluginStage = "input" | "secret" | "dispatch" | "response";
+export const PluginStage = {
+  Input: "input",
+  Secret: "secret",
+  Dispatch: "dispatch",
+  Response: "response",
+} as const;
+export type PluginStage = (typeof PluginStage)[keyof typeof PluginStage];

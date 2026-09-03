@@ -1,13 +1,8 @@
 import { PLUGIN_VERSION } from "./version";
-import type { PluginStage } from "./types";
+import { PluginStage } from "./types";
 export type { PluginStage } from "./types";
 
-export const pluginStages = [
-  "input",
-  "secret",
-  "dispatch",
-  "response",
-] as const;
+export const pluginStages = Object.values(PluginStage);
 
 const maxDiagnosticLength = 320;
 const maxErrorClassLength = 80;

@@ -48,10 +48,17 @@ export type NativePluginResponse = Readonly<{
   data: Readonly<{ voiceflow: unknown }>;
 }>;
 export type XYOpsLaunchResponse = XYOpsResponse & Readonly<{ id: string }>;
-export type XYOpsStreamEvent =
-  | Readonly<{ type: "start"; data: Record<string, unknown> }>
-  | Readonly<{ type: "update"; data: Record<string, unknown> }>
-  | Readonly<{ type: "end"; data: Record<string, unknown> }>;
+export const XYOpsStreamEventType = {
+  Start: "start",
+  Update: "update",
+  End: "end",
+} as const;
+export type XYOpsStreamEventType =
+  (typeof XYOpsStreamEventType)[keyof typeof XYOpsStreamEventType];
+export type XYOpsStreamEvent = Readonly<{
+  type: XYOpsStreamEventType;
+  data: Record<string, unknown>;
+}>;
 export type XYOpsStreamLimits = Readonly<{
   maxBytes?: number;
   maxFrameBytes?: number;
@@ -79,6 +86,13 @@ export type XYOpsStreamResult =
       data: Record<string, unknown>;
       requiresJobResponse: true;
     }>;
+// These are the states currently documented by XYOps; unknown server states remain strings and are ignored safely.
+export const XYOpsJobState = {
+  Active: "active",
+  Complete: "complete",
+} as const;
+export type XYOpsJobState = (typeof XYOpsJobState)[keyof typeof XYOpsJobState];
+
 export type XYOpsJob = Readonly<{
   id?: string;
   state?: string;
@@ -150,17 +164,20 @@ export type MigrationState = Readonly<{
   targetSchemaVersion: string;
   planID?: string;
 }>;
+export const CliDiagnosticCode = {
+  Configuration: "configuration",
+  Network: "network",
+  Timeout: "timeout",
+  Http: "http",
+  Api: "api",
+  Envelope: "envelope",
+  Job: "job",
+  ExecuteOutcomeUnknown: "execute-outcome-unknown",
+  InvalidInput: "invalid-input",
+  Stream: "stream",
+} as const;
 export type CliDiagnosticCode =
-  | "configuration"
-  | "network"
-  | "timeout"
-  | "http"
-  | "api"
-  | "envelope"
-  | "job"
-  | "execute-outcome-unknown"
-  | "invalid-input"
-  | "stream";
+  (typeof CliDiagnosticCode)[keyof typeof CliDiagnosticCode];
 export type CliDiagnostic = Readonly<{
   code: CliDiagnosticCode;
   endpoint: string;

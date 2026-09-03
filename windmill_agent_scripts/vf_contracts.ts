@@ -1,16 +1,34 @@
-export type ErrorCode =
-  | "INVALID_ARGUMENT"
-  | "AUTHENTICATION_FAILED"
-  | "VOICEFLOW_LOGIN_REQUIRED"
-  | "NOT_FOUND"
-  | "DEPENDENCY_TIMEOUT"
-  | "DEPENDENCY_FAILURE"
-  | "PLAN_MISMATCH"
-  | "CONFIRMATION_REQUIRED"
-  | "IMPORT_OUTCOME_UNKNOWN"
-  | "INTERNAL_ERROR";
+export const VoiceflowOperation = {
+  CheckSession: "check_session",
+  ListWorkspaces: "list_workspaces",
+  ListProjects: "list_projects",
+  ListVersions: "list_versions",
+  ListFolders: "list_folders",
+  PlanMigration: "plan_migration",
+  ExecuteMigration: "execute_migration",
+} as const;
+export type VoiceflowOperation =
+  (typeof VoiceflowOperation)[keyof typeof VoiceflowOperation];
 
-export type WarningCode = "NOT_IDEMPOTENT" | "API_KEY_RETRIEVAL_FAILED";
+export const ErrorCode = {
+  InvalidArgument: "INVALID_ARGUMENT",
+  AuthenticationFailed: "AUTHENTICATION_FAILED",
+  VoiceflowLoginRequired: "VOICEFLOW_LOGIN_REQUIRED",
+  NotFound: "NOT_FOUND",
+  DependencyTimeout: "DEPENDENCY_TIMEOUT",
+  DependencyFailure: "DEPENDENCY_FAILURE",
+  PlanMismatch: "PLAN_MISMATCH",
+  ConfirmationRequired: "CONFIRMATION_REQUIRED",
+  ImportOutcomeUnknown: "IMPORT_OUTCOME_UNKNOWN",
+  InternalError: "INTERNAL_ERROR",
+} as const;
+export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+export const WarningCode = {
+  NotIdempotent: "NOT_IDEMPOTENT",
+  ApiKeyRetrievalFailed: "API_KEY_RETRIEVAL_FAILED",
+} as const;
+export type WarningCode = (typeof WarningCode)[keyof typeof WarningCode];
 export type Warning = { code: WarningCode; message: string };
 export type OperationError = {
   code: ErrorCode;
@@ -19,14 +37,14 @@ export type OperationError = {
 };
 export type Success<T> = {
   ok: true;
-  operation: string;
+  operation: VoiceflowOperation;
   operationID: string;
   result: T;
   warnings: Warning[];
 };
 export type Failure = {
   ok: false;
-  operation: string;
+  operation: VoiceflowOperation;
   operationID: string;
   error: OperationError;
 };

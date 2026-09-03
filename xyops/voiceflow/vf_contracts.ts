@@ -16,6 +16,7 @@ import type {
   OperationError,
   Success,
   Warning,
+  VoiceflowOperation,
 } from "./types";
 
 const messages: Readonly<Record<ErrorCode, string>> = {
@@ -86,7 +87,7 @@ export const toOperationError: ToOperationError = (error) => {
 };
 
 type SuccessEnvelope = <T>(
-  operation: string,
+  operation: VoiceflowOperation,
   operationID: string,
   result: T,
   warnings?: readonly Warning[],
@@ -101,7 +102,7 @@ export const success: SuccessEnvelope = (
 };
 
 type FailureEnvelope = (
-  operation: string,
+  operation: VoiceflowOperation,
   operationID: string,
   error: unknown,
 ) => Failure;
