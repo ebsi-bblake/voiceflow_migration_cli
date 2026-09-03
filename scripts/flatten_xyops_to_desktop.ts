@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 
 type FlattenOptions = Readonly<{
   sourceDirectory: string;
+  windmillSourceDirectory: string;
   destinationDirectory: string;
   dryRun: boolean;
 }>;
@@ -11,6 +12,10 @@ type FlattenOptions = Readonly<{
 type DomainFiles = Readonly<Record<string, readonly string[]>>;
 
 const defaultSourceDirectory = resolve(process.cwd(), "xyops");
+const defaultWindmillSourceDirectory = resolve(
+  process.cwd(),
+  "windmill_agent_scripts",
+);
 const defaultDestinationDirectory = join(homedir(), "Desktop", "xyops");
 const domains = ["cli", "plugin", "voiceflow"] as const;
 
@@ -20,6 +25,7 @@ const parseOptions = (arguments_: readonly string[]): FlattenOptions => {
   const positional = arguments_.filter((argument) => argument !== "--dry-run");
   return {
     sourceDirectory: resolve(positional[0] ?? defaultSourceDirectory),
+    windmillSourceDirectory: defaultWindmillSourceDirectory,
     destinationDirectory: resolve(positional[1] ?? defaultDestinationDirectory),
     dryRun: arguments_.includes("--dry-run"),
   };
@@ -85,31 +91,38 @@ const buildBundle = async (
 
 const writeBundles = async (
   sourceDirectory: string,
+  windmillSourceDirectory: string,
   destinationDirectory: string,
   groupedFiles: DomainFiles,
+  windmillFiles: readonly string[],
 ): Promise<void> => {
   await mkdir(destinationDirectory, { recursive: true });
-  await Promise.all(
-    domains.map(async (domain) => {
+  await Promise.all([
+    ...domains.map(async (domain) => {
       const content = await buildBundle(sourceDirectory, groupedFiles[domain]);
       await writeFile(join(destinationDirectory, `${domain}.md`), content, "utf8");
     }),
-  );
+    buildBundle(windmillSourceDirectory, windmillFiles).then((content) =>
+      writeFile(join(destinationDirectory, "windmill.md"), content, "utf8"),
+    ),
+  ]);
 };
 
 const printPlan = (
   destinationDirectory: string,
   groupedFiles: DomainFiles,
+  windmillFiles: readonly string[],
 ): void => {
   const sourceCount = Object.values(groupedFiles).reduce(
     (total, files) => total + files.length,
     0,
   );
   console.log(
-    `${sourceCount} source files collapsed into 3 Markdown files in ${destinationDirectory}:`,
+    `${sourceCount + windmillFiles.length} source files collapsed into 4 Markdown files in ${destinationDirectory}:`,
   );
   for (const domain of domains)
     console.log(`  ${domain}: ${groupedFiles[domain].length} files -> ${domain}.md`);
+  console.log(`  windmill: ${windmillFiles.length} files -> windmill.md`);
 };
 
 type Main = (arguments_: readonly string[]) => Promise<void>;
@@ -117,14 +130,21 @@ const main: Main = async (arguments_) => {
   const options = parseOptions(arguments_);
   if (!(await isDirectory(options.sourceDirectory)))
     throw new Error(`Source directory does not exist: ${options.sourceDirectory}`);
+  if (!(await isDirectory(options.windmillSourceDirectory)))
+    throw new Error(
+      `Source directory does not exist: ${options.windmillSourceDirectory}`,
+    );
   const files = await listFiles(options.sourceDirectory);
+  const windmillFiles = await listFiles(options.windmillSourceDirectory);
   const groupedFiles = groupByDomain(options.sourceDirectory, files);
-  printPlan(options.destinationDirectory, groupedFiles);
+  printPlan(options.destinationDirectory, groupedFiles, windmillFiles);
   if (!options.dryRun)
     await writeBundles(
       options.sourceDirectory,
+      options.windmillSourceDirectory,
       options.destinationDirectory,
       groupedFiles,
+      windmillFiles,
     );
   console.log(options.dryRun ? "Dry run complete." : "Bundles written.");
 };
