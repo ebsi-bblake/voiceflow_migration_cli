@@ -23,33 +23,33 @@ const fakeEnvelope = (operation: string): Promise<Envelope<unknown>> =>
   Promise.resolve(success(operation, `operation-${operation}`, { operation }));
 
 const createFakeHandlers = (calls: string[]): OperationHandlers => ({
-  "check-session": (token) => {
-    calls.push(`check-session:${token}`);
-    return fakeEnvelope("check-session");
+  "check_session": (token) => {
+    calls.push(`check_session:${token}`);
+    return fakeEnvelope("check_session");
   },
-  "list-workspaces": (token) => {
-    calls.push(`list-workspaces:${token}`);
-    return fakeEnvelope("list-workspaces");
+  "list_workspaces": (token) => {
+    calls.push(`list_workspaces:${token}`);
+    return fakeEnvelope("list_workspaces");
   },
-  "list-projects": (token, workspaceID) => {
-    calls.push(`list-projects:${token}:${workspaceID}`);
-    return fakeEnvelope("list-projects");
+  "list_projects": (token, workspaceID) => {
+    calls.push(`list_projects:${token}:${workspaceID}`);
+    return fakeEnvelope("list_projects");
   },
-  "list-versions": (token, workspaceID, projectID) => {
-    calls.push(`list-versions:${token}:${workspaceID}:${projectID}`);
-    return fakeEnvelope("list-versions");
+  "list_versions": (token, workspaceID, projectID) => {
+    calls.push(`list_versions:${token}:${workspaceID}:${projectID}`);
+    return fakeEnvelope("list_versions");
   },
-  "list-folders": (token, workspaceID) => {
-    calls.push(`list-folders:${token}:${workspaceID}`);
-    return fakeEnvelope("list-folders");
+  "list_folders": (token, workspaceID) => {
+    calls.push(`list_folders:${token}:${workspaceID}`);
+    return fakeEnvelope("list_folders");
   },
-  "plan-migration": (token, workspaceID, projectID, versionID, destinationWorkspaceID, folderID, schema) => {
-    calls.push(`plan-migration:${token}:${workspaceID}:${projectID}:${versionID}:${destinationWorkspaceID}:${folderID}:${schema}`);
-    return fakeEnvelope("plan-migration");
+  "plan_migration": (token, workspaceID, projectID, versionID, destinationWorkspaceID, folderID, schema) => {
+    calls.push(`plan_migration:${token}:${workspaceID}:${projectID}:${versionID}:${destinationWorkspaceID}:${folderID}:${schema}`);
+    return fakeEnvelope("plan_migration");
   },
-  "execute-migration": (token, planID, workspaceID, projectID, versionID, destinationWorkspaceID, folderID, schema, confirmed) => {
-    calls.push(`execute-migration:${token}:${planID}:${workspaceID}:${projectID}:${versionID}:${destinationWorkspaceID}:${folderID}:${schema}:${confirmed}`);
-    return fakeEnvelope("execute-migration");
+  "execute_migration": (token, planID, workspaceID, projectID, versionID, destinationWorkspaceID, folderID, schema, confirmed) => {
+    calls.push(`execute_migration:${token}:${planID}:${workspaceID}:${projectID}:${versionID}:${destinationWorkspaceID}:${folderID}:${schema}:${confirmed}`);
+    return fakeEnvelope("execute_migration");
   },
 });
 
@@ -84,9 +84,9 @@ describe("native XYOps event plugin boundary", () => {
   });
 
   test("accepts operation and rejects the removed runner parameter", () => {
-    expect(validatePluginJob(eventJobFor({ operation: "check-session" })).operation).toBe("check-session");
-    expect(() => validatePluginJob(eventJobFor({ [removedOperationParameter]: "list-workspaces" }))).toThrow("operation parameter");
-    expect(validatePluginJob({ ...eventJobFor({ operation: "check-session" }), event: "event-id" }).operation).toBe("check-session");
+    expect(validatePluginJob(eventJobFor({ operation: "check_session" })).operation).toBe("check_session");
+    expect(() => validatePluginJob(eventJobFor({ [removedOperationParameter]: "list_workspaces" }))).toThrow("operation parameter");
+    expect(validatePluginJob({ ...eventJobFor({ operation: "check_session" }), event: "event-id" }).operation).toBe("check_session");
   });
 
   test("rejects malformed jobs, accepts unrelated job fields, and hides input", () => {
@@ -94,7 +94,7 @@ describe("native XYOps event plugin boundary", () => {
     expect(() => validatePluginJob({ params: {} })).toThrow("XYOps event job");
     expect(() => validatePluginJob(eventJobFor({}))).toThrow("operation parameter");
     expect(() => validatePluginJob(eventJobFor({ operation: "delete-everything" }))).toThrow("not supported");
-    expect(validatePluginJob({ ...eventJobFor({ operation: "check-session" }), secrets: "masked-secret" }).operation).toBe("check-session");
+    expect(validatePluginJob({ ...eventJobFor({ operation: "check_session" }), secrets: "masked-secret" }).operation).toBe("check_session");
   });
 
   test("reads the JWT only from the environment", () => {
@@ -108,7 +108,7 @@ describe("native XYOps event plugin boundary", () => {
     const status = await runNativePlugin(
       (async function* () {
         yield JSON.stringify({
-          ...eventJobFor({ operation: "check-session" }),
+          ...eventJobFor({ operation: "check_session" }),
           secrets: { VOICEFLOW_JWT: "masked-secret" },
         });
       })(),
@@ -118,18 +118,18 @@ describe("native XYOps event plugin boundary", () => {
     );
 
     expect(status).toBe(0);
-    expect(calls[0]).toBe("check-session:environment-token");
+    expect(calls[0]).toBe("check_session:environment-token");
     expect(rendered).not.toContain("masked-secret");
   });
 
   test.each([
-    "check-session",
-    "list-workspaces",
-    "list-projects",
-    "list-versions",
-    "list-folders",
-    "plan-migration",
-    "execute-migration",
+    "check_session",
+    "list_workspaces",
+    "list_projects",
+    "list_versions",
+    "list_folders",
+    "plan_migration",
+    "execute_migration",
   ] as const)("dispatches %s through an injected handler", async (operation) => {
     const calls: string[] = [];
     const result = await dispatchOperation(jobFor(operation), "test-token", createFakeHandlers(calls));
@@ -142,19 +142,19 @@ describe("native XYOps event plugin boundary", () => {
     const handlers = createFakeHandlers([]);
     const result = await dispatchOperation(
       {
-        ...jobFor("execute-migration"),
+        ...jobFor("execute_migration"),
         params: {
           ...baseParameters,
-          operation: "execute-migration",
+          operation: "execute_migration",
           SECRET_FILE_CONTENTS: { VF_TEST_SECRET: "value" },
         },
       },
       "test-token",
       {
         ...handlers,
-        "execute-migration": (...args) => {
+        "execute_migration": (...args) => {
           received = args[9];
-          return fakeEnvelope("execute-migration");
+          return fakeEnvelope("execute_migration");
         },
       },
     );
@@ -166,12 +166,12 @@ describe("native XYOps event plugin boundary", () => {
   test("uses a UUID for a dispatch failure fallback", async () => {
     const handlers = createFakeHandlers([]);
     const result = await dispatchOperation(
-      jobFor("check-session"),
+      jobFor("check_session"),
       "test-token",
-      { ...handlers, "check-session": () => Promise.reject(new Error("failure")) },
+      { ...handlers, "check_session": () => Promise.reject(new Error("failure")) },
     );
 
-    expect(result).toMatchObject({ ok: false, operation: "check-session" });
+    expect(result).toMatchObject({ ok: false, operation: "check_session" });
     expect(result.operationID).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     );
@@ -181,7 +181,7 @@ describe("native XYOps event plugin boundary", () => {
     const calls: string[] = [];
     const handlers = createFakeHandlers(calls);
     const result = await dispatchOperation(
-      { ...jobFor("execute-migration"), params: { ...baseParameters, operation: "execute-migration", CONFIRMED: "true" } },
+      { ...jobFor("execute_migration"), params: { ...baseParameters, operation: "execute_migration", CONFIRMED: "true" } },
       "test-token",
       handlers,
     );
@@ -190,10 +190,10 @@ describe("native XYOps event plugin boundary", () => {
   });
 
   test("maps Voiceflow success and failure envelopes to protocol responses", () => {
-    const successResponse = mapVoiceflowEnvelope(success("check-session", "operation-1", { active: true }));
+    const successResponse = mapVoiceflowEnvelope(success("check_session", "operation-1", { active: true }));
     expect(successResponse).toMatchObject({ xy: 1, complete: true, code: 0, data: { voiceflow: { ok: true } } });
 
-    const failureResponse = mapVoiceflowEnvelope(failure("check-session", "operation-2", new OperationFault("AUTHENTICATION_FAILED")));
+    const failureResponse = mapVoiceflowEnvelope(failure("check_session", "operation-2", new OperationFault("AUTHENTICATION_FAILED")));
     expect(failureResponse).toMatchObject({ xy: 1, complete: true, code: "AUTHENTICATION_FAILED", description: "[pluginVersion=0.1.7] Authentication failed. (code=AUTHENTICATION_FAILED)" });
     expect(failureResponse.data?.voiceflow).toMatchObject({ ok: false, error: { code: "AUTHENTICATION_FAILED" } });
   });
@@ -201,7 +201,7 @@ describe("native XYOps event plugin boundary", () => {
   test("emits one safe protocol response for malformed input, missing secret, and unknown operation", async () => {
     const cases = [
       { input: "not-json", environment: {} },
-      { input: JSON.stringify(eventJobFor({ operation: "check-session" })), environment: {} },
+      { input: JSON.stringify(eventJobFor({ operation: "check_session" })), environment: {} },
       { input: JSON.stringify(eventJobFor({ operation: "not-supported" })), environment: {} },
     ];
     for (const testCase of cases) {
@@ -234,7 +234,7 @@ describe("native XYOps event plugin boundary", () => {
     try {
       status = await runNativePlugin(
         (async function* () {
-          yield JSON.stringify(eventJobFor({ operation: "check-session" }));
+          yield JSON.stringify(eventJobFor({ operation: "check_session" }));
         })(),
         { write: (value) => { rendered += value; } },
         { VOICEFLOW_JWT: "test-token" },
@@ -252,7 +252,7 @@ describe("native XYOps event plugin boundary", () => {
     expect(JSON.parse(rendered)).toMatchObject({
       xy: 1,
       complete: true,
-      data: { voiceflow: { ok: true, operation: "check-session" } },
+      data: { voiceflow: { ok: true, operation: "check_session" } },
     });
   });
 
@@ -276,16 +276,16 @@ describe("native XYOps event plugin boundary", () => {
     let rendered = "";
     const handlers: OperationHandlers = {
       ...createFakeHandlers([]),
-      "check-session": (receivedToken) =>
+      "check_session": (receivedToken) =>
         resolveVoiceflowAuth(receivedToken).then((auth) =>
-          success("check-session", "native-auth", auth),
+          success("check_session", "native-auth", auth),
         ),
     };
 
     try {
       const status = await runNativePlugin(
         (async function* () {
-          yield JSON.stringify(eventJobFor({ operation: "check-session" }));
+          yield JSON.stringify(eventJobFor({ operation: "check_session" }));
           Object.defineProperty(globalThis, "atob", {
             configurable: true,
             value: undefined,
@@ -324,11 +324,11 @@ describe("native XYOps event plugin boundary", () => {
     const handlers = createFakeHandlers([]);
     const unsafeHandlers: OperationHandlers = {
       ...handlers,
-      "check-session": () => Promise.reject(new Error(secret)),
+      "check_session": () => Promise.reject(new Error(secret)),
     };
     let rendered = "";
     await runNativePlugin(
-      (async function* () { yield JSON.stringify(eventJobFor({ operation: "check-session" })); })(),
+      (async function* () { yield JSON.stringify(eventJobFor({ operation: "check_session" })); })(),
       { write: (value) => { rendered += value; } },
       { VOICEFLOW_JWT: secret },
       unsafeHandlers,
@@ -341,7 +341,7 @@ describe("native XYOps event plugin boundary", () => {
     const secret = "Bearer super-token-secret-value";
     const unsafeHandlers: OperationHandlers = {
       ...createFakeHandlers([]),
-      "check-session": () => Promise.resolve(new Proxy({}, {
+      "check_session": () => Promise.resolve(new Proxy({}, {
         get: (_target, property) => {
           if (property === "then") return undefined;
           throw new Error(
@@ -353,7 +353,7 @@ describe("native XYOps event plugin boundary", () => {
     let rendered = "";
     let diagnostics = "";
     await runNativePlugin(
-      (async function* () { yield JSON.stringify(eventJobFor({ operation: "check-session" })); })(),
+      (async function* () { yield JSON.stringify(eventJobFor({ operation: "check_session" })); })(),
       { write: (value) => { rendered += value; } },
       { VOICEFLOW_JWT: "jwt-secret-value" },
       unsafeHandlers,
@@ -387,7 +387,7 @@ describe("native XYOps event plugin boundary", () => {
     const extensionlessPath = join(directory, "plugin");
     const inputPath = join(directory, "input.json");
     const sourcePath = join(import.meta.dir, "../xyops/plugin/entrypoint.ts");
-    const input = `${JSON.stringify(eventJobFor({ operation: "check-session" }))}\n`;
+    const input = `${JSON.stringify(eventJobFor({ operation: "check_session" }))}\n`;
 
     try {
       const build = Bun.spawnSync(

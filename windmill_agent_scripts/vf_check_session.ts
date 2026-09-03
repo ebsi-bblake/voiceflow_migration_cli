@@ -34,7 +34,7 @@ export async function main(
 ): Promise<
   Envelope<{ active: boolean; loginRequired?: boolean; loginUrl?: string }>
 > {
-  const operation = "check-session";
+  const operation = "check_session";
   const id = crypto.randomUUID();
   try {
     const auth = await resolveVoiceflowAuth(token);

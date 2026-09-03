@@ -263,7 +263,7 @@ const readMigrationPlan: ReadMigrationPlan = ({ client, config }, selection) =>
       isVoiceflowEnvelope(isMigrationPlan),
     )
     .then((response) =>
-      requireEnvelopeResult(response, "plan-migration", isMigrationPlan),
+      requireEnvelopeResult(response, "plan_migration", isMigrationPlan),
     );
 type ConfirmAndExecuteMigration = (
   context: MigrationContext,
@@ -293,7 +293,7 @@ const confirmAndExecuteMigration: ConfirmAndExecuteMigration = async (
   );
   const execute = requireEnvelopeResult(
     executeResponse,
-    "execute-migration",
+    "execute_migration",
     isExecuteResult,
   );
   console.log(JSON.stringify(summarizeExecution(execute, planID)));
@@ -322,13 +322,13 @@ const performMigration: PerformMigration = async (context) => {
   const { client, config } = context;
   const sessionResponse = await client.readEvent(
     config.events.checkSession,
-    eventParametersFor("check-session"),
+    eventParametersFor("check_session"),
     isVoiceflowEnvelope(isCheckSessionResult),
   );
   requireActiveSession(
     requireEnvelopeResult(
       sessionResponse,
-      "check-session",
+      "check_session",
       isCheckSessionResult,
     ).active,
   );

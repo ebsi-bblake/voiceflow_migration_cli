@@ -10,13 +10,13 @@
         "id": "all-operations",
         "label": "All seven operations",
         "focus": [
-          "check-session",
-          "list-workspaces",
-          "list-projects",
-          "list-versions",
-          "list-folders",
-          "plan-migration",
-          "execute-migration"
+          "check_session",
+          "list_workspaces",
+          "list_projects",
+          "list_versions",
+          "list_folders",
+          "plan_migration",
+          "execute_migration"
         ],
         "note": "Each deployed operation is shown as its own runtime entrypoint."
       },
@@ -24,10 +24,10 @@
         "id": "catalog-operations",
         "label": "Catalog operations",
         "focus": [
-          "list-workspaces",
-          "list-projects",
-          "list-versions",
-          "list-folders",
+          "list_workspaces",
+          "list_projects",
+          "list_versions",
+          "list_folders",
           "catalog",
           "logux",
           "auth"
@@ -38,9 +38,9 @@
         "id": "migration-operations",
         "label": "Migration operations",
         "focus": [
-          "check-session",
-          "plan-migration",
-          "execute-migration",
+          "check_session",
+          "plan_migration",
+          "execute_migration",
           "planning",
           "transport",
           "auth"
@@ -51,9 +51,9 @@
   },
   "components": [
     {
-      "id": "check-session",
+      "id": "check_session",
       "type": "backend",
-      "label": "check-session",
+      "label": "check_session",
       "sublabel": "identity status",
       "pos": [
         40,
@@ -65,9 +65,9 @@
       ]
     },
     {
-      "id": "list-workspaces",
+      "id": "list_workspaces",
       "type": "backend",
-      "label": "list-workspaces",
+      "label": "list_workspaces",
       "sublabel": "creator workspaces",
       "pos": [
         250,
@@ -79,9 +79,9 @@
       ]
     },
     {
-      "id": "list-projects",
+      "id": "list_projects",
       "type": "backend",
-      "label": "list-projects",
+      "label": "list_projects",
       "sublabel": "workspace projects",
       "pos": [
         460,
@@ -93,9 +93,9 @@
       ]
     },
     {
-      "id": "list-versions",
+      "id": "list_versions",
       "type": "backend",
-      "label": "list-versions",
+      "label": "list_versions",
       "sublabel": "draft / published",
       "pos": [
         670,
@@ -107,9 +107,9 @@
       ]
     },
     {
-      "id": "list-folders",
+      "id": "list_folders",
       "type": "backend",
-      "label": "list-folders",
+      "label": "list_folders",
       "sublabel": "destination folders",
       "pos": [
         880,
@@ -121,9 +121,9 @@
       ]
     },
     {
-      "id": "plan-migration",
+      "id": "plan_migration",
       "type": "backend",
-      "label": "plan-migration",
+      "label": "plan_migration",
       "sublabel": "labels + stable plan ID",
       "pos": [
         1090,
@@ -135,9 +135,9 @@
       ]
     },
     {
-      "id": "execute-migration",
+      "id": "execute_migration",
       "type": "backend",
-      "label": "execute-migration",
+      "label": "execute_migration",
       "sublabel": "confirmed export / import",
       "pos": [
         1090,
@@ -224,13 +224,13 @@
       "kind": "region",
       "label": "xyops/voiceflow operation handlers",
       "wraps": [
-        "check-session",
-        "list-workspaces",
-        "list-projects",
-        "list-versions",
-        "list-folders",
-        "plan-migration",
-        "execute-migration",
+        "check_session",
+        "list_workspaces",
+        "list_projects",
+        "list_versions",
+        "list_folders",
+        "plan_migration",
+        "execute_migration",
         "auth",
         "catalog",
         "planning",
@@ -241,7 +241,7 @@
   "connections": [
     {
       "id": "check-auth",
-      "from": "check-session",
+      "from": "check_session",
       "to": "auth",
       "label": "normalize JWT",
       "variant": "security",
@@ -250,7 +250,7 @@
     },
     {
       "id": "plan-core",
-      "from": "plan-migration",
+      "from": "plan_migration",
       "to": "planning",
       "label": "build plan",
       "fromSide": "bottom",
@@ -259,7 +259,7 @@
     },
     {
       "id": "execute-core",
-      "from": "execute-migration",
+      "from": "execute_migration",
       "to": "planning",
       "label": "verify plan + execute",
       "fromSide": "bottom",
@@ -289,25 +289,25 @@
       "dot": "cyan",
       "title": "Catalog operations",
       "items": [
-        "list-workspaces reads creator workspace rows",
-        "list-projects reads projects for a workspace",
-        "list-versions exposes draft and published versions",
-        "list-folders filters numeric destination folders"
+        "list_workspaces reads creator workspace rows",
+        "list_projects reads projects for a workspace",
+        "list_versions exposes draft and published versions",
+        "list_folders filters numeric destination folders"
       ]
     },
     {
       "dot": "emerald",
       "title": "Migration operations",
       "items": [
-        "plan-migration normalizes selection, loads catalog, and hashes a plan ID",
-        "execute-migration requires literal confirmation and verifies the plan before export/import"
+        "plan_migration normalizes selection, loads catalog, and hashes a plan ID",
+        "execute_migration requires literal confirmation and verifies the plan before export/import"
       ]
     },
     {
       "dot": "rose",
       "title": "Shared runtime policies",
       "items": [
-        "check-session calls the identity endpoint and classifies login-required responses",
+        "check_session calls the identity endpoint and classifies login-required responses",
         "HTTP calls enforce timeouts and bounded response bodies",
         "Import outcome uncertainty and API-key retrieval failure remain explicit"
       ]

@@ -11,12 +11,12 @@ async function runPlanning(
   try {
     const auth = await resolveVoiceflowAuth(token);
     return success(
-      "plan-migration",
+      "plan_migration",
       id,
       await buildMigrationPlan(auth, selection),
     );
   } catch (error) {
-    return failure("plan-migration", id, error);
+    return failure("plan_migration", id, error);
   }
 }
 

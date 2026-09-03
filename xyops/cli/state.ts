@@ -71,13 +71,13 @@ export const eventParametersFor: EventParametersFor = (
 
 type ListWorkspacesParameters = () => EventParameters;
 export const listWorkspacesParameters: ListWorkspacesParameters = () =>
-  eventParametersFor("list-workspaces");
+  eventParametersFor("list_workspaces");
 
 type ListProjectsParameters = (sourceWorkspaceID: string) => EventParameters;
 export const listProjectsParameters: ListProjectsParameters = (
   sourceWorkspaceID,
 ) =>
-  eventParametersFor("list-projects", {
+  eventParametersFor("list_projects", {
     SOURCE_WORKSPACE_ID: sourceWorkspaceID,
   });
 
@@ -89,7 +89,7 @@ export const listVersionsParameters: ListVersionsParameters = (
   sourceWorkspaceID,
   sourceProjectID,
 ) =>
-  eventParametersFor("list-versions", {
+  eventParametersFor("list_versions", {
     SOURCE_WORKSPACE_ID: sourceWorkspaceID,
     SOURCE_PROJECT_ID: sourceProjectID,
   });
@@ -100,13 +100,13 @@ type ListFoldersParameters = (
 export const listFoldersParameters: ListFoldersParameters = (
   destinationWorkspaceID,
 ) =>
-  eventParametersFor("list-folders", {
+  eventParametersFor("list_folders", {
     DESTINATION_WORKSPACE_ID: destinationWorkspaceID,
   });
 
 type PlanParameters = (selection: MigrationSelection) => EventParameters;
 export const planParameters: PlanParameters = (selection) =>
-  eventParametersFor("plan-migration", {
+  eventParametersFor("plan_migration", {
     SOURCE_WORKSPACE_ID: selection.sourceWorkspaceID,
     SOURCE_PROJECT_ID: selection.sourceProjectID,
     SOURCE_VERSION_ID: selection.sourceVersionID,
@@ -125,7 +125,7 @@ export const executeParameters: ExecuteParameters = (
   planID,
   secretFileContents,
 ) =>
-  eventParametersFor("execute-migration", {
+  eventParametersFor("execute_migration", {
     PLAN_ID: planID,
     SOURCE_WORKSPACE_ID: selection.sourceWorkspaceID,
     SOURCE_PROJECT_ID: selection.sourceProjectID,

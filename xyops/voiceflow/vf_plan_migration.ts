@@ -41,6 +41,6 @@ export const main: Main = (
   };
   return resolveVoiceflowAuth(token)
     .then(buildPlanForSelection(selection))
-    .then((plan) => success("plan-migration", id, plan))
-    .catch((error) => failure("plan-migration", id, error));
+    .then((plan) => success("plan_migration", id, plan))
+    .catch((error) => failure("plan_migration", id, error));
 };

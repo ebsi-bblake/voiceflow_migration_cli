@@ -120,13 +120,13 @@ async function executeMigration(
       ...apiKey,
     };
     return success(
-      "execute-migration",
+      "execute_migration",
       operationID,
       result,
       executeWarnings(apiKey.apiKeyRetrieved),
     );
   } catch (error) {
-    return failure("execute-migration", operationID, error);
+    return failure("execute_migration", operationID, error);
   }
 }
 
@@ -166,7 +166,7 @@ export async function main(
   return isConfirmationGranted(confirmed)
     ? executeMigration(input, operationID)
     : failure(
-        "execute-migration",
+        "execute_migration",
         operationID,
         new OperationFault("CONFIRMATION_REQUIRED"),
       );

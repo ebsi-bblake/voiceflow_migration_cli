@@ -17,13 +17,13 @@ export type { OperationHandlers } from "./types";
 type PluginEnvelope = Envelope<unknown>;
 type DefaultOperationHandlers = OperationHandlers;
 const defaultOperationHandlers: DefaultOperationHandlers = {
-  "check-session": checkSession,
-  "list-workspaces": listWorkspaces,
-  "list-projects": listProjects,
-  "list-versions": listVersions,
-  "list-folders": listFolders,
-  "plan-migration": planMigration,
-  "execute-migration": executeMigration,
+  "check_session": checkSession,
+  "list_workspaces": listWorkspaces,
+  "list_projects": listProjects,
+  "list_versions": listVersions,
+  "list_folders": listFolders,
+  "plan_migration": planMigration,
+  "execute_migration": executeMigration,
 };
 
 type TrimParameter = (value: unknown) => string;
@@ -69,27 +69,27 @@ type OperationInvocations = Readonly<
   Record<NativePluginJob["operation"], OperationInvocation>
 >;
 const operationInvocations: OperationInvocations = {
-  "check-session": (_job, token, handlers) => handlers["check-session"](token),
-  "list-workspaces": (_job, token, handlers) =>
-    handlers["list-workspaces"](token),
-  "list-projects": (job, token, handlers) =>
-    handlers["list-projects"](
+  "check_session": (_job, token, handlers) => handlers["check_session"](token),
+  "list_workspaces": (_job, token, handlers) =>
+    handlers["list_workspaces"](token),
+  "list_projects": (job, token, handlers) =>
+    handlers["list_projects"](
       token,
       requiredParameter(job, "SOURCE_WORKSPACE_ID"),
     ),
-  "list-versions": (job, token, handlers) =>
-    handlers["list-versions"](
+  "list_versions": (job, token, handlers) =>
+    handlers["list_versions"](
       token,
       requiredParameter(job, "SOURCE_WORKSPACE_ID"),
       requiredParameter(job, "SOURCE_PROJECT_ID"),
     ),
-  "list-folders": (job, token, handlers) =>
-    handlers["list-folders"](
+  "list_folders": (job, token, handlers) =>
+    handlers["list_folders"](
       token,
       requiredParameter(job, "DESTINATION_WORKSPACE_ID"),
     ),
-  "plan-migration": (job, token, handlers) =>
-    handlers["plan-migration"](
+  "plan_migration": (job, token, handlers) =>
+    handlers["plan_migration"](
       token,
       requiredParameter(job, "SOURCE_WORKSPACE_ID"),
       requiredParameter(job, "SOURCE_PROJECT_ID"),
@@ -98,8 +98,8 @@ const operationInvocations: OperationInvocations = {
       requiredParameter(job, "DESTINATION_FOLDER_ID"),
       optionalParameter(job, "TARGET_SCHEMA_VERSION"),
     ),
-  "execute-migration": (job, token, handlers) =>
-    handlers["execute-migration"](
+  "execute_migration": (job, token, handlers) =>
+    handlers["execute_migration"](
       token,
       requiredParameter(job, "PLAN_ID"),
       requiredParameter(job, "SOURCE_WORKSPACE_ID"),

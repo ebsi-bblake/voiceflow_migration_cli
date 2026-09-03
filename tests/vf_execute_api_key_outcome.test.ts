@@ -215,7 +215,7 @@ function expectedSuccessEnvelope(
 ) {
   return {
     ok: true,
-    operation: "execute-migration",
+    operation: "execute_migration",
     operationID: expect.any(String),
     result: expectedExecuteResult(apiKeyStatus),
     warnings,

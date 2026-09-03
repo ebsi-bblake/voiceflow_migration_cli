@@ -9,13 +9,13 @@ export async function main(
 ): Promise<Envelope<{ options: Awaited<ReturnType<typeof listFolders>> }>> {
   const id = crypto.randomUUID();
   try {
-    return success("list-folders", id, {
+    return success("list_folders", id, {
       options: await listFolders(
         await resolveVoiceflowAuth(token),
         workspaceID,
       ),
     });
   } catch (error) {
-    return failure("list-folders", id, error);
+    return failure("list_folders", id, error);
   }
 }

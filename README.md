@@ -21,13 +21,13 @@ Docker image/container runner is not the active deployment.
 The native plugin supports these operations:
 
 ```text
-check-session
-list-workspaces
-list-projects
-list-versions
-list-folders
-plan-migration
-execute-migration
+check_session
+list_workspaces
+list_projects
+list_versions
+list_folders
+plan_migration
+execute_migration
 ```
 
 ## One plugin, seven XYOps Events
@@ -38,13 +38,13 @@ mapping:
 
 | Event title | `operation` |
 | --- | --- |
-| `voiceflow_check_session` | `check-session` |
-| `voiceflow_list_workspaces` | `list-workspaces` |
-| `voiceflow_list_projects` | `list-projects` |
-| `voiceflow_list_versions` | `list-versions` |
-| `voiceflow_list_folders` | `list-folders` |
-| `voiceflow_plan_migration` | `plan-migration` |
-| `voiceflow_execute_migration` | `execute-migration` |
+| `voiceflow_check_session` | `check_session` |
+| `voiceflow_list_workspaces` | `list_workspaces` |
+| `voiceflow_list_projects` | `list_projects` |
+| `voiceflow_list_versions` | `list_versions` |
+| `voiceflow_list_folders` | `list_folders` |
+| `voiceflow_plan_migration` | `plan_migration` |
+| `voiceflow_execute_migration` | `execute_migration` |
 
 The CLI sends Event requests through the XYOps REST API and uses the
 `operation` parameter to select the Voiceflow operation. It can override an

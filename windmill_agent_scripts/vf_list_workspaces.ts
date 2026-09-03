@@ -8,10 +8,10 @@ export async function main(
 ): Promise<Envelope<{ options: Awaited<ReturnType<typeof listWorkspaces>> }>> {
   const id = crypto.randomUUID();
   try {
-    return success("list-workspaces", id, {
+    return success("list_workspaces", id, {
       options: await listWorkspaces(await resolveVoiceflowAuth(token)),
     });
   } catch (error) {
-    return failure("list-workspaces", id, error);
+    return failure("list_workspaces", id, error);
   }
 }

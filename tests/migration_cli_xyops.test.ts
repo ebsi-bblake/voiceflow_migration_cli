@@ -55,16 +55,16 @@ const requestHeaders = (init: RequestInit | undefined): Headers => new Headers(i
 const requestURL = (input: RequestInfo | URL): string => String(input);
 const firstRequest = <T>(requests: readonly T[]): T | undefined => requests[0];
 const requiredRequest = <T>(requests: readonly T[]): T => { const request = firstRequest(requests); if (request === undefined) throw new Error("Expected request"); return request; };
-const readOnlyResponse = (): Response => new Response(JSON.stringify({ code: 0, job: { id: "job-1", code: 0, completed: 1787683968.928, output: `${JSON.stringify({ ok: true, operation: "list-projects", operationID: "operation-1", result: { options: [{ value: "project-1", label: "Project 1" }] }, warnings: [] })}\n`, data: null } }), { status: 200, headers: { "content-type": "application/json" } });
+const readOnlyResponse = (): Response => new Response(JSON.stringify({ code: 0, job: { id: "job-1", code: 0, completed: 1787683968.928, output: `${JSON.stringify({ ok: true, operation: "list_projects", operationID: "operation-1", result: { options: [{ value: "project-1", label: "Project 1" }] }, warnings: [] })}\n`, data: null } }), { status: 200, headers: { "content-type": "application/json" } });
 
 const recordingReadFetcher = (requests: Array<{ url: string; body: string; headers: Headers }>) => (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => { requests.push({ url: requestURL(input), body: requestBody(init), headers: requestHeaders(init) }); return Promise.resolve(readOnlyResponse()); };
-const optionEnvelopeResponse = (): Response => new Response(JSON.stringify({ code: 0, job: { id: "job-1", code: 0, completed: true, data: { ok: true, operation: "check-session", operationID: "operation-1", result: { options: [{ value: "workspace-1", label: "Workspace 1" }] }, warnings: [] } } }), { status: 200 });
+const optionEnvelopeResponse = (): Response => new Response(JSON.stringify({ code: 0, job: { id: "job-1", code: 0, completed: true, data: { ok: true, operation: "check_session", operationID: "operation-1", result: { options: [{ value: "workspace-1", label: "Workspace 1" }] }, warnings: [] } } }), { status: 200 });
 const firstBodyJSON = (requests: readonly string[]): Record<string, unknown> => JSON.parse(firstRequest(requests) ?? "{}");
 const restoreEnvironmentValue = (name: string, value: string | undefined): void => { if (value === undefined) delete process.env[name]; else process.env[name] = value; };
 const restoreEnvironment = (names: readonly string[], previous: Readonly<Record<string, string | undefined>>): void => names.forEach((name) => restoreEnvironmentValue(name, previous[name]));
-const inactiveSessionResponse = (): Response => new Response(JSON.stringify({ code: 0, job: { id: "job-1", code: 0, data: { ok: true, operation: "check-session", operationID: "operation-1", result: { active: false }, warnings: [] } } }), { status: 200 });
+const inactiveSessionResponse = (): Response => new Response(JSON.stringify({ code: 0, job: { id: "job-1", code: 0, data: { ok: true, operation: "check_session", operationID: "operation-1", result: { active: false }, warnings: [] } } }), { status: 200 });
 const topLevelLaunchResponse = (): Response => new Response(JSON.stringify({ code: 0, id: "official-job-id" }), { status: 200 });
-const topLevelPollResponse = (pollCount: number): Response => new Response(JSON.stringify({ code: 0, job: pollCount === 1 ? { id: "official-job-id", code: 0, completed: null, output: "", data: null } : { id: "official-job-id", completed: 1787683968.928, code: 0, output: `${JSON.stringify({ ok: true, operation: "execute-migration", operationID: "operation-3", result: {}, warnings: [] })}\n`, data: null } }), { status: 200 });
+const topLevelPollResponse = (pollCount: number): Response => new Response(JSON.stringify({ code: 0, job: pollCount === 1 ? { id: "official-job-id", code: 0, completed: null, output: "", data: null } : { id: "official-job-id", completed: 1787683968.928, code: 0, output: `${JSON.stringify({ ok: true, operation: "execute_migration", operationID: "operation-3", result: {}, warnings: [] })}\n`, data: null } }), { status: 200 });
 const topLevelResponse = (path: string, pollCount: number): Response => path === "/api/app/run_event/v1" ? topLevelLaunchResponse() : topLevelPollResponse(pollCount);
 const nextPollCount = (path: string, pollCount: number): number => path === "/api/app/run_event/v1" ? pollCount : pollCount + 1;
 const isFirstPoll = (pollCount: number): boolean => pollCount === 1;
@@ -78,7 +78,7 @@ describe("XYOps CLI adapter", () => {
 
     const result = await client.readEvent(
       "event-projects",
-      { operation: "list-projects", SOURCE_WORKSPACE_ID: "workspace-1" },
+      { operation: "list_projects", SOURCE_WORKSPACE_ID: "workspace-1" },
       isVoiceflowEnvelope(isOptionResult),
     );
 
@@ -88,7 +88,7 @@ describe("XYOps CLI adapter", () => {
     expect(request.headers.get("X-API-Key")).toBe("api-key-must-not-leak");
     expect(JSON.parse(request.body)).toEqual({
       title: "event-projects",
-      params: { operation: "list-projects", SOURCE_WORKSPACE_ID: "workspace-1" },
+      params: { operation: "list_projects", SOURCE_WORKSPACE_ID: "workspace-1" },
     });
     expect(request.body).not.toContain("VOICEFLOW_JWT");
     expect(request.body).not.toContain("api-key-must-not-leak");
@@ -97,7 +97,7 @@ describe("XYOps CLI adapter", () => {
   test("unwraps a native plugin response from a synchronous wait job", async () => {
     const envelope = {
       ok: true,
-      operation: "list-projects",
+      operation: "list_projects",
       operationID: "operation-native-read",
       result: { options: [{ value: "project-1", label: "Project 1" }] },
       warnings: [],
@@ -121,7 +121,7 @@ describe("XYOps CLI adapter", () => {
     await expect(
       client.readEvent(
         "event-projects",
-        { operation: "list-projects" },
+        { operation: "list_projects" },
         isVoiceflowEnvelope(isOptionResult),
       ),
     ).resolves.toEqual(envelope);
@@ -130,7 +130,7 @@ describe("XYOps CLI adapter", () => {
   test("unwraps a native plugin envelope stored in job data", async () => {
     const envelope = {
       ok: true,
-      operation: "check-session",
+      operation: "check_session",
       operationID: "operation-native-data",
       result: { active: true },
       warnings: [],
@@ -154,8 +154,8 @@ describe("XYOps CLI adapter", () => {
 
     await expect(
       client.readEvent(
-        "event-check-session",
-        { operation: "check-session" },
+        "event-check_session",
+        { operation: "check_session" },
         isVoiceflowEnvelope(isCheckSessionResult),
       ),
     ).resolves.toEqual(envelope);
@@ -201,7 +201,7 @@ describe("XYOps CLI adapter", () => {
 
     await client.readEvent(
       { id: "event-check" },
-      { operation: "check-session" },
+      { operation: "check_session" },
       isVoiceflowEnvelope(isOptionResult),
     );
 
@@ -222,7 +222,7 @@ describe("XYOps CLI adapter", () => {
                 completed: true,
                 data: {
                   ok: true,
-                  operation: "execute-migration",
+                  operation: "execute_migration",
                   operationID: "operation-nested",
                   result: {},
                   warnings: [],
@@ -237,12 +237,12 @@ describe("XYOps CLI adapter", () => {
     await expect(
       client.executeEvent(
         "event-execute",
-        { operation: "execute-migration", CONFIRMED: true },
+        { operation: "execute_migration", CONFIRMED: true },
         isVoiceflowEnvelope((value): value is Readonly<Record<string, unknown>> =>
           typeof value === "object" && value !== null,
         ),
       ),
-    ).resolves.toMatchObject({ ok: true, operation: "execute-migration" });
+    ).resolves.toMatchObject({ ok: true, operation: "execute_migration" });
   });
 
   test("falls back to job data when output is empty", async () => {
@@ -257,7 +257,7 @@ describe("XYOps CLI adapter", () => {
             output: "  ",
             data: {
               ok: true,
-              operation: "list-projects",
+              operation: "list_projects",
               operationID: "operation-1",
               result: { options: [{ value: "project-1", label: "Project 1" }] },
               warnings: [],
@@ -270,7 +270,7 @@ describe("XYOps CLI adapter", () => {
 
     const result = await client.readEvent(
       "event-projects",
-      { operation: "list-projects" },
+      { operation: "list_projects" },
       isVoiceflowEnvelope(isOptionResult),
     );
 
@@ -291,7 +291,7 @@ describe("XYOps CLI adapter", () => {
 
     const error = await client.readEvent(
       "event-projects",
-      { operation: "list-projects" },
+      { operation: "list_projects" },
       isVoiceflowEnvelope(isOptionResult),
     ).catch((value: unknown) => value);
 
@@ -325,7 +325,7 @@ describe("XYOps CLI adapter", () => {
     await expect(
       client.readEvent(
         "event-projects",
-        { operation: "list-projects" },
+        { operation: "list_projects" },
         isVoiceflowEnvelope(isOptionResult),
       ),
     ).rejects.toMatchObject({
@@ -390,7 +390,7 @@ describe("XYOps CLI adapter", () => {
 
     expect(result).toEqual({
       ok: true,
-      operation: "execute-migration",
+      operation: "execute_migration",
       operationID: "operation-3",
       result: {},
       warnings: [],
@@ -444,7 +444,7 @@ describe("XYOps CLI adapter", () => {
         code: 0,
         output: JSON.stringify({
           ok: true,
-          operation: "execute-migration",
+          operation: "execute_migration",
           operationID: "operation-native-complete",
           result: {},
           warnings: [],
@@ -466,12 +466,12 @@ describe("XYOps CLI adapter", () => {
     await expect(
       client.executeEvent(
         "event-execute",
-        { operation: "execute-migration" },
+        { operation: "execute_migration" },
         isVoiceflowEnvelope(() => true),
       ),
     ).resolves.toMatchObject({
       ok: true,
-      operation: "execute-migration",
+      operation: "execute_migration",
     });
     expect(requestCount).toBe(3);
   });
@@ -498,7 +498,7 @@ describe("XYOps CLI adapter", () => {
                   code: 0,
                   output: `${nativePluginOutput({
                     ok: true,
-                    operation: "execute-migration",
+                    operation: "execute_migration",
                     operationID: "operation-2",
                     result: {
                       planID: "plan-1",
@@ -578,22 +578,22 @@ describe("XYOps CLI adapter", () => {
   });
 
   test("uses operation values and exact migration parameter keys", () => {
-    expect(listWorkspacesParameters()).toEqual({ operation: "list-workspaces" });
+    expect(listWorkspacesParameters()).toEqual({ operation: "list_workspaces" });
     expect(listProjectsParameters("source-workspace")).toEqual({
-      operation: "list-projects",
+      operation: "list_projects",
       SOURCE_WORKSPACE_ID: "source-workspace",
     });
     expect(listVersionsParameters("source-workspace", "source-project")).toEqual({
-      operation: "list-versions",
+      operation: "list_versions",
       SOURCE_WORKSPACE_ID: "source-workspace",
       SOURCE_PROJECT_ID: "source-project",
     });
     expect(listFoldersParameters("destination-workspace")).toEqual({
-      operation: "list-folders",
+      operation: "list_folders",
       DESTINATION_WORKSPACE_ID: "destination-workspace",
     });
     expect(planParameters(selection)).toEqual({
-      operation: "plan-migration",
+      operation: "plan_migration",
       SOURCE_WORKSPACE_ID: "source-workspace",
       SOURCE_PROJECT_ID: "source-project",
       SOURCE_VERSION_ID: "source-version",
@@ -602,7 +602,7 @@ describe("XYOps CLI adapter", () => {
       TARGET_SCHEMA_VERSION: "13.1",
     });
     expect(executeParameters(selection, "plan-1")).toMatchObject({
-      operation: "execute-migration",
+      operation: "execute_migration",
       PLAN_ID: "plan-1",
       CONFIRMED: true,
     });

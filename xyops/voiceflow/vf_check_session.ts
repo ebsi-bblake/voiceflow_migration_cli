@@ -34,7 +34,7 @@ const dependencyFault = (status: number): OperationFault =>
 
 type Main = (token: string) => Promise<Envelope<CheckSessionResult>>;
 export const main: Main = async (token) => {
-  const operation = "check-session";
+  const operation = "check_session";
   const id = createUUID();
   try {
     const auth = await resolveVoiceflowAuth(token);

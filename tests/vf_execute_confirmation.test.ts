@@ -52,7 +52,7 @@ describe("execute migration confirmation guard", () => {
 
     expect(result).toMatchObject({
       ok: false,
-      operation: "execute-migration",
+      operation: "execute_migration",
       error: { code: "CONFIRMATION_REQUIRED" },
     });
     expect(authenticationCalls).toBe(0);
@@ -65,7 +65,7 @@ describe("execute migration confirmation guard", () => {
 
     expect(result).toMatchObject({
       ok: false,
-      operation: "execute-migration",
+      operation: "execute_migration",
       error: { code: "INTERNAL_ERROR" },
     });
     expect(authenticationCalls).toBe(1);

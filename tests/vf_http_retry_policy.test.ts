@@ -45,7 +45,7 @@ function runIsolatedCheckSession(status: number): unknown {
   const stderr = new TextDecoder().decode(child.stderr).trim();
   const stdout = new TextDecoder().decode(child.stdout).trim();
   if (child.exitCode !== 0) {
-    throw new Error(`Isolated check-session failed with exit ${child.exitCode}: ${stderr}`);
+    throw new Error(`Isolated check_session failed with exit ${child.exitCode}: ${stderr}`);
   }
   return JSON.parse(stdout) as unknown;
 }
@@ -59,7 +59,7 @@ if (requestedScenario !== undefined) {
   process.stdout.write(JSON.stringify(envelope));
 } else {
   for (const status of [400, 404, 408, 429, 500, 503]) {
-    test(`check-session classifies HTTP ${status}`, () => {
+    test(`check_session classifies HTTP ${status}`, () => {
       expect(runIsolatedCheckSession(status)).toMatchObject({
         ok: false,
         error: {
@@ -98,7 +98,7 @@ if (requestedScenario !== undefined) {
   }
 
   for (const status of [401, 403]) {
-    test(`check-session treats HTTP ${status} as login required`, () => {
+    test(`check_session treats HTTP ${status} as login required`, () => {
       expect(runIsolatedCheckSession(status)).toMatchObject({
         ok: true,
         result: {

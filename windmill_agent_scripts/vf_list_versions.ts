@@ -10,7 +10,7 @@ export async function main(
 ): Promise<Envelope<{ options: Awaited<ReturnType<typeof listVersions>> }>> {
   const id = crypto.randomUUID();
   try {
-    return success("list-versions", id, {
+    return success("list_versions", id, {
       options: await listVersions(
         await resolveVoiceflowAuth(token),
         workspaceID,
@@ -18,6 +18,6 @@ export async function main(
       ),
     });
   } catch (error) {
-    return failure("list-versions", id, error);
+    return failure("list_versions", id, error);
   }
 }

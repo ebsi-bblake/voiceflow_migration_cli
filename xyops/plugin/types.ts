@@ -68,13 +68,13 @@ type ExecuteMigrationHandler = (
 ) => Promise<PluginEnvelope>;
 
 export type OperationHandlers = Readonly<{
-  readonly "check-session": CheckSessionHandler;
-  readonly "list-workspaces": ListWorkspacesHandler;
-  readonly "list-projects": ListProjectsHandler;
-  readonly "list-versions": ListVersionsHandler;
-  readonly "list-folders": ListFoldersHandler;
-  readonly "plan-migration": PlanMigrationHandler;
-  readonly "execute-migration": ExecuteMigrationHandler;
+  readonly "check_session": CheckSessionHandler;
+  readonly "list_workspaces": ListWorkspacesHandler;
+  readonly "list_projects": ListProjectsHandler;
+  readonly "list_versions": ListVersionsHandler;
+  readonly "list_folders": ListFoldersHandler;
+  readonly "plan_migration": PlanMigrationHandler;
+  readonly "execute_migration": ExecuteMigrationHandler;
 }>;
 
 export type PluginInputChunk = Uint8Array | string;

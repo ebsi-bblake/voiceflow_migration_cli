@@ -25,6 +25,6 @@ export const main: Main = (token, destinationWorkspaceID) => {
   const id = createUUID();
   return resolveVoiceflowAuth(token)
     .then(listFoldersForWorkspace(destinationWorkspaceID))
-    .then((options) => success("list-folders", id, { options }))
-    .catch((error) => failure("list-folders", id, error));
+    .then((options) => success("list_folders", id, { options }))
+    .catch((error) => failure("list_folders", id, error));
 };

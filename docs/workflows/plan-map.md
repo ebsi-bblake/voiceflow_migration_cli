@@ -90,7 +90,7 @@ path. The Docker image/container runner is not the active deployment.
 - **Question:** Does the real XYOps control plane launch the installed plugin on a target server and correctly transport params, secrets, stdout, stderr, completion, and failures?
 - **Blocked by:** P1, P6, P8
 - **Depends on:** disposable XYOps Event/xySat target, non-production Voiceflow fixture or safe read-only credentials, and a published immutable plugin artifact
-- **Notes:** Live matrix: one `check-session`; one catalog Event with required IDs; all seven Event titles; asynchronous `run_event` plus `get_job`; malformed job; missing JWT; unknown `operation`; non-zero process exit; timeout; concurrent invocations; stderr capture; secret-redaction inspection; and target-server restart/upgrade behavior. Test one real migration only with explicit human approval, a known disposable destination, and reconciliation evidence. Record the actual wire payloads with secrets and exported data removed. This ticket is the authority for resolving all remaining “docs model versus deployed XYOps” unknowns.
+- **Notes:** Live matrix: one `check_session`; one catalog Event with required IDs; all seven Event titles; asynchronous `run_event` plus `get_job`; malformed job; missing JWT; unknown `operation`; non-zero process exit; timeout; concurrent invocations; stderr capture; secret-redaction inspection; and target-server restart/upgrade behavior. Test one real migration only with explicit human approval, a known disposable destination, and reconciliation evidence. Record the actual wire payloads with secrets and exported data removed. This ticket is the authority for resolving all remaining “docs model versus deployed XYOps” unknowns.
 
 ### P10 — Cut over seven Events and retire the Docker runner safely
 - **Type:** task
@@ -99,7 +99,7 @@ path. The Docker image/container runner is not the active deployment.
 - **Question:** What staged rollout moves all seven Events to the native plugin with a reversible fallback, and when is the old Docker runner safe to remove?
 - **Blocked by:** P2, P7, P9
 - **Depends on:** P9 passing; operator-approved artifact/version, Event bindings, monitoring, and rollback plan
-- **Notes:** Roll out read-only Events first (`check-session`, catalogs), then `plan-migration`, then `execute-migration`; verify each Event's title/ID mapping and Secret Vault binding. The Docker runner and `xyops/entry.ts` have been removed from the active implementation. Update `README.md` and `xyops/voiceflow/README.md` as the native plugin contract changes. Do not run execute migration without explicit approval and reconciliation handling.
+- **Notes:** Roll out read-only Events first (`check_session`, catalogs), then `plan_migration`, then `execute_migration`; verify each Event's title/ID mapping and Secret Vault binding. The Docker runner and `xyops/entry.ts` have been removed from the active implementation. Update `README.md` and `xyops/voiceflow/README.md` as the native plugin contract changes. Do not run execute migration without explicit approval and reconciliation handling.
 
 ## Decision points
 

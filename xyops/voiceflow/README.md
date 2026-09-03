@@ -15,7 +15,7 @@ an optional `secrets` object:
 {
   "xy": 1,
   "type": "event",
-  "params": { "operation": "check-session" },
+  "params": { "operation": "check_session" },
   "secrets": { "VOICEFLOW_JWT": "<provided-by-Secret-Vault>" }
 }
 ```
@@ -23,13 +23,13 @@ an optional `secrets` object:
 The canonical operation selector is `params.operation`. Supported operations are:
 
 ```text
-check-session
-list-workspaces
-list-projects
-list-versions
-list-folders
-plan-migration
-execute-migration
+check_session
+list_workspaces
+list_projects
+list_versions
+list_folders
+plan_migration
+execute_migration
 ```
 
 The process returns one response envelope. A successful operation uses numeric
@@ -44,7 +44,7 @@ the Voiceflow envelope under `data.voiceflow`:
   "data": {
     "voiceflow": {
       "ok": true,
-      "operation": "check-session",
+      "operation": "check_session",
       "operationID": "<generated-operation-id>",
       "result": "<operation-result>",
       "warnings": []
@@ -92,13 +92,13 @@ Point each of the seven Events at this one plugin registration:
 
 | Event title | `params.operation` |
 | --- | --- |
-| `voiceflow_check_session` | `check-session` |
-| `voiceflow_list_workspaces` | `list-workspaces` |
-| `voiceflow_list_projects` | `list-projects` |
-| `voiceflow_list_versions` | `list-versions` |
-| `voiceflow_list_folders` | `list-folders` |
-| `voiceflow_plan_migration` | `plan-migration` |
-| `voiceflow_execute_migration` | `execute-migration` |
+| `voiceflow_check_session` | `check_session` |
+| `voiceflow_list_workspaces` | `list_workspaces` |
+| `voiceflow_list_projects` | `list_projects` |
+| `voiceflow_list_versions` | `list_versions` |
+| `voiceflow_list_folders` | `list_folders` |
+| `voiceflow_plan_migration` | `plan_migration` |
+| `voiceflow_execute_migration` | `execute_migration` |
 
 The remaining operation parameters are the IDs and migration values documented
 by the CLI contract, including `SOURCE_WORKSPACE_ID`, `SOURCE_PROJECT_ID`,

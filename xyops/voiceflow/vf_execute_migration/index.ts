@@ -54,7 +54,7 @@ export const main: Main = async (
         secretFileContents,
       )
     : failure(
-        "execute-migration",
+        "execute_migration",
         operationID,
         new OperationFault("CONFIRMATION_REQUIRED"),
       );
@@ -117,13 +117,13 @@ const executeConfirmedMigration = async (
       ...apiKey,
     };
     return success(
-      "execute-migration",
+      "execute_migration",
       operationID,
       result,
       executeWarnings(apiKey.apiKeyRetrieved),
     );
   } catch (error) {
-    return failure("execute-migration", operationID, addFailureStage(error, stage));
+    return failure("execute_migration", operationID, addFailureStage(error, stage));
   }
 };
 const addFailureStage = (error: unknown, stage: string): unknown =>

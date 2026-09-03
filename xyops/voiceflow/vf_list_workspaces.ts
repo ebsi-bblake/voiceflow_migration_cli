@@ -13,6 +13,6 @@ export const main: Main = (token) => {
   const id = createUUID();
   return resolveVoiceflowAuth(token)
     .then(listWorkspaces)
-    .then((options) => success("list-workspaces", id, { options }))
-    .catch((error) => failure("list-workspaces", id, error));
+    .then((options) => success("list_workspaces", id, { options }))
+    .catch((error) => failure("list_workspaces", id, error));
 };

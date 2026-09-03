@@ -1,9 +1,9 @@
 export const supportedPluginOperations = [
-  "check-session",
-  "list-workspaces",
-  "list-projects",
-  "list-versions",
-  "list-folders",
-  "plan-migration",
-  "execute-migration",
+  "check_session",
+  "list_workspaces",
+  "list_projects",
+  "list_versions",
+  "list_folders",
+  "plan_migration",
+  "execute_migration",
 ] as const;

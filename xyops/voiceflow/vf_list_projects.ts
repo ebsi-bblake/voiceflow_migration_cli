@@ -25,6 +25,6 @@ export const main: Main = (token, sourceWorkspaceID) => {
   const id = createUUID();
   return resolveVoiceflowAuth(token)
     .then(listProjectsForWorkspace(sourceWorkspaceID))
-    .then((options) => success("list-projects", id, { options }))
-    .catch((error) => failure("list-projects", id, error));
+    .then((options) => success("list_projects", id, { options }))
+    .catch((error) => failure("list_projects", id, error));
 };
