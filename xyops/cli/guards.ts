@@ -15,6 +15,7 @@ import type {
   XYOpsResponse,
   XYOpsWaitJob,
   XYOpsWaitResponse,
+  XYOpsStreamEvent,
 } from "./types";
 
 type IsObject = (value: unknown) => value is object;
@@ -28,7 +29,7 @@ export const isRecord: IsRecord = (
   isObject(value) && !Array.isArray(value);
 
 type IsNonEmptyString = (value: unknown) => value is string;
-const isNonEmptyString: IsNonEmptyString = (value): value is string =>
+export const isNonEmptyString: IsNonEmptyString = (value): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
 type All = (values: readonly boolean[]) => boolean;
@@ -108,6 +109,17 @@ type IsXYOpsLaunchResponse = (value: unknown) => value is XYOpsLaunchResponse;
 export const isXYOpsLaunchResponse: IsXYOpsLaunchResponse = (value) =>
   satisfiesRecord<XYOpsLaunchResponse>(value, (record) =>
     all([isXYOpsResponse(record), isNonEmptyString(record.id)]),
+  );
+
+type IsXYOpsStreamEvent = (value: unknown) => value is XYOpsStreamEvent;
+const streamEventTypes = ["start", "update", "end"] as const;
+export const isXYOpsStreamEvent: IsXYOpsStreamEvent = (value) =>
+  satisfiesRecord<XYOpsStreamEvent>(value, (record) =>
+    all([
+      typeof record.type === "string" &&
+        streamEventTypes.some((type) => type === record.type),
+      isRecord(record.data),
+    ]),
   );
 type IsJobLaunch = (value: unknown) => value is Readonly<{ id: string }>;
 export const isJobLaunch: IsJobLaunch = (value) =>

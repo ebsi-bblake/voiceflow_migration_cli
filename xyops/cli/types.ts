@@ -48,6 +48,25 @@ export type NativePluginResponse = Readonly<{
   data: Readonly<{ voiceflow: unknown }>;
 }>;
 export type XYOpsLaunchResponse = XYOpsResponse & Readonly<{ id: string }>;
+export type XYOpsStreamEvent =
+  | Readonly<{ type: "start"; data: Record<string, unknown> }>
+  | Readonly<{ type: "update"; data: Record<string, unknown> }>
+  | Readonly<{ type: "end"; data: Record<string, unknown> }>;
+export type XYOpsStreamResult =
+  | Readonly<{
+      kind: "success";
+      jobID: string;
+      code: number | string;
+      data: Record<string, unknown>;
+      requiresJobResponse: true;
+    }>
+  | Readonly<{
+      kind: "failure";
+      jobID: string;
+      code: number | string;
+      data: Record<string, unknown>;
+      requiresJobResponse: true;
+    }>;
 export type XYOpsJob = Readonly<{
   id?: string;
   state?: string;
@@ -107,6 +126,8 @@ export type XYOpsConfig = Readonly<{
   httpTimeoutMs: number;
   pollIntervalMs: number;
   pollTimeoutMs: number;
+  streamMaxBytes: number;
+  streamMaxFrameBytes: number;
 }>;
 export type MigrationState = Readonly<{
   sourceWorkspaceID?: string;
@@ -126,7 +147,8 @@ export type CliDiagnosticCode =
   | "envelope"
   | "job"
   | "execute-outcome-unknown"
-  | "invalid-input";
+  | "invalid-input"
+  | "stream";
 export type CliDiagnostic = Readonly<{
   code: CliDiagnosticCode;
   endpoint: string;

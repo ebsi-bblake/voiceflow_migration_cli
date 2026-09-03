@@ -14,6 +14,8 @@ export type {
 export const DEFAULT_HTTP_TIMEOUT_MS = 15_000;
 export const DEFAULT_POLL_INTERVAL_MS = 1_000;
 export const DEFAULT_POLL_TIMEOUT_MS = 300_000;
+export const DEFAULT_STREAM_MAX_BYTES = 1_048_576;
+export const DEFAULT_STREAM_MAX_FRAME_BYTES = 256_000;
 export const DEFAULT_XYOPS_BASE_URL = "http://localhost:5522";
 
 const DEFAULT_EVENT_TITLES = {
@@ -193,6 +195,8 @@ type ReadDurations = (environment: Environment) => Readonly<{
   httpTimeoutMs: number;
   pollIntervalMs: number;
   pollTimeoutMs: number;
+  streamMaxBytes: number;
+  streamMaxFrameBytes: number;
 }>;
 const readDurations: ReadDurations = (environment) => ({
   httpTimeoutMs: positiveMilliseconds(
@@ -209,6 +213,16 @@ const readDurations: ReadDurations = (environment) => ({
     environment,
     "XYOPS_POLL_TIMEOUT_MS",
     DEFAULT_POLL_TIMEOUT_MS,
+  ),
+  streamMaxBytes: positiveMilliseconds(
+    environment,
+    "XYOPS_STREAM_MAX_BYTES",
+    DEFAULT_STREAM_MAX_BYTES,
+  ),
+  streamMaxFrameBytes: positiveMilliseconds(
+    environment,
+    "XYOPS_STREAM_MAX_FRAME_BYTES",
+    DEFAULT_STREAM_MAX_FRAME_BYTES,
   ),
 });
 

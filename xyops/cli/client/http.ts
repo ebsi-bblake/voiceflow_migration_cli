@@ -1,4 +1,4 @@
-import { fail, type CliError } from "../diagnostics";
+import { fail, CliError } from "../diagnostics";
 import {
   isRetryableStatus,
   isSuccessfulCode,
@@ -13,6 +13,7 @@ export type Request = (
   body: RequestBody,
   endpoint: string,
 ) => Promise<XYOpsResponse>;
+export type StreamResponseReader<T> = (response: Response) => Promise<T>;
 
 const isAbortError = (error: unknown): boolean =>
   error instanceof DOMException && error.name === "AbortError";
@@ -112,6 +113,39 @@ export const fetchJSON = async (
     await parseJSONResponse(response, endpoint),
     endpoint,
   );
+};
+
+export const fetchSSE = <T>(
+  fetcher: typeof fetch,
+  url: string,
+  apiKey: string,
+  timeoutMs: number,
+  endpoint: string,
+  readResponse: StreamResponseReader<T>,
+): Promise<T> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  return fetcher(url, {
+    method: "GET",
+    headers: { Accept: "text/event-stream", "X-API-Key": apiKey },
+    signal: controller.signal,
+  })
+    .catch((error) => Promise.reject(toFetchError(error, endpoint)))
+    .then((response) => {
+      if (!response.ok)
+        throw fail("http", {
+          endpoint,
+          status: response.status,
+          retryable: isRetryableStatus(response.status),
+        });
+      return readResponse(response);
+    })
+    .catch((error) =>
+      error instanceof CliError
+        ? Promise.reject(error)
+        : Promise.reject(toFetchError(error, endpoint)),
+    )
+    .finally(() => clearTimeout(timeout));
 };
 
 export const defaultSleep: Sleep = (milliseconds) =>
