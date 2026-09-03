@@ -52,6 +52,18 @@ export type XYOpsStreamEvent =
   | Readonly<{ type: "start"; data: Record<string, unknown> }>
   | Readonly<{ type: "update"; data: Record<string, unknown> }>
   | Readonly<{ type: "end"; data: Record<string, unknown> }>;
+export type XYOpsStreamLimits = Readonly<{
+  maxBytes?: number;
+  maxFrameBytes?: number;
+}>;
+export type XYOpsStreamJob = (
+  fetcher: typeof fetch,
+  baseURL: string,
+  apiKey: string,
+  jobID: string,
+  timeoutMs: number,
+  limits?: XYOpsStreamLimits,
+) => Promise<XYOpsStreamResult>;
 export type XYOpsStreamResult =
   | Readonly<{
       kind: "success";

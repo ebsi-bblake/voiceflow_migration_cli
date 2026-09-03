@@ -1,18 +1,21 @@
 import { fail } from "../diagnostics";
 import { isNonEmptyString, isXYOpsStreamEvent } from "../guards";
-import type { XYOpsStreamEvent, XYOpsStreamResult } from "../types";
+import type {
+  XYOpsStreamEvent,
+  XYOpsStreamLimits,
+  XYOpsStreamResult,
+  XYOpsStreamJob,
+} from "../types";
 import { fetchSSE } from "./http";
 
 export const STREAM_PATH = "/api/app/stream_job/v1";
 export const DEFAULT_STREAM_MAX_BYTES = 1_048_576;
 export const DEFAULT_STREAM_MAX_FRAME_BYTES = 256_000;
 
-type StreamLimits = Readonly<{
-  maxBytes?: number;
-  maxFrameBytes?: number;
-}>;
-
-type ParseSSE = (source: string, limits?: StreamLimits) => readonly XYOpsStreamEvent[];
+type ParseSSE = (
+  source: string,
+  limits?: XYOpsStreamLimits,
+) => readonly XYOpsStreamEvent[];
 
 const byteLength = (value: string): number => new TextEncoder().encode(value).byteLength;
 const streamError = (message: string): never =>
@@ -64,7 +67,10 @@ export const parseSSE: ParseSSE = (source, limits = {}) => {
   return events
 };
 
-type ReadSSEResponse = (response: Response, limits: StreamLimits) => Promise<XYOpsStreamResult>;
+type ReadSSEResponse = (
+  response: Response,
+  limits: XYOpsStreamLimits,
+) => Promise<XYOpsStreamResult>;
 // eslint-disable-next-line complexity
 const readSSEResponse: ReadSSEResponse = async (response, limits) => {
   if (response.body === null) return streamError("XYOps returned an empty SSE body.");
@@ -90,7 +96,11 @@ const readSSEResponse: ReadSSEResponse = async (response, limits) => {
   };
   await readChunk();
   const updates = events.filter((event) => event.type === "update");
-  const latest = updates.at(-1)?.data;
+  const terminal = events
+    .slice()
+    .reverse()
+    .find((event: XYOpsStreamEvent) => event.type === "end")?.data;
+  const latest = updates.at(-1)?.data ?? terminal;
   if (latest === undefined || !isNonEmptyString(latest.id) || (typeof latest.code !== "number" && typeof latest.code !== "string"))
     return streamError("XYOps ended the stream without a terminal job status.");
   if (!events.some((event) => event.type === "end"))
@@ -106,6 +116,6 @@ const readSSEResponse: ReadSSEResponse = async (response, limits) => {
     : { kind: "failure", ...result };
 };
 
-export type StreamJob = (fetcher: typeof fetch, baseURL: string, apiKey: string, jobID: string, timeoutMs: number, limits?: StreamLimits) => Promise<XYOpsStreamResult>;
+export type StreamJob = XYOpsStreamJob;
 export const streamJob: StreamJob = (fetcher, baseURL, apiKey, jobID, timeoutMs, limits = {}) =>
   fetchSSE(fetcher, `${baseURL}${STREAM_PATH}?id=${encodeURIComponent(jobID)}`, apiKey, timeoutMs, STREAM_PATH, (response) => readSSEResponse(response, limits));

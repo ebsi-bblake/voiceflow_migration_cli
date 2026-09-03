@@ -10,7 +10,15 @@ import type {
 } from "../types";
 import { fetchJSON, defaultSleep, type Request, type Sleep } from "./http";
 import { eventBody, pollJob, readEventWithRetry } from "./polling";
-import { readLaunchID } from "./job-response";
+import { streamJob, type StreamJob } from "./streaming";
+import {
+  readJobOutput,
+  readJobResponse,
+  readLaunchID,
+  requireEnvelope,
+  requireSuccessfulJob,
+} from "./job-response";
+import { normalizeVoiceflowResponse } from "../guards";
 
 const RUN_PATH = "/api/app/run_event/v1";
 const JOB_PATH = "/api/app/get_job/v1";
@@ -18,6 +26,7 @@ const JOB_PATH = "/api/app/get_job/v1";
 type CreateClientDependencies = Readonly<{
   fetcher?: typeof fetch;
   sleeper?: Sleep;
+  streamer?: StreamJob;
 }>;
 
 const readDiagnostic = (error: unknown): CliError["diagnostic"] =>
@@ -45,6 +54,15 @@ const isUnknownOutcomeTransport = (
   diagnostic: CliDiagnostic | undefined,
 ): diagnostic is CliDiagnostic =>
   diagnostic !== undefined && ["timeout", "network"].includes(diagnostic.code);
+const translateExecuteStreamError = (error: unknown): CliError => {
+  const diagnostic = readCliDiagnostic(error);
+  return fail("execute-outcome-unknown", {
+    endpoint: "/api/app/stream_job/v1",
+    status: diagnostic?.status,
+    nextAction:
+      "The execute stream outcome is unknown; reconcile before retrying.",
+  });
+};
 const translateExecuteJobError = (error: unknown): CliError => {
   const diagnostic = readCliDiagnostic(error);
   if (isUnknownOutcomeTransport(diagnostic))
@@ -70,6 +88,7 @@ export const createXYOpsClient = (
 ): XYOpsClient => {
   const fetcher = resolveFetcher(dependencies);
   const sleeper = resolveSleeper(dependencies);
+  const streamer = dependencies.streamer ?? streamJob;
   const request: Request = (path, body, endpoint) =>
     fetchJSON(
       fetcher,
@@ -94,6 +113,56 @@ export const createXYOpsClient = (
       guard,
     );
 
+  const readFinalJob = <T>(
+    id: string,
+    guard: ResponseGuard<VoiceflowEnvelope<T>>,
+  ): Promise<VoiceflowEnvelope<T>> =>
+    request(JOB_PATH, { id }, JOB_PATH)
+      .then((response) => readJobResponse(response, JOB_PATH))
+      .then((job) =>
+        normalizeVoiceflowResponse(
+          readJobOutput(
+            requireSuccessfulJob(job, JOB_PATH, "The migration execute job failed."),
+            JOB_PATH,
+          ),
+        ),
+      )
+      .then((data) => requireEnvelope(data, guard, JOB_PATH));
+
+  const readTerminalStream = <T>(
+    id: string,
+    guard: ResponseGuard<VoiceflowEnvelope<T>>,
+  ) =>
+    streamer(
+      fetcher,
+      config.baseURL,
+      config.apiKey,
+      id,
+      config.httpTimeoutMs,
+      {
+        maxBytes: config.streamMaxBytes,
+        maxFrameBytes: config.streamMaxFrameBytes,
+      },
+    ).catch((error) => Promise.reject(translateExecuteStreamError(error)))
+      .then((stream) => {
+        if (stream.kind === "failure")
+          return Promise.reject(
+            requireSuccessfulJob(
+              stream.data,
+              "/api/app/stream_job/v1",
+              "The migration execute job failed.",
+            ),
+          );
+        try {
+          const output = normalizeVoiceflowResponse(
+            readJobOutput(stream.data, "/api/app/stream_job/v1"),
+          );
+          return requireEnvelope(output, guard, "/api/app/stream_job/v1");
+        } catch {
+          return readFinalJob(id, guard);
+        }
+      });
+
   const executeEvent = <T>(
     reference: XYOpsEventReference,
     params: EventParameters,
@@ -102,7 +171,12 @@ export const createXYOpsClient = (
     request(RUN_PATH, eventBody(reference, params), RUN_PATH)
       .catch((error) => Promise.reject(translateExecuteDispatchError(error)))
       .then((launch) => readLaunchID(launch, RUN_PATH))
-      .then((id) => pollJob(id, request, sleeper, config, guard))
+      .then((id) =>
+        typeof config.streamMaxBytes === "number" &&
+        typeof config.streamMaxFrameBytes === "number"
+          ? readTerminalStream(id, guard)
+          : pollJob(id, request, sleeper, config, guard),
+      )
       .catch((error) => Promise.reject(translateExecuteJobError(error)));
 
   return { readEvent, executeEvent };
