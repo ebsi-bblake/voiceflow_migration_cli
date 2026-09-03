@@ -59,7 +59,7 @@ export const parseSSE: ParseSSE = (source, limits = {}) => {
   if (byteLength(source) > maxBytes)
     return streamError("The XYOps SSE response exceeded the size limit.");
   const events: XYOpsStreamEvent[] = [];
-  const frames = source.split(/(?:\r\n|\n|\r){2}/);
+  const frames = source.split(/(?:\r\n){2}|\n\n|\r\r/);
   for (const frame of frames) {
     if (!frame.trim() || frame.split(/\r\n|\n|\r/).every((line) => line.startsWith(":"))) continue;
     events.push(parseEventFrame(frame, maxFrameBytes));
@@ -79,6 +79,8 @@ const readSSEResponse: ReadSSEResponse = async (response, limits) => {
   let source = "";
   let totalBytes = 0;
   const events: XYOpsStreamEvent[] = [];
+  // Chunk consumption combines byte limits, decoder flushing, and frame extraction.
+  // eslint-disable-next-line complexity
   const readChunk = async (): Promise<void> => {
     const chunk = await reader.read();
     if (chunk.done) {
@@ -89,9 +91,11 @@ const readSSEResponse: ReadSSEResponse = async (response, limits) => {
     totalBytes += chunk.value.byteLength;
     if (totalBytes > (limits.maxBytes ?? DEFAULT_STREAM_MAX_BYTES)) return streamError("The XYOps SSE response exceeded the size limit.");
     source += decoder.decode(chunk.value, { stream: true });
-    const parts = source.split(/(?:\r\n|\n|\r){2}/);
+    const parts = source.split(/(?:\r\n){2}|\n\n|\r\r/);
     source = parts.pop() ?? "";
-    events.push(...parseSSE(parts.join("\n\n"), limits));
+    for (const part of parts) {
+      if (part.trim()) events.push(...parseSSE(`${part}\n\n`, limits));
+    }
     return readChunk();
   };
   await readChunk();
@@ -100,7 +104,8 @@ const readSSEResponse: ReadSSEResponse = async (response, limits) => {
     .slice()
     .reverse()
     .find((event: XYOpsStreamEvent) => event.type === "end")?.data;
-  const latest = updates.at(-1)?.data ?? terminal;
+  // The end event is authoritative; update events may contain progress only.
+  const latest = terminal ?? updates.at(-1)?.data;
   if (latest === undefined || !isNonEmptyString(latest.id) || (typeof latest.code !== "number" && typeof latest.code !== "string"))
     return streamError("XYOps ended the stream without a terminal job status.");
   if (!events.some((event) => event.type === "end"))
