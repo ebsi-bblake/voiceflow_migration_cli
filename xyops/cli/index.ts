@@ -4,9 +4,11 @@ import { run } from "./migration";
 
 export { run } from "./migration";
 
-run().catch((error: unknown) => {
-  process.exitCode = 1;
-  console.error(
-    JSON.stringify({ migrationFailed: cliErrorOutput(asCliError(error)) }),
-  );
-});
+if (import.meta.main) {
+  run().catch((error: unknown) => {
+    process.exitCode = 1;
+    console.error(
+      JSON.stringify({ migrationFailed: cliErrorOutput(asCliError(error)) }),
+    );
+  });
+}
