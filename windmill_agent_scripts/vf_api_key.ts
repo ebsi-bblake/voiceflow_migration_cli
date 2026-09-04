@@ -92,13 +92,6 @@ function isSuccessfulStatus(status: number): boolean {
   return status >= 200 && status < 300;
 }
 
-function isSuccessfulAPIKeyResponse(
-  status: number,
-  key: string | undefined,
-): boolean {
-  return [isSuccessfulStatus(status), key !== undefined].every(Boolean);
-}
-
 function normalizeNonEmptyID(value: string): string | undefined {
   const normalized = value.trim();
   return normalized || undefined;
@@ -129,12 +122,19 @@ export function retrieveProjectAPIKeyValue(
     .then((response) =>
       (() => {
         const key = readSingleAPIKey(response.bytes);
-        if (!isSuccessfulAPIKeyResponse(response.status, key))
-          throw new OperationFault("DEPENDENCY_FAILURE", true);
+        if (!isSuccessfulStatus(response.status))
+          throw new OperationFault(
+            "DEPENDENCY_FAILURE",
+            true,
+            `api-key-http-${response.status}`,
+          );
+        if (key === undefined)
+          throw new OperationFault("DEPENDENCY_FAILURE", true, "api-key-response");
         return key;
       })(),
     )
-    .catch(() => {
+    .catch((error: unknown) => {
+      if (error instanceof OperationFault) throw error;
       throw new OperationFault("DEPENDENCY_FAILURE", true);
     });
 }

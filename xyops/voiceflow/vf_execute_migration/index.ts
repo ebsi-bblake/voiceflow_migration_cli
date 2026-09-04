@@ -128,7 +128,11 @@ const executeConfirmedMigration = async (
 };
 const addFailureStage = (error: unknown, stage: string): unknown =>
   error instanceof OperationFault
-    ? new OperationFault(error.code, error.retryable, stage)
+    ? new OperationFault(
+        error.code,
+        error.retryable,
+        [stage, error.diagnostic].filter((value): value is string => value !== undefined).join(" "),
+      )
     : new Error(`stage=${stage} error=${error instanceof Error ? error.message : String(error)}`);
 const secretInputKind = (contents: unknown): string => {
   if (contents === undefined) return "missing";

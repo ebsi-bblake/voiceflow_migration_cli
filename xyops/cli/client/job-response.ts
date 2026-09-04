@@ -137,7 +137,7 @@ const isUnsafeFailureDetail = (value: string): boolean =>
   hasSensitiveDetail(value);
 
 const failureStage = (value: string): string | undefined =>
-  value.match(VoiceflowRegex.diagnosticStage)?.[0];
+  value.match(/stage=[a-z-]+(?: api-key-(?:http-\d+|response))?/i)?.[0];
 
 const boundFailureDetail = (value: string): string =>
   value.length <= MAX_FAILURE_DESCRIPTION_LENGTH

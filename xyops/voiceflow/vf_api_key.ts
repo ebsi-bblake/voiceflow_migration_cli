@@ -84,7 +84,8 @@ export const retrieveProjectApiKey: RetrieveProjectApiKey = async (
 ) => {
   const id = normalizeProjectID(projectID);
   if (!id) throw new OperationFault("DEPENDENCY_FAILURE", true);
-  return retrieveValidatedApiKey(auth, id).catch(() => {
+  return retrieveValidatedApiKey(auth, id).catch((error: unknown) => {
+    if (error instanceof OperationFault) throw error;
     throw new OperationFault("DEPENDENCY_FAILURE", true);
   });
 };
@@ -128,15 +129,15 @@ const retrieveValidatedApiKey = async (
   const keys = deduplicateStrings(
     selectVoiceflowApiKeys(parseKeys(response.bytes)),
   );
-  if (!isSuccessfulApiKeyResponse(response.status, keys))
-    throw new Error("retrieval failed");
+  if (!isSuccessfulStatus(response.status))
+    throw new OperationFault(
+      "DEPENDENCY_FAILURE",
+      true,
+      `api-key-http-${response.status}`,
+    );
+  if (!hasSingleKey(keys))
+    throw new OperationFault("DEPENDENCY_FAILURE", true, "api-key-response");
   return keys[0];
-};
-const isSuccessfulApiKeyResponse = (
-  status: number,
-  keys: readonly string[],
-): boolean => {
-  return isSuccessfulStatus(status) && hasSingleKey(keys);
 };
 const normalizeProjectID = (
   projectID: string | undefined,
