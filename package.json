@@ -1,6 +1,6 @@
 {
   "name": "voiceflow-automation",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "pluginVersion": "1.0.0",
   "devDependencies": {
     "@types/node": "^22.0.0",
