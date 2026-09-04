@@ -23,7 +23,11 @@ import {
   type MigrationContext,
 } from "./selection";
 import { readMigrationPlan } from "./planning";
-import { confirmAndExecuteMigration, displayPlan } from "./execution";
+import {
+  executeConfirmedMigration,
+  requestMigrationConfirmation,
+  displayPlan,
+} from "./execution";
 import { readSecretsForMigration } from "./secret-input";
 import { progress } from "../progress";
 
@@ -89,8 +93,10 @@ const performMigration: PerformMigration = async (context) => {
     readMigrationPlan(context, selection),
   );
   displayPlan(plan);
+  const confirmed = await requestMigrationConfirmation(context.reader);
+  if (!confirmed) return;
   await progress.run("execute_migration", () =>
-    confirmAndExecuteMigration(
+    executeConfirmedMigration(
       context,
       selection,
       plan.planID,

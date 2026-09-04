@@ -126,14 +126,15 @@ export type ExecuteResult = Readonly<{
   importBytes: number;
   selected: MigrationSelection;
   imported: Readonly<{ projectID: string; [key: string]: unknown }>;
-  apiKeyRetrieved: boolean;
+  apiKeyRetrieved?: boolean;
 }>;
-export type SecretEntry = Readonly<{
-  name: string;
+export type ConfigSecret = Readonly<{
+  key: string;
   value: string;
-  type: "project_api_key" | "secret" | "url";
+  type: "projectId" | "secret" | "url";
 }>;
-export type SecretEntries = readonly SecretEntry[];
+export type SecretEntry = Readonly<{ name: string; value: string }>;
+export type SecretEntries = readonly ConfigSecret[];
 export type EventParameterValue = string | boolean | SecretEntries;
 export type EventParameters = Readonly<Record<string, EventParameterValue>>;
 export type XYOpsEventConfig = Readonly<{

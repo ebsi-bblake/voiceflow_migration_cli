@@ -4,6 +4,7 @@ import { VoiceflowRegex } from "./vf_regex";
 import { isRecord } from "./guards";
 import type { ApiKeyDiagnostic, ApiKeyStatus } from "./types";
 import { VOICEFLOW_IDENTITY_ORIGIN, encodePathSegment } from "./vf_urls";
+import { OperationFault } from "./vf_contracts";
 
 export type { ApiKeyDiagnostic, ApiKeyStatus } from "./types";
 
@@ -73,6 +74,21 @@ const selectVoiceflowApiKeys: SelectVoiceflowApiKeys = (keys) =>
 type DeduplicateStrings = (values: readonly string[]) => string[];
 const deduplicateStrings: DeduplicateStrings = (values) => [...new Set(values)];
 
+type RetrieveProjectApiKey = (
+  auth: AuthContext,
+  projectID: string,
+) => Promise<string>;
+export const retrieveProjectApiKey: RetrieveProjectApiKey = async (
+  auth,
+  projectID,
+) => {
+  const id = normalizeProjectID(projectID);
+  if (!id) throw new OperationFault("DEPENDENCY_FAILURE", true);
+  return retrieveValidatedApiKey(auth, id).catch(() => {
+    throw new OperationFault("DEPENDENCY_FAILURE", true);
+  });
+};
+
 type RetrieveApiKeyStatus = (
   auth: AuthContext,
   projectID?: string,
@@ -89,11 +105,13 @@ const retrieveApiKeyStatusForProject = async (
   auth: AuthContext,
   id: string,
 ): Promise<ApiKeyStatus> =>
-  retrieveValidatedApiKey(auth, id).catch(() => failedApiKeyRetrievalOutcome());
+  retrieveValidatedApiKey(auth, id)
+    .then(() => successfulApiKeyOutcome())
+    .catch(() => failedApiKeyRetrievalOutcome());
 const retrieveValidatedApiKey = async (
   auth: AuthContext,
   id: string,
-): Promise<ApiKeyStatus> => {
+): Promise<string> => {
   const response = await requestBytes({
     url: `${VOICEFLOW_IDENTITY_ORIGIN}/v1alpha1/api-key/legacy/project/${encodePathSegment(id)}`,
     init: {
@@ -108,7 +126,7 @@ const retrieveValidatedApiKey = async (
   );
   if (!isSuccessfulApiKeyResponse(response.status, keys))
     throw new Error("retrieval failed");
-  return successfulApiKeyOutcome();
+  return keys[0];
 };
 const isSuccessfulApiKeyResponse = (
   status: number,

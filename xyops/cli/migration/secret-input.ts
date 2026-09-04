@@ -3,22 +3,15 @@ import { fail } from "../diagnostics";
 import type { MigrationFileConfig } from "../config";
 import type { SecretEntries } from "../types";
 import type { PromptReader } from "../prompt";
+import { resolveConfiguredFilePath } from "../file-path";
 
-type ResolveSecretsPath = (configuredPath: string, platform: NodeJS.Platform) => string;
-export const resolveSecretsPath: ResolveSecretsPath = (configuredPath, platform) => {
-  if (platform !== "darwin") return configuredPath;
-  const normalizedPath = configuredPath.replaceAll("\\", "/");
-  const match = normalizedPath.match(/^\/\/[^/]+\/([^/]+)(\/.*)?$/);
-  return match === null
-    ? configuredPath
-    : `/Volumes/${match[1]}${match[2] ?? ""}`;
-};
+export const resolveSecretsPath = resolveConfiguredFilePath;
 
 type ReadSecretFileContents = (path: string) => Promise<SecretEntries | undefined>;
 const readSecretFileContents: ReadSecretFileContents = (path) =>
   path === ""
     ? Promise.resolve(undefined)
-    : readSecretFile(resolveSecretsPath(path, process.platform)).catch(() => {
+    : readSecretFile(resolveConfiguredFilePath(path, process.platform)).catch(() => {
         throw fail("configuration", {
           nextAction: "The configured secrets file is invalid or unreadable.",
         });

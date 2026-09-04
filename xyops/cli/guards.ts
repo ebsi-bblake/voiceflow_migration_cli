@@ -284,7 +284,8 @@ export const isExecuteResult: IsExecuteResult = (value) =>
       isNonEmptyString(record.planID),
       isMigrationSelection(record.selected),
       numericResultKeys.every((key) => typeof record[key] === "number"),
-      typeof record.apiKeyRetrieved === "boolean",
+      record.apiKeyRetrieved === undefined ||
+        typeof record.apiKeyRetrieved === "boolean",
       satisfiesRecord<Readonly<{ projectID: string }>>(
         record.imported,
         (imported) => isNonEmptyString(imported.projectID),
@@ -298,13 +299,14 @@ const isSecretEntries: IsSecretEntries = (value) => {
   return value.every((entry) => {
     if (
       !isRecord(entry) ||
-      Object.keys(entry).length !== 2 ||
-      typeof entry.name !== "string" ||
+      Object.keys(entry).length !== 3 ||
+      typeof entry.key !== "string" ||
       typeof entry.value !== "string" ||
-      names.has(entry.name)
+      !["projectId", "secret", "url"].includes(entry.type as string) ||
+      names.has(entry.key)
     )
       return false;
-    names.add(entry.name);
+    names.add(entry.key);
     return true;
   });
 };

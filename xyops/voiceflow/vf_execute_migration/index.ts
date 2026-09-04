@@ -1,19 +1,20 @@
 import { resolveVoiceflowAuth } from "../vf_auth";
 import { exportVersion, resolveTargetSchemaVersion } from "../vf_export";
 import { importVersion } from "../vf_import";
-import { retrieveApiKeyStatus } from "../vf_api_key";
 import { buildMigrationPlan } from "../vf_planning";
 import { failure, OperationFault, success } from "../vf_contracts";
 import { isConfirmationGranted } from "../guards";
 import type { Envelope, ExecuteResult } from "../types";
 import { createUUID } from "../vf_uuid";
 import { createProjectSecrets } from "../vf_logux";
-import { parseSecretEntries } from "../vf_secrets";
+import {
+  parseSecretEntries,
+  resolveConfiguredSecretValues,
+} from "../vf_secrets";
 
 export type { ExecuteResult } from "../types";
 
 import { migrationSelection } from "./arguments";
-import { executeWarnings } from "./warnings";
 
 type Main = (
   token: string,
@@ -103,11 +104,14 @@ const executeConfirmedMigration = async (
       resolvedSchemaVersion,
     );
     stage = `secret-input-${secretInputKind(secretFileContents)}`;
-    const secrets = parseSecretFileContents(secretFileContents);
+    const configuredSecrets = parseSecretFileContents(secretFileContents);
+    stage = "secret-resolution";
+    const secrets = await resolveConfiguredSecretValues(
+      auth,
+      configuredSecrets,
+    );
     stage = "secret-creation";
     await createProjectSecrets(auth, imported.projectID, secrets);
-    stage = "api-key-status";
-    const apiKey = await retrieveApiKeyStatus(auth, imported.projectID);
     const result: ExecuteResult = {
       planID,
       exportStatus: artifact.status,
@@ -116,21 +120,15 @@ const executeConfirmedMigration = async (
       importBytes: imported.importBytes,
       selected: plan.selection,
       imported,
-      ...apiKey,
     };
-    return success(
-      "execute_migration",
-      operationID,
-      result,
-      executeWarnings(apiKey.apiKeyRetrieved),
-    );
+    return success("execute_migration", operationID, result);
   } catch (error) {
     return failure("execute_migration", operationID, addFailureStage(error, stage));
   }
 };
 const addFailureStage = (error: unknown, stage: string): unknown =>
   error instanceof OperationFault
-    ? error
+    ? new OperationFault(error.code, error.retryable, stage)
     : new Error(`stage=${stage} error=${error instanceof Error ? error.message : String(error)}`);
 const secretInputKind = (contents: unknown): string => {
   if (contents === undefined) return "missing";

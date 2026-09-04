@@ -1,6 +1,7 @@
 import type { AuthContext } from "./vf_auth";
 import { VoiceflowRegex } from "./vf_regex";
 import { requestBytes } from "./vf_http";
+import { OperationFault } from "./vf_contracts";
 
 export type ApiKeyDiagnostic = {
   readonly code: string;
@@ -108,10 +109,10 @@ function normalizeProjectID(projectID: string | undefined): string | undefined {
   return normalizeNonEmptyID(projectID);
 }
 
-function retrieveProjectAPIKey(
+export function retrieveProjectAPIKeyValue(
   auth: AuthContext,
   projectID: string,
-): Promise<ApiKeyStatus> {
+): Promise<string> {
   return requestBytes({
     url: `https://identity-api.empyrean.voiceflow.com/v1alpha1/api-key/legacy/project/${encodeURIComponent(projectID)}`,
     init: {
@@ -122,13 +123,24 @@ function retrieveProjectAPIKey(
     timeoutMs: 30_000,
   })
     .then((response) =>
-      isSuccessfulAPIKeyResponse(
-        response.status,
-        readSingleAPIKey(response.bytes),
-      )
-        ? successfulApiKeyOutcome()
-        : failedApiKeyRetrievalOutcome(),
+      (() => {
+        const key = readSingleAPIKey(response.bytes);
+        if (!isSuccessfulAPIKeyResponse(response.status, key))
+          throw new OperationFault("DEPENDENCY_FAILURE", true);
+        return key;
+      })(),
     )
+    .catch(() => {
+      throw new OperationFault("DEPENDENCY_FAILURE", true);
+    });
+}
+
+function retrieveProjectAPIKey(
+  auth: AuthContext,
+  projectID: string,
+): Promise<ApiKeyStatus> {
+  return retrieveProjectAPIKeyValue(auth, projectID)
+    .then(() => successfulApiKeyOutcome())
     .catch(() => failedApiKeyRetrievalOutcome());
 }
 

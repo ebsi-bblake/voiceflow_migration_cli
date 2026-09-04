@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { resolveConfiguredFilePath } from "./file-path";
 import { fail } from "./diagnostics";
 import { isInvalidDuration } from "./guards";
 import { parseXYOpsURL } from "../voiceflow/vf_urls";
@@ -373,7 +374,10 @@ export const readMigrationFileConfig: ReadMigrationFileConfig = async (path) => 
   if (configPath === undefined || configPath.trim() === "") return undefined;
   let contents: string;
   try {
-    contents = await readFile(configPath, "utf8");
+    contents = await readFile(
+      resolveConfiguredFilePath(configPath, process.platform),
+      "utf8",
+    );
   } catch {
     throw fail("configuration", {
       nextAction: "Unable to read the migration config file.",

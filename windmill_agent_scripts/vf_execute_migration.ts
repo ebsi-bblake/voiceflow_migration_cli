@@ -1,17 +1,16 @@
 import { resolveVoiceflowAuth } from "./vf_auth";
 import { exportVersion } from "./vf_export";
 import { importVersion } from "./vf_import";
-import { retrieveApiKeyStatus, type ApiKeyStatus } from "./vf_api_key";
+import type { ApiKeyStatus } from "./vf_api_key";
 import { buildMigrationPlan } from "./vf_planning";
 import { createProjectSecrets } from "./vf_logux";
-import { parseSecretEntries } from "./vf_secrets";
+import { parseSecretEntries, resolveConfiguredSecretValues } from "./vf_secrets";
 import {
   failure,
   OperationFault,
   success,
   type Envelope,
   type MigrationSelection,
-  type Warning,
   type SecretEntry,
 } from "./vf_contracts";
 
@@ -23,8 +22,10 @@ type ExecuteResultBase = {
   importBytes: number;
   selected: MigrationSelection;
   imported: Awaited<ReturnType<typeof importVersion>>;
+  apiKeyRetrieved?: boolean;
+  postImport?: ApiKeyStatus["postImport"];
 };
-export type ExecuteResult = ExecuteResultBase & ApiKeyStatus;
+export type ExecuteResult = ExecuteResultBase;
 
 function migrationSelection(
   sourceWorkspaceID: string,
@@ -42,22 +43,6 @@ function migrationSelection(
     destinationFolderID,
     targetSchemaVersion,
   };
-}
-
-function executeWarnings(apiKeyRetrieved: boolean): Warning[] {
-  const warnings: Warning[] = [
-    {
-      code: "NOT_IDEMPOTENT",
-      message: "Import is not idempotent; do not retry blindly.",
-    },
-  ];
-  if (!apiKeyRetrieved) {
-    warnings.push({
-      code: "API_KEY_RETRIEVAL_FAILED",
-      message: "Project API key could not be retrieved.",
-    });
-  }
-  return warnings;
 }
 
 function isConfirmationGranted(confirmed: unknown): confirmed is true {
@@ -106,9 +91,12 @@ async function executeMigration(
       input.destinationFolderID,
       input.targetSchemaVersion,
     );
-    const secrets = getSecrets(input);
+    const configuredSecrets = getSecrets(input);
+    const secrets = await resolveConfiguredSecretValues(
+      auth,
+      configuredSecrets,
+    );
     await createProjectSecrets(auth, imported.projectID, secrets);
-    const apiKey = await retrieveApiKeyStatus(auth, imported.projectID);
     const result: ExecuteResult = {
       planID: input.planID,
       exportStatus: artifact.status,
@@ -117,14 +105,8 @@ async function executeMigration(
       importBytes: imported.importBytes,
       selected: plan.selection,
       imported,
-      ...apiKey,
     };
-    return success(
-      "execute_migration",
-      operationID,
-      result,
-      executeWarnings(apiKey.apiKeyRetrieved),
-    );
+    return success("execute_migration", operationID, result);
   } catch (error) {
     return failure("execute_migration", operationID, error);
   }

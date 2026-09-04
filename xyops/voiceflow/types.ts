@@ -79,11 +79,12 @@ export type ImportedReceipt = Readonly<{
   folderID?: string;
 }>;
 export type AuthContext = Readonly<{ token: string; creatorID: string }>;
-export type SecretEntry = Readonly<{
-  name: string;
+export type ConfigSecret = Readonly<{
+  key: string;
   value: string;
-  type: "project_api_key" | "secret" | "url";
+  type: "projectId" | "secret" | "url";
 }>;
+export type SecretEntry = Readonly<{ name: string; value: string }>;
 export type ApiKeyDiagnostic = Readonly<{ code: string; message: string }>;
 export type ApiKeyStatus =
   | { readonly apiKeyRetrieved: true; readonly postImport?: never }
@@ -137,5 +138,6 @@ export type ExecuteResult = Readonly<{
   importBytes: number;
   selected: MigrationSelection;
   imported: ImportedReceipt;
-}> &
-  ApiKeyStatus;
+  apiKeyRetrieved?: boolean;
+  postImport?: ApiKeyStatus["postImport"];
+}>;

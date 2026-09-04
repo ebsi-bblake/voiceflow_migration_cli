@@ -148,7 +148,7 @@ describe("native XYOps event plugin boundary", () => {
           ...baseParameters,
           operation: "execute_migration",
           SECRET_FILE_CONTENTS: [
-            { name: "VF_TEST_SECRET", value: "value" },
+            { key: "VF_TEST_SECRET", value: "value", type: "secret" },
           ],
         },
       },
@@ -164,7 +164,7 @@ describe("native XYOps event plugin boundary", () => {
 
     expect(result.ok).toBe(true);
     expect(received).toEqual([
-      { name: "VF_TEST_SECRET", value: "value" },
+      { key: "VF_TEST_SECRET", value: "value", type: "secret" },
     ]);
   });
 

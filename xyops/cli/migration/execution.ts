@@ -45,25 +45,27 @@ const warnAPIKeyRetrieval = (
   }
 };
 
-type ConfirmAndExecuteMigration = (
+type RequestMigrationConfirmation = (reader: MigrationContext["reader"]) => Promise<boolean>;
+export const requestMigrationConfirmation: RequestMigrationConfirmation = (reader) =>
+  reader.ask("Perform this real migration? (yes/no): ").then((answer) => {
+    const confirmation = answer.trim().toLowerCase();
+    if (["y", "yes"].includes(confirmation)) return true;
+    console.log("Aborted; no migration performed.");
+    return false;
+  });
+
+type ExecuteConfirmedMigration = (
   context: MigrationContext,
   selection: MigrationSelection,
   planID: string,
   secretFileContents?: SecretEntries,
 ) => Promise<void>;
-export const confirmAndExecuteMigration: ConfirmAndExecuteMigration = async (
-  { reader, client, config },
+export const executeConfirmedMigration: ExecuteConfirmedMigration = async (
+  { client, config },
   selection,
   planID,
   secretFileContents,
 ) => {
-  const confirmation = (await reader.ask("Perform this real migration? (yes/no): "))
-    .trim()
-    .toLowerCase();
-  if (!["y", "yes"].includes(confirmation)) {
-    console.log("Aborted; no migration performed.");
-    return;
-  }
   const executeResponse = await client.executeEvent(
     config.events.executeMigration,
     executeParameters(selection, planID, secretFileContents),
@@ -76,6 +78,22 @@ export const confirmAndExecuteMigration: ConfirmAndExecuteMigration = async (
   );
   console.log(JSON.stringify(summarizeExecution(execute, planID)));
   warnAPIKeyRetrieval(executeResponse);
+};
+
+type ConfirmAndExecuteMigration = (
+  context: MigrationContext,
+  selection: MigrationSelection,
+  planID: string,
+  secretFileContents?: SecretEntries,
+) => Promise<void>;
+export const confirmAndExecuteMigration: ConfirmAndExecuteMigration = async (
+  context,
+  selection,
+  planID,
+  secretFileContents,
+) => {
+  if (await requestMigrationConfirmation(context.reader))
+    await executeConfirmedMigration(context, selection, planID, secretFileContents);
 };
 
 const executionFieldKeys = [

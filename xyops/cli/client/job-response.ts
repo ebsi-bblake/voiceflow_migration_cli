@@ -136,6 +136,9 @@ const isUnsafeFailureDetail = (value: string): boolean =>
   value.startsWith("[") ||
   hasSensitiveDetail(value);
 
+const failureStage = (value: string): string | undefined =>
+  value.match(VoiceflowRegex.diagnosticStage)?.[0];
+
 const boundFailureDetail = (value: string): string =>
   value.length <= MAX_FAILURE_DESCRIPTION_LENGTH
     ? value
@@ -151,9 +154,11 @@ const describeFailure = (job: XYOpsJobResult, fallback: string): string => {
   const detail = selectFailureDetail(job);
   if (detail === undefined) return fallback;
   const normalized = normalizeFailureDetail(detail);
-  return isUnsafeFailureDetail(normalized)
+  if (!isUnsafeFailureDetail(normalized)) return boundFailureDetail(normalized);
+  const stage = failureStage(normalized);
+  return stage === undefined
     ? "XYOps reported a job failure."
-    : boundFailureDetail(normalized);
+    : `XYOps reported a job failure (${stage}).`;
 };
 
 export const requireSuccessfulJob = (

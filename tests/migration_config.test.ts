@@ -12,8 +12,8 @@ const secretsPath = "/tmp/voiceflow-migration-secrets-test.json";
 describe("migration configuration contract", () => {
   test("maps snake_case inputs and preserves the configured secrets path", async () => {
     await Bun.write(secretsPath, JSON.stringify([
-      { name: "FIRST_SECRET", value: "FIRST_REDACTED", type: "secret" },
-      { name: "SECOND_SECRET", value: "SECOND_REDACTED", type: "secret" },
+      { key: "FIRST_SECRET", value: "FIRST_REDACTED", type: "secret" },
+      { key: "SECOND_SECRET", value: "SECOND_REDACTED", type: "secret" },
     ]));
     await Bun.write(configPath, JSON.stringify({
       source_workspace_id: "source-workspace",
@@ -47,11 +47,11 @@ describe("migration configuration contract", () => {
     await expect(readMigrationFileConfig(configPath)).rejects.toMatchObject({
       diagnostic: { code: "configuration" },
     });
-    await Bun.write(configPath, JSON.stringify({ secrets: [{ name: "TOKEN", value: "x", extra: true }] }));
+    await Bun.write(configPath, JSON.stringify({ secrets: [{ key: "TOKEN", value: "x", extra: true }] }));
     await expect(readMigrationFileConfig(configPath)).rejects.toMatchObject({
       diagnostic: { code: "configuration" },
     });
-    await Bun.write(configPath, JSON.stringify({ secrets: [{ name: "TOKEN", value: "SECRET_VALUE" }, { name: "TOKEN", value: "OTHER_VALUE" }] }));
+    await Bun.write(configPath, JSON.stringify({ secrets: [{ key: "TOKEN", value: "SECRET_VALUE" }, { key: "TOKEN", value: "OTHER_VALUE" }] }));
     const duplicateFailure = await readMigrationFileConfig(configPath).catch((error: unknown) => error);
     expect(duplicateFailure).toMatchObject({ diagnostic: { code: "configuration" } });
     expect(JSON.stringify(duplicateFailure)).not.toContain("SECRET_VALUE");
@@ -78,7 +78,7 @@ describe("migration configuration contract", () => {
 
   test("rejects blank secret names without exposing values", async () => {
     await Bun.write(configPath, JSON.stringify({
-      secrets: [{ name: "  ", value: "SECRET_VALUE" }],
+      secrets: [{ key: "  ", value: "SECRET_VALUE" }],
     }));
     const failure = await readMigrationFileConfig(configPath).catch((error: unknown) => error);
     expect(failure).toMatchObject({ diagnostic: { code: "configuration" } });
@@ -130,7 +130,7 @@ describe("migration configuration contract", () => {
   });
 
   test("uses configured secrets without prompting for a path", async () => {
-    const secrets = [{ name: "TOKEN", value: "SECRET_VALUE", type: "secret" }];
+    const secrets = [{ key: "TOKEN", value: "SECRET_VALUE", type: "secret" }];
     await Bun.write(secretsPath, JSON.stringify(secrets));
     const reader = {
       ask: async () => { throw new Error("unexpected prompt"); },
@@ -149,8 +149,8 @@ describe("migration configuration contract", () => {
       targetSchemaVersion: "13.1",
     };
     const secrets = [
-      { name: "FIRST_SECRET", value: "FIRST_VALUE" },
-      { name: "SECOND_SECRET", value: "SECOND_VALUE" },
+      { key: "FIRST_SECRET", value: "FIRST_VALUE", type: "secret" },
+      { key: "SECOND_SECRET", value: "SECOND_VALUE", type: "secret" },
     ];
     const parameters = executeParameters(selection, "plan-id", secrets);
     expect(parameters.SECRET_FILE_CONTENTS).toBe(secrets);

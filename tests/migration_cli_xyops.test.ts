@@ -73,11 +73,11 @@ const isFirstPoll = (pollCount: number): boolean => pollCount === 1;
 describe("XYOps CLI adapter", () => {
   test("guards secret event parameters as ordered name/value arrays", () => {
     expect(isEventParameterEntry(["SECRET_FILE_CONTENTS", [
-      { name: "TOKEN", value: "value" },
+      { key: "TOKEN", value: "value", type: "secret" },
     ]])).toBe(true);
     expect(isEventParameterEntry(["SECRET_FILE_CONTENTS", { TOKEN: "value" }])).toBe(false);
     expect(isEventParameterEntry(["SECRET_FILE_CONTENTS", [
-      { name: "TOKEN", value: "value", extra: true },
+      { key: "TOKEN", value: "value", type: "secret", extra: true },
     ]])).toBe(false);
   });
 
@@ -619,10 +619,10 @@ describe("XYOps CLI adapter", () => {
     });
     expect(
       executeParameters(selection, "plan-1", [
-        { name: "VF_TEST_SECRET", value: "value" },
+        { key: "VF_TEST_SECRET", value: "value", type: "secret" },
       ]),
     ).toMatchObject({
-      SECRET_FILE_CONTENTS: [{ name: "VF_TEST_SECRET", value: "value" }],
+      SECRET_FILE_CONTENTS: [{ key: "VF_TEST_SECRET", value: "value", type: "secret" }],
     });
   });
 });

@@ -68,11 +68,12 @@ export type MigrationPlan = {
     destinationFolder: string;
   };
 };
-export type SecretEntry = {
-  type: "project_api_key" | "secret" | "url";
-  name: string;
+export type ConfigSecret = {
+  type: "projectId" | "secret" | "url";
+  key: string;
   value: string;
 };
+export type SecretEntry = { name: string; value: string };
 
 export type ImportedReceipt = {
   importStatus: number;
