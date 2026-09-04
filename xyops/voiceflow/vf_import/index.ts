@@ -1,5 +1,6 @@
 import type { AuthContext } from "../types";
 import type { ExportArtifact, HttpBytes, ImportedReceipt } from "../types";
+import { resolveTargetSchemaVersion } from "../vf_export";
 import { OperationFault } from "../vf_contracts";
 import { requestBytes } from "../vf_http";
 import { parseSchemaVersion, parseWorkspaceID } from "../vf_validation";
@@ -14,7 +15,7 @@ type ImportVersion = (
   artifact: ExportArtifact,
   destinationWorkspaceID: string,
   destinationFolderID: string,
-  targetSchemaVersion: string,
+  targetSchemaVersion?: string,
 ) => Promise<ImportedReceipt>;
 export const importVersion: ImportVersion = async (
   auth,
@@ -49,7 +50,7 @@ type ImportInput = {
 type ImportInputFactory = (
   workspace: string,
   folder: string,
-  schema: string,
+  schema: string | undefined,
   artifact: ExportArtifact,
 ) => ImportInput;
 const importInput: ImportInputFactory = (
@@ -63,7 +64,7 @@ const importInput: ImportInputFactory = (
   return {
     workspace: normalizedWorkspace,
     folder: requiredFolderID(folder),
-    schema: parseSchemaVersion(schema),
+    schema: parseSchemaVersion(resolveTargetSchemaVersion(artifact, schema)),
   };
 };
 const validateArtifactSize = (artifact: ExportArtifact): void => {

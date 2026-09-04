@@ -22,6 +22,7 @@ import type {
 
 const messages: Readonly<Record<ErrorCode, string>> = {
   INVALID_ARGUMENT: "The supplied arguments are invalid.",
+  CONFIGURATION: "The migration configuration is invalid.",
   AUTHENTICATION_FAILED: "Authentication failed.",
   VOICEFLOW_LOGIN_REQUIRED: "Voiceflow login is required.",
   NOT_FOUND: "The requested Voiceflow resource was not found.",

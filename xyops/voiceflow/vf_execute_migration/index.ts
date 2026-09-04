@@ -1,5 +1,5 @@
 import { resolveVoiceflowAuth } from "../vf_auth";
-import { exportVersion } from "../vf_export";
+import { exportVersion, resolveTargetSchemaVersion } from "../vf_export";
 import { importVersion } from "../vf_import";
 import { retrieveApiKeyStatus } from "../vf_api_key";
 import { buildMigrationPlan } from "../vf_planning";
@@ -61,8 +61,8 @@ export const main: Main = async (
 };
 const normalizeConfirmation = (confirmed: boolean | undefined): boolean =>
   confirmed ?? false;
-const normalizeSchemaVersion = (version: string | undefined): string =>
-  version ?? "13.1";
+const normalizeSchemaVersion = (version: string | undefined): string | undefined =>
+  version;
 
 const executeConfirmedMigration = async (
   token: string,
@@ -72,13 +72,17 @@ const executeConfirmedMigration = async (
   sourceVersionID: string,
   destinationWorkspaceID: string,
   destinationFolderID: string,
-  targetSchemaVersion: string,
+  targetSchemaVersion: string | undefined,
   operationID: string,
   secretFileContents?: unknown,
 ): Promise<Envelope<ExecuteResult>> => {
   let stage = "authentication";
   try {
     const auth = await resolveVoiceflowAuth(token);
+    stage = "export";
+    const artifact = await exportVersion(auth, sourceVersionID);
+    const resolvedSchemaVersion =
+      targetSchemaVersion ?? resolveTargetSchemaVersion(artifact);
     stage = "planning";
     const selection = migrationSelection(
       sourceWorkspaceID,
@@ -86,19 +90,17 @@ const executeConfirmedMigration = async (
       sourceVersionID,
       destinationWorkspaceID,
       destinationFolderID,
-      targetSchemaVersion,
+      resolvedSchemaVersion,
     );
     const plan = await buildMigrationPlan(auth, selection);
     ensureMatchingPlan(plan.planID, planID);
-    stage = "export";
-    const artifact = await exportVersion(auth, sourceVersionID);
     stage = "import";
     const imported = await importVersion(
       auth,
       artifact,
       destinationWorkspaceID,
       destinationFolderID,
-      targetSchemaVersion,
+      resolvedSchemaVersion,
     );
     stage = `secret-input-${secretInputKind(secretFileContents)}`;
     const secrets = parseSecretFileContents(secretFileContents);

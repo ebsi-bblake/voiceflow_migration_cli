@@ -13,6 +13,7 @@ export type VoiceflowOperation =
 
 export const ErrorCode = {
   InvalidArgument: "INVALID_ARGUMENT",
+  Configuration: "CONFIGURATION",
   AuthenticationFailed: "AUTHENTICATION_FAILED",
   VoiceflowLoginRequired: "VOICEFLOW_LOGIN_REQUIRED",
   NotFound: "NOT_FOUND",

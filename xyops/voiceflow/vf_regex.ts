@@ -17,6 +17,7 @@ export const VoiceflowRegex = {
   redactedURL: /https?:\/\/[^\s"']+/gi,
   whitespace: /\s+/g,
   numericID: /^\d+$/,
+  schemaVersion: /^\d+\.\d+$/,
   quotedSecretValue: /^(".*"|'.*')$/u,
   secretName: /^[A-Za-z_][A-Za-z0-9_]*$/,
   secretLineBreak: /\r?\n/,
