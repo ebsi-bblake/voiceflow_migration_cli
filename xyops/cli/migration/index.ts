@@ -3,6 +3,7 @@ import {
   DEFAULT_XYOPS_BASE_URL,
   readMigrationFileConfig,
   readXYOpsConfig,
+  validateMigrationFileConfig,
 } from "../config";
 import { createXYOpsClient } from "../client";
 import { isCheckSessionResult, isVoiceflowEnvelope } from "../guards";
@@ -18,6 +19,7 @@ import { CreatePromptReader } from "../prompt";
 import {
   selectSourceSelection,
   selectDestinationSelection,
+  validateConfiguredMigrationValues,
   type MigrationContext,
 } from "./selection";
 import { readMigrationPlan } from "./planning";
@@ -68,6 +70,7 @@ const performMigration: PerformMigration = async (context) => {
     ...(await selectDestinationSelection(context)),
   };
   const selection = stateSelection(state);
+  await validateConfiguredMigrationValues(context, selection);
   const secretFileContents = await readSecretsForMigration(
     context.reader,
     context.migrationConfig,
@@ -97,6 +100,7 @@ export const run: Run = async () => {
 
   const config = readXYOpsConfig();
   const migrationConfig = await readMigrationFileConfig();
+  validateMigrationFileConfig(migrationConfig);
   const client = createXYOpsClient(config);
   const reader = CreatePromptReader();
   try {

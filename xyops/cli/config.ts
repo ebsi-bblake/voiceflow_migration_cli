@@ -1,9 +1,17 @@
 import { readFile } from "node:fs/promises";
-import { CliError, fail } from "./diagnostics";
+import { fail } from "./diagnostics";
 import { isInvalidDuration } from "./guards";
 import { parseXYOpsURL } from "../voiceflow/vf_urls";
+import {
+  parseFolderID,
+  parseProjectID,
+  parseSchemaVersion,
+  parseVersionID,
+  parseWorkspaceID,
+} from "../voiceflow/vf_validation";
 import type {
   SecretEntries,
+  SecretEntry,
   XYOpsConfig,
   XYOpsEventConfig,
   XYOpsEventReference,
@@ -90,6 +98,9 @@ type FindEventReferencePrefix = (value: string) => string;
 const findEventReferencePrefix: FindEventReferencePrefix = (value) =>
   EVENT_REFERENCE_PREFIXES.find((prefix) => value.startsWith(prefix)) ?? "";
 
+const hasUnsupportedEventReferencePrefix = (value: string): boolean =>
+  value.includes(":") && !EVENT_REFERENCE_PREFIXES.some((prefix) => value.startsWith(prefix));
+
 type ReadEventReference = (
   environment: Environment,
   name: string,
@@ -102,6 +113,10 @@ const readEventReference: ReadEventReference = (
 ) => {
   const value = readTrimmedEnvironment(environment, name);
   if (!value) return { title: fallback };
+  if (hasUnsupportedEventReferencePrefix(value))
+    throw fail("configuration", {
+      nextAction: `${name} must use title:<event-title> or id:<event-id>.`,
+    });
   const prefix = findEventReferencePrefix(value);
   return EVENT_REFERENCE_PARSERS[prefix](
     value.slice(prefix.length).trim(),
@@ -281,6 +296,37 @@ const parseConfigString: ParseConfigString = (value, key) => {
   return value.trim();
 };
 
+type ConfigFieldParser = (value: unknown) => string;
+
+type ReadSecretRecord = (entry: unknown, index: number) => ConfigFileRecord;
+const readSecretRecord: ReadSecretRecord = (entry, index) => {
+  if (!isRecord(entry))
+    throw fail("configuration", { nextAction: `secrets[${index}] must be an object.` });
+  return entry;
+};
+type ReadSecretProperty = (entry: ConfigFileRecord, index: number, property: "name" | "value") => string;
+const readSecretProperty: ReadSecretProperty = (entry, index, property) => {
+  if (typeof entry[property] !== "string" || (property === "name" && !entry[property].trim()))
+    throw fail("configuration", { nextAction: `secrets[${index}].${property} must be a ${property === "name" ? "non-empty " : ""}string.` });
+  return entry[property];
+};
+type ParseSecretEntry = (entry: unknown, index: number, names: Set<string>) => SecretEntry;
+const parseSecretEntry: ParseSecretEntry = (entry, index, names) => {
+  const record = readSecretRecord(entry, index);
+  const keys = Object.keys(record);
+  const unsupportedKey = keys.find((key) => key !== "name" && key !== "value");
+  if (unsupportedKey !== undefined)
+    throw fail("configuration", { nextAction: `secrets[${index}] contains unsupported property '${unsupportedKey}'.` });
+  const name = readSecretProperty(record, index, "name");
+  const value = readSecretProperty(record, index, "value");
+  if (keys.length !== 2)
+    throw fail("configuration", { nextAction: `secrets[${index}] must contain name and value fields.` });
+  if (names.has(name))
+    throw fail("configuration", { nextAction: `secrets[${index}] duplicates an earlier secret name.` });
+  names.add(name);
+  return { name, value };
+};
+
 type ParseConfigSecrets = (value: unknown) => SecretEntries;
 const parseConfigSecrets: ParseConfigSecrets = (value) => {
   if (!Array.isArray(value))
@@ -288,21 +334,7 @@ const parseConfigSecrets: ParseConfigSecrets = (value) => {
       nextAction: "secrets must be an array of objects with string name and value fields.",
     });
   const names = new Set<string>();
-  return value.map((entry, index) => {
-    if (!isRecord(entry) || Object.keys(entry).length !== 2 ||
-        typeof entry.name !== "string" ||
-        !entry.name.trim() ||
-        typeof entry.value !== "string")
-      throw fail("configuration", {
-        nextAction: `secrets[${index}] must contain only string name and value fields.`,
-      });
-    if (names.has(entry.name))
-      throw fail("configuration", {
-        nextAction: `secrets[${index}] duplicates an earlier secret name.`,
-      });
-    names.add(entry.name);
-    return { name: entry.name, value: entry.value };
-  });
+  return value.map((entry, index) => parseSecretEntry(entry, index, names));
 };
 
 type MigrationStringField = readonly [
@@ -347,17 +379,50 @@ const parseMigrationFileConfig: ParseMigrationFileConfig = (value) => {
   };
 };
 
+type ValidateMigrationFileConfig = (config: MigrationFileConfig | undefined) => void;
+export const validateMigrationFileConfig: ValidateMigrationFileConfig = (config) => {
+  if (config === undefined) return;
+  const fields: readonly (readonly [keyof MigrationFileConfig, string, ConfigFieldParser])[] = [
+    ["sourceWorkspaceID", "source_workspace_id", parseWorkspaceID],
+    ["sourceProjectID", "source_project_id", parseProjectID],
+    ["sourceVersionID", "source_version_id", parseVersionID],
+    ["destinationWorkspaceID", "destination_workspace_id", parseWorkspaceID],
+    ["destinationFolderID", "destination_folder_id", parseFolderID],
+    ["targetSchemaVersion", "target_schema_version", parseSchemaVersion],
+  ];
+  fields.forEach(([property, name, parser]) => {
+    const value = config[property];
+    if (value === undefined) return;
+    try {
+      parser(value);
+    } catch {
+      throw fail("configuration", {
+        nextAction: `${name} must be a non-empty path-safe string${name === "destination_folder_id" ? " containing only digits" : ""}, with no control characters or excessive length.`,
+      });
+    }
+  });
+};
+
 type ReadMigrationFileConfig = (path?: string) => Promise<MigrationFileConfig | undefined>;
 export const readMigrationFileConfig: ReadMigrationFileConfig = async (path) => {
   validateConfigArguments();
   const configPath = path ?? readConfigArgument();
   if (configPath === undefined || configPath.trim() === "") return undefined;
+  let contents: string;
   try {
-    return parseMigrationFileConfig(await readFile(configPath, "utf8").then(JSON.parse));
-  } catch (error: unknown) {
-    if (error instanceof CliError) throw error;
+    contents = await readFile(configPath, "utf8");
+  } catch {
     throw fail("configuration", {
-      nextAction: "Unable to read and validate the migration config file.",
+      nextAction: "Unable to read the migration config file.",
     });
   }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(contents);
+  } catch {
+    throw fail("configuration", {
+      nextAction: "The configuration JSON cannot be parsed.",
+    });
+  }
+  return parseMigrationFileConfig(parsed);
 };
