@@ -15,17 +15,19 @@ documents the supported snake_case fields:
 - `destination_workspace_id`
 - `destination_folder_id`
 - `target_schema_version`
-- `secrets`: an array of `{ "name": string, "value": string }` entries
+- `secrets`: a filesystem path to a JSON array of `{ "name": string, "value": string, "type": "project_id" | "secret_value" }` entries
 
-Configured values bypass their interactive prompts. Missing values remain interactive.
-When `target_schema_version` is omitted, the interactive default is `13.1`.
+Configured values bypass their interactive prompts. Missing migration IDs remain interactive.
+When `target_schema_version` is omitted, the imported artifact's schema version is used.
 
-Configuration is validated before migration work begins. Unknown fields, blank values,
-duplicate or blank secret names, non-string secret values, and extra secret entry fields
-are rejected. Secret values are not included in diagnostics.
+Configuration is validated before migration work begins. Unknown fields and blank values
+are rejected. The configured secrets file must be readable and contain a JSON array of
+unique entries with only `name`, `value`, and `type` fields. `type` must be either
+`project`, `secret`, or `url`. Secret values and file
+contents are not included in diagnostics.
 
 The former `--secrets=<path>` option is unsupported. Project secrets belong in the
-configuration object's `secrets` array; `VOICEFLOW_JWT` remains a separate XYOps/Windmill
+configuration object's `secrets` path; `VOICEFLOW_JWT` remains a separate XYOps/Windmill
 secret binding and must not be placed in this file.
 
 Keep local configuration files out of version control. The repository ignores

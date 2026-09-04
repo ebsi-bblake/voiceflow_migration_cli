@@ -6,56 +6,41 @@ import {
 } from "../xyops/voiceflow/vf_secrets";
 import { parseSecretEntries as parseArchivedSecretEntries } from "../windmill_agent_scripts/vf_secrets";
 
-describe("secret file parsing", () => {
-  test("accepts JSON name/value entries", () => {
-    const contents = JSON.stringify([
-      { name: "FIRST_SECRET", value: "first value" },
-      { name: "SECOND_SECRET", value: "second value" },
-    ]);
+const secret = (name: string, value: string) => ({ name, value, type: "secret" as const });
 
-    expect(parseSecretsFile(contents)).toEqual([
-      { name: "FIRST_SECRET", value: "first value" },
-      { name: "SECOND_SECRET", value: "second value" },
-    ]);
+describe("secret file parsing", () => {
+  test("accepts JSON secret entries", () => {
+    const contents = JSON.stringify([secret("FIRST_SECRET", "first value"), secret("SECOND_SECRET", "second value")]);
+    expect(parseSecretsFile(contents)).toEqual([secret("FIRST_SECRET", "first value"), secret("SECOND_SECRET", "second value")]);
   });
 
   test("accepts parsed JSON arrays", () => {
-    expect(
-      parseSecretEntries([{ name: "TEST_SECRET", value: "value" }]),
-    ).toEqual([{ name: "TEST_SECRET", value: "value" }]);
-    expect(parseSecretEntriesJSON('[{"name":"TEST_SECRET","value":"value"}]'))
-      .toEqual([{ name: "TEST_SECRET", value: "value" }]);
+    expect(parseSecretEntries([secret("TEST_SECRET", "value")])).toEqual([secret("TEST_SECRET", "value")]);
+    expect(parseSecretEntriesJSON('[{"name":"TEST_SECRET","value":"value","type":"secret"}]')).toEqual([secret("TEST_SECRET", "value")]);
   });
 
   test("rejects the legacy object map format", () => {
-    expect(() => parseSecretEntries({ TEST_SECRET: "value" })).toThrow(
-      "JSON array",
-    );
+    expect(() => parseSecretEntries({ TEST_SECRET: "value" })).toThrow("JSON array");
   });
 
-  test("rejects malformed and duplicate entries", () => {
+  test("rejects malformed, unsupported, and duplicate entries", () => {
     const malformed = [
-      [{ name: "TEST_SECRET" }],
-      [{ value: "value" }],
-      [{ name: "TEST_SECRET", value: "value", extra: true }],
+      [{ name: "TEST_SECRET", type: "secret" }],
+      [{ name: "TEST_SECRET", value: "value" }],
+      [{ name: "TEST_SECRET", value: "value", type: "string" }],
+      [{ name: "TEST_SECRET", value: "value", type: "secret", extra: true }],
     ];
     malformed.forEach((entries) => {
       expect(() => parseSecretEntries(entries)).toThrow();
       expect(() => parseArchivedSecretEntries(entries)).toThrow();
     });
-    const duplicate = [
-      { name: "TEST_SECRET", value: "first" },
-      { name: "TEST_SECRET", value: "second" },
-    ];
+    const duplicate = [secret("TEST_SECRET", "first"), secret("TEST_SECRET", "second")];
     expect(() => parseSecretEntries(duplicate)).toThrow("duplicate");
     expect(() => parseArchivedSecretEntries(duplicate)).toThrow("duplicate");
   });
 
   test("keeps active and archived parsers aligned for valid entries", () => {
-    const entries = [
-      { name: "FIRST_SECRET", value: "first value" },
-      { name: "SECOND_SECRET", value: "second value" },
-    ];
+    const entries = [secret("FIRST_SECRET", "first value"), secret("SECOND_SECRET", "second value")];
     expect(parseArchivedSecretEntries(entries)).toEqual(parseSecretEntries(entries));
   });
 });

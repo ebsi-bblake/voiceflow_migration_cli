@@ -147,7 +147,7 @@ export async function main(
   sourceVersionID: string,
   destinationWorkspaceID: string,
   destinationFolderID: string,
-  targetSchemaVersion = "13.1",
+  targetSchemaVersion,
   confirmed = false,
   secretFileContents?: unknown,
 ): Promise<Envelope<ExecuteResult>> {

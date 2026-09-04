@@ -239,9 +239,9 @@ export const selectDestinationSelection: SelectDestinationSelection = async (
     listFoldersParameters(destinationWorkspaceID),
     "destination_folder_id (Destination folder)",
   );
-  const configuredSchemaVersion = context.migrationConfig?.targetSchemaVersion;
-  const targetSchemaVersion =
-    configuredSchemaVersion ??
-    ((await reader.ask("target_schema_version [13.1]: ")).trim() || "13.1");
-  return { destinationWorkspaceID, destinationFolderID, targetSchemaVersion };
+  return {
+    destinationWorkspaceID,
+    destinationFolderID,
+    targetSchemaVersion: context.migrationConfig?.targetSchemaVersion,
+  };
 };

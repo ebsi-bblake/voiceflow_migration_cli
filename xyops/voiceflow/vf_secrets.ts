@@ -19,20 +19,31 @@ const parseSecretEntryArray = (value: unknown): readonly SecretEntry[] => {
   return value.map((entry, index) => {
     const secret = parseSecretEntry(entry);
     if (names.has(secret.name))
-      throw new Error(`Secret entries contain duplicate name at index ${index}.`);
+      throw new Error(
+        `Secret entries contain duplicate name at index ${index}.`,
+      );
     names.add(secret.name);
     return secret;
   });
 };
 
+const isSecretType = (value: unknown): value is SecretEntry["type"] =>
+  value === "project" || value === "secret" || value === "url";
+
 const parseSecretEntry = (value: unknown): SecretEntry => {
-  if (!isRecord(value) || Object.keys(value).length !== 2)
-    throw new Error("Secret entries must contain only name and value fields.");
-  if (typeof value.name !== "string")
-    throw new Error("Secret entries must contain a string name.");
+  if (!isRecord(value) || Object.keys(value).length !== 3)
+    throw new Error(
+      "Secret entries must contain only name, value, and type fields.",
+    );
+  if (typeof value.name !== "string" || !value.name.trim())
+    throw new Error("Secret entries must contain a non-empty string name.");
   if (typeof value.value !== "string")
     throw new Error("Secret entries must contain a string value.");
-  return { name: value.name, value: value.value };
+  if (!isSecretType(value.type))
+    throw new Error(
+      "Secret entries must contain type project, secret, or url.",
+    );
+  return { name: value.name, value: value.value, type: value.type };
 };
 type ParseSecretEntriesJSON = (contents: string) => readonly SecretEntry[];
 export const parseSecretEntriesJSON: ParseSecretEntriesJSON = (contents) =>

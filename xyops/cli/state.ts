@@ -11,9 +11,7 @@ import type { MigrationState } from "./types";
 export type { MigrationState } from "./types";
 
 type InitialMigrationState = () => MigrationState;
-export const initialMigrationState: InitialMigrationState = () => ({
-  targetSchemaVersion: "13.1",
-});
+export const initialMigrationState: InitialMigrationState = () => ({});
 
 type SetStateValue = <K extends keyof MigrationState>(
   state: MigrationState,
@@ -56,7 +54,9 @@ export const stateSelection: StateSelection = (state) => ({
   sourceVersionID: requireStateValue(state, "sourceVersionID"),
   destinationWorkspaceID: requireStateValue(state, "destinationWorkspaceID"),
   destinationFolderID: requireStateValue(state, "destinationFolderID"),
-  targetSchemaVersion: requireStateValue(state, "targetSchemaVersion"),
+  ...(state.targetSchemaVersion === undefined
+    ? {}
+    : { targetSchemaVersion: state.targetSchemaVersion }),
 });
 
 type ChooseOptionValue = (

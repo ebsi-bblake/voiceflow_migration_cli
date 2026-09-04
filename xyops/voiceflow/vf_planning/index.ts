@@ -33,7 +33,9 @@ export const normalizeMigrationSelection: NormalizeMigrationSelection = (
   sourceVersionID: parseVersionID(input.sourceVersionID),
   destinationWorkspaceID: parseWorkspaceID(input.destinationWorkspaceID),
   destinationFolderID: parseFolderID(input.destinationFolderID),
-  targetSchemaVersion: parseSchemaVersion(input.targetSchemaVersion),
+  ...(input.targetSchemaVersion === undefined
+    ? {}
+    : { targetSchemaVersion: parseSchemaVersion(input.targetSchemaVersion) }),
 });
 
 type FindLabel = (options: readonly Option[], value: string) => string;

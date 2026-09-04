@@ -7,9 +7,14 @@ import { executeParameters, stateSelection } from "../xyops/cli/state";
 import { isEventParameterEntry } from "../xyops/cli/guards";
 
 const configPath = "/tmp/voiceflow-migration-config-test.json";
+const secretsPath = "/tmp/voiceflow-migration-secrets-test.json";
 
 describe("migration configuration contract", () => {
-  test("maps snake_case inputs and preserves configured secrets", async () => {
+  test("maps snake_case inputs and preserves the configured secrets path", async () => {
+    await Bun.write(secretsPath, JSON.stringify([
+      { name: "FIRST_SECRET", value: "FIRST_REDACTED", type: "secret" },
+      { name: "SECOND_SECRET", value: "SECOND_REDACTED", type: "secret" },
+    ]));
     await Bun.write(configPath, JSON.stringify({
       source_workspace_id: "source-workspace",
       source_project_id: "source-project",
@@ -17,10 +22,7 @@ describe("migration configuration contract", () => {
       destination_workspace_id: "destination-workspace",
       destination_folder_id: "destination-folder",
       target_schema_version: "13.1",
-      secrets: [
-        { name: "FIRST_SECRET", value: "FIRST_REDACTED" },
-        { name: "SECOND_SECRET", value: "SECOND_REDACTED" },
-      ],
+      secrets: secretsPath,
     }));
     await expect(readMigrationFileConfig(configPath)).resolves.toEqual({
       sourceWorkspaceID: "source-workspace",
@@ -29,10 +31,7 @@ describe("migration configuration contract", () => {
       destinationWorkspaceID: "destination-workspace",
       destinationFolderID: "destination-folder",
       targetSchemaVersion: "13.1",
-      secrets: [
-        { name: "FIRST_SECRET", value: "FIRST_REDACTED" },
-        { name: "SECOND_SECRET", value: "SECOND_REDACTED" },
-      ],
+      secrets: secretsPath,
     });
   });
 
@@ -131,12 +130,13 @@ describe("migration configuration contract", () => {
   });
 
   test("uses configured secrets without prompting for a path", async () => {
-    const secrets = [{ name: "TOKEN", value: "SECRET_VALUE" }];
+    const secrets = [{ name: "TOKEN", value: "SECRET_VALUE", type: "secret" }];
+    await Bun.write(secretsPath, JSON.stringify(secrets));
     const reader = {
       ask: async () => { throw new Error("unexpected prompt"); },
       close: () => undefined,
     };
-    await expect(readSecretsForMigration(reader, { secrets })).resolves.toEqual(secrets);
+    await expect(readSecretsForMigration(reader, { secrets: secretsPath })).resolves.toEqual(secrets);
   });
 
   test("preserves configured secret arrays in execute event parameters", () => {
@@ -173,7 +173,6 @@ describe("migration configuration contract", () => {
       ["sourceVersionID", "source_version_id"],
       ["destinationWorkspaceID", "destination_workspace_id"],
       ["destinationFolderID", "destination_folder_id"],
-      ["targetSchemaVersion", "target_schema_version"],
     ] as const;
     requiredFields.forEach(([field, configurationName]) => {
       expect(() => stateSelection({ ...completeState, [field]: undefined })).toThrow();
@@ -185,7 +184,7 @@ describe("migration configuration contract", () => {
     });
   });
 
-  test("prompts for a missing schema version and applies its default", async () => {
+  test("preserves an omitted schema version for artifact discovery", async () => {
     const calls: string[] = [];
     const context = {
       reader: {
@@ -200,9 +199,9 @@ describe("migration configuration contract", () => {
       },
     } as never;
     await expect(selectDestinationSelection(context)).resolves.toMatchObject({
-      targetSchemaVersion: "13.1",
+      targetSchemaVersion: undefined,
     });
-    expect(calls).toEqual(["target_schema_version [13.1]: "]);
+    expect(calls).toEqual([]);
   });
 
   test("does not prompt when all migration values are configured", async () => {

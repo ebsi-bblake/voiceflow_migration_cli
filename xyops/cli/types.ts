@@ -5,7 +5,7 @@ export type MigrationSelection = Readonly<{
   sourceVersionID: string;
   destinationWorkspaceID: string;
   destinationFolderID: string;
-  targetSchemaVersion: string;
+  targetSchemaVersion?: string;
 }>;
 export type MigrationPlan = Readonly<{
   planID: string;
@@ -128,7 +128,11 @@ export type ExecuteResult = Readonly<{
   imported: Readonly<{ projectID: string; [key: string]: unknown }>;
   apiKeyRetrieved: boolean;
 }>;
-export type SecretEntry = Readonly<{ name: string; value: string }>;
+export type SecretEntry = Readonly<{
+  name: string;
+  value: string;
+  type: "project" | "secret" | "url";
+}>;
 export type SecretEntries = readonly SecretEntry[];
 export type EventParameterValue = string | boolean | SecretEntries;
 export type EventParameters = Readonly<Record<string, EventParameterValue>>;
@@ -161,7 +165,7 @@ export type MigrationState = Readonly<{
   sourceVersionID?: string;
   destinationWorkspaceID?: string;
   destinationFolderID?: string;
-  targetSchemaVersion: string;
+  targetSchemaVersion?: string;
   planID?: string;
 }>;
 export const CliDiagnosticCode = {

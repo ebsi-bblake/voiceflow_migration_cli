@@ -57,7 +57,7 @@ export type MigrationSelection = Readonly<{
   sourceVersionID: string;
   destinationWorkspaceID: string;
   destinationFolderID: string;
-  targetSchemaVersion: string;
+  targetSchemaVersion?: string;
 }>;
 export type MigrationPlan = Readonly<{
   planID: string;
@@ -79,7 +79,11 @@ export type ImportedReceipt = Readonly<{
   folderID?: string;
 }>;
 export type AuthContext = Readonly<{ token: string; creatorID: string }>;
-export type SecretEntry = Readonly<{ name: string; value: string }>;
+export type SecretEntry = Readonly<{
+  name: string;
+  value: string;
+  type: "project" | "secret" | "url";
+}>;
 export type ApiKeyDiagnostic = Readonly<{ code: string; message: string }>;
 export type ApiKeyStatus =
   | { readonly apiKeyRetrieved: true; readonly postImport?: never }

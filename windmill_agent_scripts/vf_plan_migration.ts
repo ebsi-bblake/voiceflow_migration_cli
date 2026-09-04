@@ -27,7 +27,7 @@ export async function main(
   sourceVersionID: string,
   destinationWorkspaceID: string,
   destinationFolderID: string,
-  targetSchemaVersion = "13.1",
+  targetSchemaVersion,
 ): Promise<Envelope<MigrationPlan>> {
   const id = crypto.randomUUID();
   const selection: MigrationSelection = {

@@ -55,7 +55,7 @@ export type MigrationSelection = {
   sourceVersionID: string;
   destinationWorkspaceID: string;
   destinationFolderID: string;
-  targetSchemaVersion: string;
+  targetSchemaVersion?: string;
 };
 export type MigrationPlan = {
   planID: string;
@@ -69,9 +69,11 @@ export type MigrationPlan = {
   };
 };
 export type SecretEntry = {
+  type: "project" | "secret" | "url";
   name: string;
   value: string;
 };
+
 export type ImportedReceipt = {
   importStatus: number;
   importBytes: number;
@@ -120,7 +122,7 @@ export function toOperationError(error: unknown): OperationError {
 }
 
 export function success<T>(
-  operation: string,
+  operation: VoiceflowOperation,
   operationID: string,
   result: T,
   warnings: Warning[] = [],
@@ -129,7 +131,7 @@ export function success<T>(
 }
 
 export function failure(
-  operation: string,
+  operation: VoiceflowOperation,
   operationID: string,
   error: unknown,
 ): Failure {

@@ -10,8 +10,6 @@ import {
   parseWorkspaceID,
 } from "../voiceflow/vf_validation";
 import type {
-  SecretEntries,
-  SecretEntry,
   XYOpsConfig,
   XYOpsEventConfig,
   XYOpsEventReference,
@@ -30,7 +28,8 @@ export type MigrationFileConfig = Readonly<{
   destinationWorkspaceID?: string;
   destinationFolderID?: string;
   targetSchemaVersion?: string;
-  secrets?: SecretEntries;
+  /** Filesystem path to a JSON array of project secrets. */
+  secrets?: string;
 }>;
 
 export const DEFAULT_HTTP_TIMEOUT_MS = 15_000;
@@ -298,44 +297,8 @@ const parseConfigString: ParseConfigString = (value, key) => {
 
 type ConfigFieldParser = (value: unknown) => string;
 
-type ReadSecretRecord = (entry: unknown, index: number) => ConfigFileRecord;
-const readSecretRecord: ReadSecretRecord = (entry, index) => {
-  if (!isRecord(entry))
-    throw fail("configuration", { nextAction: `secrets[${index}] must be an object.` });
-  return entry;
-};
-type ReadSecretProperty = (entry: ConfigFileRecord, index: number, property: "name" | "value") => string;
-const readSecretProperty: ReadSecretProperty = (entry, index, property) => {
-  if (typeof entry[property] !== "string" || (property === "name" && !entry[property].trim()))
-    throw fail("configuration", { nextAction: `secrets[${index}].${property} must be a ${property === "name" ? "non-empty " : ""}string.` });
-  return entry[property];
-};
-type ParseSecretEntry = (entry: unknown, index: number, names: Set<string>) => SecretEntry;
-const parseSecretEntry: ParseSecretEntry = (entry, index, names) => {
-  const record = readSecretRecord(entry, index);
-  const keys = Object.keys(record);
-  const unsupportedKey = keys.find((key) => key !== "name" && key !== "value");
-  if (unsupportedKey !== undefined)
-    throw fail("configuration", { nextAction: `secrets[${index}] contains unsupported property '${unsupportedKey}'.` });
-  const name = readSecretProperty(record, index, "name");
-  const value = readSecretProperty(record, index, "value");
-  if (keys.length !== 2)
-    throw fail("configuration", { nextAction: `secrets[${index}] must contain name and value fields.` });
-  if (names.has(name))
-    throw fail("configuration", { nextAction: `secrets[${index}] duplicates an earlier secret name.` });
-  names.add(name);
-  return { name, value };
-};
-
-type ParseConfigSecrets = (value: unknown) => SecretEntries;
-const parseConfigSecrets: ParseConfigSecrets = (value) => {
-  if (!Array.isArray(value))
-    throw fail("configuration", {
-      nextAction: "secrets must be an array of objects with string name and value fields.",
-    });
-  const names = new Set<string>();
-  return value.map((entry, index) => parseSecretEntry(entry, index, names));
-};
+type ReadSecretPath = (value: unknown) => string;
+const readSecretPath: ReadSecretPath = (value) => parseConfigString(value, "secrets");
 
 type MigrationStringField = readonly [
   input: string,
@@ -375,7 +338,7 @@ const parseMigrationFileConfig: ParseMigrationFileConfig = (value) => {
     });
   return {
     ...parseConfiguredStrings(value),
-    ...(value.secrets === undefined ? {} : { secrets: parseConfigSecrets(value.secrets) }),
+    ...(value.secrets === undefined ? {} : { secrets: readSecretPath(value.secrets) }),
   };
 };
 

@@ -68,7 +68,7 @@ Follow this sequence: session check -> discovery -> plan -> human confirmation
 -> execute. `confirmed` is a cooperative policy signal, not server-enforced
 approval. Use `runScriptByPath` in production; preview is for testing only.
 `secretFileContents` is optional and should be a JSON array of objects with
-string `name` and `value` fields, for example `[{ "name": "theKey", "value": "theval" }]`.
+`name` and `value` strings plus a `type` of `project`, `secret`, or `url`, for example `[{ "name": "theKey", "value": "theval", "type": "secret" }]`.
 Secret values must not be logged. The active CLI reads the local top-level
 configuration object described in [`../docs/migration-config.md`](../docs/migration-config.md)
 before invoking the native XYOps event; this Windmill contract is retained for

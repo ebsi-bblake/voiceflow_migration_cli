@@ -25,6 +25,7 @@ import {
 import { readMigrationPlan } from "./planning";
 import { confirmAndExecuteMigration, displayPlan } from "./execution";
 import { readSecretsForMigration } from "./secret-input";
+import { progress } from "../progress";
 
 type PrintHelp = () => void;
 const printHelp: PrintHelp = () => {
@@ -33,7 +34,7 @@ const printHelp: PrintHelp = () => {
     "Interactively plan and execute a Voiceflow migration through XYOps.",
     `Local configuration: XYOPS_API_KEY=<key> (required), XYOPS_BASE_URL=<url> (default: ${DEFAULT_XYOPS_BASE_URL}).`,
     "Optional --config=<JSON-file> supplies migration IDs, schema version, and project secrets.",
-    'Config format: { "source_workspace_id": "...", "target_schema_version": "13.1", "secrets": [{ "name": "EXAMPLE_SECRET", "value": "REDACTED" }] }.',
+    'Config format: { "source_workspace_id": "...", "target_schema_version": "13.1", "secrets": "./secrets.json" }.',
     "Configured values bypass their prompts; missing values are selected interactively.",
     "Optional XYOPS_EVENT_* overrides accept title:<event-title> or id:<event-id>.",
     "Default event titles must match the configured XYOps Event titles.",
@@ -52,10 +53,12 @@ const requireActiveSession = (active: boolean): void => {
 type PerformMigration = (context: MigrationContext) => Promise<void>;
 const performMigration: PerformMigration = async (context) => {
   const { client, config } = context;
-  const sessionResponse = await client.readEvent(
-    config.events.checkSession,
-    eventParametersFor("check_session"),
-    isVoiceflowEnvelope(isCheckSessionResult),
+  const sessionResponse = await progress.run("check_session", () =>
+    client.readEvent(
+      config.events.checkSession,
+      eventParametersFor("check_session"),
+      isVoiceflowEnvelope(isCheckSessionResult),
+    ),
   );
   requireActiveSession(
     requireEnvelopeResult(
@@ -66,22 +69,33 @@ const performMigration: PerformMigration = async (context) => {
   );
   const state: MigrationState = {
     ...initialMigrationState(),
-    ...(await selectSourceSelection(context)),
-    ...(await selectDestinationSelection(context)),
+    ...(await progress.run("select_source", () =>
+      selectSourceSelection(context),
+    )),
+    ...(await progress.run("select_destination", () =>
+      selectDestinationSelection(context),
+    )),
   };
   const selection = stateSelection(state);
-  await validateConfiguredMigrationValues(context, selection);
-  const secretFileContents = await readSecretsForMigration(
-    context.reader,
-    context.migrationConfig,
+  await progress.run("validate_selection", () =>
+    validateConfiguredMigrationValues(context, selection),
   );
-  const plan = await readMigrationPlan(context, selection);
+  const secretFileContents = await progress.run(
+    "load_secrets",
+    () =>
+      readSecretsForMigration(context.reader, context.migrationConfig),
+  );
+  const plan = await progress.run("plan_migration", () =>
+    readMigrationPlan(context, selection),
+  );
   displayPlan(plan);
-  await confirmAndExecuteMigration(
-    context,
-    selection,
-    plan.planID,
-    secretFileContents,
+  await progress.run("execute_migration", () =>
+    confirmAndExecuteMigration(
+      context,
+      selection,
+      plan.planID,
+      secretFileContents,
+    ),
   );
 };
 
