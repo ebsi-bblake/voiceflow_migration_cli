@@ -117,7 +117,11 @@ export function retrieveProjectAPIKeyValue(
     url: `https://identity-api.empyrean.voiceflow.com/v1alpha1/api-key/legacy/project/${encodeURIComponent(projectID)}`,
     init: {
       method: "POST",
-      headers: { Authorization: `Bearer ${auth.token}` },
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${auth.token}`,
+      },
+      body: null,
     },
     maxBytes: 1_048_576,
     timeoutMs: 30_000,

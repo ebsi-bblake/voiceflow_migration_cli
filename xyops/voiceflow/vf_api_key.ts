@@ -116,7 +116,11 @@ const retrieveValidatedApiKey = async (
     url: `${VOICEFLOW_IDENTITY_ORIGIN}/v1alpha1/api-key/legacy/project/${encodePathSegment(id)}`,
     init: {
       method: "POST",
-      headers: { Authorization: `Bearer ${auth.token}` },
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${auth.token}`,
+      },
+      body: null,
     },
     maxBytes: 1_048_576,
     timeoutMs: 30_000,
