@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${VOICEFLOW_TOKEN:?Set VOICEFLOW_TOKEN to a Voiceflow bearer token}"
+: "${VOICEFLOW_JWT:?Set VOICEFLOW_JWT to the Voiceflow JWT}"
 : "${PROJECT_ID:?Set PROJECT_ID to the project ID to test}"
 
 endpoint="https://identity-api.empyrean.voiceflow.com/v1alpha1/api-key/legacy/project/${PROJECT_ID}"
@@ -12,7 +12,7 @@ status="$(curl --silent --show-error \
   --output "$response_file" \
   --write-out '%{http_code}' \
   --request POST \
-  --header "Authorization: Bearer ${VOICEFLOW_TOKEN}" \
+  --header "Authorization: Bearer ${VOICEFLOW_JWT}" \
   --header 'Accept: application/json' \
   "$endpoint")"
 
