@@ -30,21 +30,27 @@ export type PluginValidationCode =
   | "MISSING_SECRET"
   | "UNKNOWN_OPERATION";
 type PluginEnvelope = Envelope<unknown>;
+
 type CheckSessionHandler = (token: string) => Promise<PluginEnvelope>;
+
 type ListWorkspacesHandler = (token: string) => Promise<PluginEnvelope>;
+
 type ListProjectsHandler = (
   token: string,
   sourceWorkspaceID: string,
 ) => Promise<PluginEnvelope>;
+
 type ListVersionsHandler = (
   token: string,
   sourceWorkspaceID: string,
   sourceProjectID: string,
 ) => Promise<PluginEnvelope>;
+
 type ListFoldersHandler = (
   token: string,
   destinationWorkspaceID: string,
 ) => Promise<PluginEnvelope>;
+
 type PlanMigrationHandler = (
   token: string,
   sourceWorkspaceID: string,
@@ -54,6 +60,7 @@ type PlanMigrationHandler = (
   destinationFolderID: string,
   targetSchemaVersion?: string,
 ) => Promise<PluginEnvelope>;
+
 type ExecuteMigrationHandler = (
   token: string,
   planID: string,
@@ -68,13 +75,13 @@ type ExecuteMigrationHandler = (
 ) => Promise<PluginEnvelope>;
 
 export type OperationHandlers = Readonly<{
-  readonly "check_session": CheckSessionHandler;
-  readonly "list_workspaces": ListWorkspacesHandler;
-  readonly "list_projects": ListProjectsHandler;
-  readonly "list_versions": ListVersionsHandler;
-  readonly "list_folders": ListFoldersHandler;
-  readonly "plan_migration": PlanMigrationHandler;
-  readonly "execute_migration": ExecuteMigrationHandler;
+  readonly check_session: CheckSessionHandler;
+  readonly list_workspaces: ListWorkspacesHandler;
+  readonly list_projects: ListProjectsHandler;
+  readonly list_versions: ListVersionsHandler;
+  readonly list_folders: ListFoldersHandler;
+  readonly plan_migration: PlanMigrationHandler;
+  readonly execute_migration: ExecuteMigrationHandler;
 }>;
 
 export type PluginInputChunk = Uint8Array | string;

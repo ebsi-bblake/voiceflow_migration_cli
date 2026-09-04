@@ -9,4 +9,3 @@ export const PluginOperation = {
 } as const;
 
 export const supportedPluginOperations = Object.values(PluginOperation);
-
