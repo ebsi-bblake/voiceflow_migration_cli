@@ -131,7 +131,7 @@ export type ExecuteResult = Readonly<{
 export type SecretEntry = Readonly<{
   name: string;
   value: string;
-  type: "project" | "secret" | "url";
+  type: "project_api_key" | "secret" | "url";
 }>;
 export type SecretEntries = readonly SecretEntry[];
 export type EventParameterValue = string | boolean | SecretEntries;

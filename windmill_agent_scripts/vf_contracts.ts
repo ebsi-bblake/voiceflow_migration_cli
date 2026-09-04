@@ -69,7 +69,7 @@ export type MigrationPlan = {
   };
 };
 export type SecretEntry = {
-  type: "project" | "secret" | "url";
+  type: "project_api_key" | "secret" | "url";
   name: string;
   value: string;
 };

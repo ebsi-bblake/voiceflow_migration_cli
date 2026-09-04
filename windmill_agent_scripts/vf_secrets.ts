@@ -21,12 +21,12 @@ function parseSecretEntryArray(value: unknown): SecretEntry[] {
     if (typeof entryValue.value !== "string")
       throw new Error("Secret entries must contain a string value.");
     if (
-      entryValue.type !== "project" &&
+      entryValue.type !== "project_api_key" &&
       entryValue.type !== "secret" &&
       entryValue.type !== "url"
     )
       throw new Error(
-        "Secret entries must contain type project, secret, or url.",
+        "Secret entries must contain type project_api_key, secret, or url.",
       );
     if (names.has(entryValue.name))
       throw new Error(

@@ -82,7 +82,7 @@ export type AuthContext = Readonly<{ token: string; creatorID: string }>;
 export type SecretEntry = Readonly<{
   name: string;
   value: string;
-  type: "project" | "secret" | "url";
+  type: "project_api_key" | "secret" | "url";
 }>;
 export type ApiKeyDiagnostic = Readonly<{ code: string; message: string }>;
 export type ApiKeyStatus =
