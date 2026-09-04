@@ -4,8 +4,6 @@ The active deployment is the native XYOps Event Plugin under `xyops/plugin/`.
 
 Versioning is independent: `package.json.version` is the CLI and GitHub release
 version, while `package.json.pluginVersion` is the deployed XYOps plugin version.
-Supported CLI/plugin pairs are recorded in [`version-compatibility.json`](version-compatibility.json).
-Update that matrix whenever either artifact changes compatibility.
 It is a command-line executable launched by xySat on the target server. The
 Voiceflow operation implementations remain under `xyops/voiceflow/`; the
 Docker image/container runner is not the active deployment.
